@@ -184,3 +184,16 @@ def test_cli_reports_invalid_templates(tmp_path, capsys) -> None:
     assert "dpm-synth-template/1" in capsys.readouterr().err
     with pytest.raises(TemplateError):
         load_template({"format": "dpm-synth-template/1", "release": "4.3"})
+
+
+def test_scaled_package_repeats_solved_rows_under_unique_keys(tmp_path) -> None:
+    path = tmp_path / "scaled.zip"
+    arguments = ["generate", str(_write(tmp_path)), "-o", str(path)]
+    assert main([*arguments, "--seed", "5", "--scale-rows", "50"]) in (0, 1)
+    report = read_report(path)
+    lei_rows = [fact for fact in report.facts if fact.template == "b_01.01"]
+    # Typed keys get one fresh value per row; enumerated keys cap the rows.
+    assert len({fact.keys["c0010"] for fact in lei_rows}) == 50
+    keyed = [fact for fact in report.facts if fact.template == "c_07.00.a"]
+    assert {fact.keys["qEBB"] for fact in keyed} == {"eba_qEC:qx16", "eba_qEC:qx23"}
+    assert report.reference_date.isoformat() == "2026-12-31"

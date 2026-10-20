@@ -12,6 +12,7 @@ from pathlib import Path
 from xbrlreport import write_xbrl_csv
 
 from .generator import generate, summarize
+from .scale import write_scaled_package
 from .template import TemplateError, load_template
 
 
@@ -32,6 +33,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     run.add_argument("--seed", type=int, default=0)
     run.add_argument("--open-rows", type=int, default=2, help="key rows per open table")
     run.add_argument("--max-rounds", type=int, default=40)
+    run.add_argument(
+        "--scale-rows",
+        type=int,
+        help="after solving, write every open table with this many key rows "
+        "(load testing; rules over open-table totals will fail)",
+    )
     run.add_argument("--reference-date", type=date.fromisoformat)
     run.add_argument("--entity", default="SYNTHETICDPMXL000002", help="LEI")
     run.add_argument("--level", choices=("CON", "IND"), default="CON")
@@ -51,7 +58,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         reporting_level=arguments.level,
         reference_date=arguments.reference_date,
     )
-    write_xbrl_csv(result.report, arguments.output)
+    if arguments.scale_rows is None:
+        write_xbrl_csv(result.report, arguments.output)
+        facts = len(result.report.facts)
+    else:
+        written = write_scaled_package(
+            template,
+            result.data,
+            arguments.output,
+            rows=arguments.scale_rows,
+            entity=arguments.entity,
+            reporting_level=arguments.level,
+            reference_date=arguments.reference_date,
+        )
+        facts = sum(written.values())
     if arguments.json:
         print(
             json.dumps(
@@ -64,7 +84,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                     "rounds": result.rounds,
                     "history": result.history,
                     "repairs": result.repairs,
-                    "facts": len(result.report.facts),
+                    "facts": facts,
                 },
                 indent=2,
             )
@@ -72,7 +92,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     else:
         for line in summarize(result):
             print(line)
-        print(f"wrote {arguments.output}")
+        print(f"wrote {arguments.output} ({facts} facts)")
     return 1 if result.failed else 0
 
 

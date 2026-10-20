@@ -1,6 +1,7 @@
 """Generate synthetic EBA reports that satisfy DPM-XL validation rules."""
 
 from .generator import GenerationResult, SyntheticData, build_report, generate
+from .scale import write_scaled_package
 from .template import (
     TEMPLATE_FORMAT,
     ModuleTemplate,
@@ -25,4 +26,5 @@ __all__ = [
     "build_report",
     "generate",
     "load_template",
+    "write_scaled_package",
 ]
