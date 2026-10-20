@@ -66,7 +66,7 @@ template format already carries everything such a solver needs.
 `filing_indicator`, `open_keys[]` with `code`, `column`, `items`, and
 `cells[]` with `id`, `row`, `column`, `sheet`, `datapoint`, `data_type`,
 `items`) and `rules[]` (`source`, `code`, `expression`, `precondition`). See
-`dpmsynth/template.py` for the full description.
+`src/dpmsynth/template.py` for the full description.
 
 ## CLI
 
