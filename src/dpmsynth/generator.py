@@ -38,6 +38,7 @@ from dpmxl import (
     Value,
     axis_matches,
     evaluate_rule,
+    iter_points,
     parse,
 )
 from dpmxl.ast import (
@@ -348,7 +349,7 @@ class _Repairer:
         return [
             point
             for record in self.evaluation.value_at(node, self.key)
-            for point in record.points
+            for point in iter_points(record.points)
         ]
 
     def fix(self, node: Node, desired: bool) -> bool:
@@ -702,7 +703,7 @@ def _definitions(
                     inputs.setdefault(rule.code, set()).update(
                         point.ref
                         for record in used.records.values()
-                        for point in record.points
+                        for point in iter_points(record.points)
                     )
                 break
     _order_by_depth(parsed, owners, inputs)
@@ -756,7 +757,7 @@ def _record_bounds(node: Node, evaluation: Evaluation, data: SyntheticData) -> N
     if recordset is None:
         return
     for record in recordset.records.values():
-        for point in record.points:
+        for point in iter_points(record.points):
             lower, upper = data.bounds.get(cast(Slot, point.ref), (None, None))
             if op in {">=", ">"}:
                 bound = constant.value + (1 if op == ">" else 0)
