@@ -183,6 +183,8 @@ version = "0.1.0"
 source = { editable = "../dpm-xl" }
 
 [package.metadata]
+requires-dist = [{ name = "polars", marker = "extra == 'columnar'", specifier = ">=2.0,<3" }]
+provides-extras = ["columnar"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -394,6 +396,8 @@ version = "0.1.0"
 source = { editable = "../xbrl-report" }
 
 [package.metadata]
+requires-dist = [{ name = "polars", marker = "extra == 'frames'", specifier = ">=2.0,<3" }]
+provides-extras = ["frames"]
 
 [package.metadata.requires-dev]
 dev = [
