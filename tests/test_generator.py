@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 from dpmxl import Item, Number, evaluate_rule
-from xbrlreport import read_report
+from dpmxbrl import read_report
 
 from dpmsynth import TemplateError, generate, load_template
 from dpmsynth.cli import main

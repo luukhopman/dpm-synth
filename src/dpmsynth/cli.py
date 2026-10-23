@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from datetime import date
 from pathlib import Path
 
-from xbrlreport import write_xbrl_csv
+from dpmxbrl import write_xbrl_csv
 
 from .generator import generate, summarize
 from .scale import write_scaled_package

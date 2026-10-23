@@ -55,7 +55,7 @@ from dpmxl.ast import (
     With,
     walk,
 )
-from xbrlreport import Fact, Report
+from dpmxbrl import Fact, Report
 
 from .template import ModuleTemplate, TemplateCell, TemplateTable
 

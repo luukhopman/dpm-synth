@@ -18,7 +18,7 @@ classifiers = [
     "Topic :: Office/Business :: Financial",
     "Typing :: Typed",
 ]
-dependencies = ["dpm-xl>=0.1,<0.2", "xbrl-report>=0.1,<0.2"]
+dependencies = ["dpm-xl>=0.1,<0.2", "dpm-xbrl>=0.1,<0.2"]
 
 [project.scripts]
 dpm-synth = "dpmsynth.cli:main"
@@ -68,4 +68,4 @@ branch = true
 
 [tool.uv.sources]
 dpm-xl = { path = "../dpm-xl", editable = true }
-xbrl-report = { path = "../xbrl-report", editable = true }
+dpm-xbrl = { path = "../dpm-xbrl", editable = true }

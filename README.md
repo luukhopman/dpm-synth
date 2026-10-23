@@ -14,7 +14,7 @@ dpm-synth generate corep_of.json -o corep_of.zip --seed 7
 # rounds: 16 (failing rules per round: [703, 200, 133, …])
 ```
 
-Depends on [`dpm-xl`](../dpm-xl) (evaluation) and [`xbrl-report`](../xbrl-report)
+Depends on [`dpm-xl`](../dpm-xl) (evaluation) and [`dpm-xbrl`](../dpm-xbrl)
 (writing the package). The same seed and template always give the same report.
 
 ## How it works
