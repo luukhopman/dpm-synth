@@ -200,3 +200,5 @@ def test_scaled_package_repeats_solved_rows_under_unique_keys(tmp_path) -> None:
     keyed = [fact for fact in report.facts if fact.template == "c_07.00.a"]
     assert {fact.keys["qEBB"] for fact in keyed} == {"eba_qEC:qx16", "eba_qEC:qx23"}
     assert report.reference_date.isoformat() == "2026-12-31"
+    assert report.entity_scheme == "https://eurofiling.info/eu/rs"
+    assert report.entity_id == "SYNTHETICDPMXL000002.CON"

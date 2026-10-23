@@ -125,7 +125,9 @@ def write_scaled_package(
         parameters = io.StringIO()
         writer = csv.writer(parameters, lineterminator="\n")
         writer.writerow(["name", "value"])
-        writer.writerow(["entityID", f"lei:{entity}.{reporting_level}"])
+        # A subject with a suffix uses the reporting-subject scheme (EBA
+        # filing rule 3.6).
+        writer.writerow(["entityID", f"rs:{entity}.{reporting_level}"])
         writer.writerow(["refPeriod", reference.isoformat()])
         writer.writerow(["baseCurrency", "iso4217:EUR"])
         names = {
