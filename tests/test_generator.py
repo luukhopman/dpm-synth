@@ -157,6 +157,9 @@ def test_report_is_deterministic_and_round_trips(tmp_path) -> None:
     )
     read = read_report(path)
     assert read.entity_id == "SYNTHETICDPMXL000002.CON"
+    # A suffixed subject takes the reporting-subject scheme (EBA rule 3.6).
+    assert read.entity_scheme == "https://eurofiling.info/eu/rs"
+    assert not [item for item in read.filing if item.rule in {"2.8", "3.6"}]
     assert len(read.facts) == len(report.facts)
     assert {fact.datapoint for fact in read.facts} == {
         fact.datapoint for fact in report.facts

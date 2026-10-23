@@ -817,7 +817,9 @@ def build_report(
     return Report(
         format="xbrl-csv",
         entry_point=template.entry_point,
-        entity_scheme="http://standards.iso.org/iso/17442",
+        # A subject with a suffix uses the reporting-subject scheme (EBA
+        # filing rule 3.6).
+        entity_scheme="https://eurofiling.info/eu/rs",
         entity_id=f"{entity}.{reporting_level}",
         reference_date=template.reference_date or date(2026, 12, 31),
         base_currency="iso4217:EUR",
@@ -832,7 +834,7 @@ def build_report(
         ),
         facts=tuple(facts),
         namespaces={
-            "lei": "http://standards.iso.org/iso/17442",
+            "rs": "https://eurofiling.info/eu/rs",
             "iso4217": "http://www.xbrl.org/2003/iso4217",
         },
     )
