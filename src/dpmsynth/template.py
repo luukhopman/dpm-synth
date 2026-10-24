@@ -1,7 +1,9 @@
 """Module templates: the tables, cells and rules a synthetic report must satisfy.
 
 A template is plain JSON so that any DPM source can produce one; a DPM tool
-writes it with ``dpm-export``. Shape::
+writes it with ``dpm-export``. Shape:
+
+.. code-block:: json
 
     {
       "format": "dpm-synth-template/1",
