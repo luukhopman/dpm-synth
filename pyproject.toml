@@ -11,10 +11,13 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Luuk Hopman", email = "github@luukhopman.nl" }]
-keywords = ["DPM", "DPM-XL", "EBA", "XBRL", "xBRL-CSV", "test data", "synthetic data"]
+keywords = ["DPM", "DPM-XL", "EBA", "XBRL", "xBRL-CSV", "test data", "synthetic data", "dpm-toolkit"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
     "Intended Audience :: Financial and Insurance Industry",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
@@ -23,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: 3.15",
     "Topic :: Office/Business :: Financial",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Testing",
     "Typing :: Typed",
 ]
@@ -30,10 +34,10 @@ dependencies = ["dpm-xl>=1.0,<2", "dpm-xbrl>=1.0,<2"]
 
 [project.urls]
 Homepage = "https://github.com/luukhopman/dpm-synth"
+Documentation = "https://luukhopman.github.io/dpm-synth/"
 Source = "https://github.com/luukhopman/dpm-synth"
 Issues = "https://github.com/luukhopman/dpm-synth/issues"
 Changelog = "https://github.com/luukhopman/dpm-synth/blob/main/CHANGELOG.md"
-Documentation = "https://luukhopman.github.io/dpm-synth/"
 
 [project.scripts]
 dpm-synth = "dpmsynth.cli:main"
