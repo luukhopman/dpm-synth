@@ -86,8 +86,8 @@ def _entity(text: str) -> str:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dpm-synth",
-        description="Generate synthetic EBA xBRL-CSV reports that satisfy a "
-        "module's DPM-XL validation rules.",
+        description="Generate synthetic EBA xBRL-CSV reports that satisfy a module's\n"
+        "DPM-XL validation rules.",
         epilog=_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -107,9 +107,12 @@ def _parser() -> argparse.ArgumentParser:
         "--output",
         type=Path,
         required=True,
+        metavar="ZIP",
         help="report package to write (.zip)",
     )
-    run.add_argument("--seed", type=int, default=0, help="random seed (default 0)")
+    run.add_argument(
+        "--seed", type=int, default=0, metavar="N", help="random seed (default 0)"
+    )
     run.add_argument(
         "--open-rows",
         type=_whole(1),
