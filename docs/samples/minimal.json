@@ -1,0 +1,27 @@
+{
+  "format": "dpm-synth-template/1",
+  "release": "1.0",
+  "module": "DEMO",
+  "entry_point": "https://example.com/taxonomy/demo/1.0/mod/demo.json",
+  "reference_date": "2026-12-31",
+  "tables": [
+    {
+      "code": "T_01.00",
+      "cells": [
+        {"id": "T_01.00/r0010", "row": "0010", "column": "0010", "datapoint": "dp1001", "data_type": "m"},
+        {"id": "T_01.00/r0020", "row": "0020", "column": "0010", "datapoint": "dp1002", "data_type": "m"},
+        {"id": "T_01.00/r0030", "row": "0030", "column": "0010", "datapoint": "dp1003", "data_type": "m"}
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "code": "v1",
+      "expression": "with {tT_01.00, c0010, default: 0, interval: true}: {r0010} = {r0020} + {r0030}"
+    },
+    {
+      "code": "v2",
+      "expression": "with {tT_01.00, c0010}: {(r0020, r0030)} >= 0"
+    }
+  ]
+}
