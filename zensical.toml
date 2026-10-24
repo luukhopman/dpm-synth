@@ -1,0 +1,141 @@
+# Documentation site: `uv run python scripts/build_docs.py` builds it into
+# site/ (strict) and adds llms.txt, llms-full.txt and a Markdown copy of
+# every page; `uv run zensical serve` previews it.
+
+[project]
+site_name = "dpm-synth"
+site_description = "Generate synthetic EBA xBRL-CSV reports that satisfy a module's DPM-XL validation rules"
+site_url = "https://luukhopman.github.io/dpm-synth/"
+site_author = "Luuk Hopman"
+repo_url = "https://github.com/luukhopman/dpm-synth"
+repo_name = "luukhopman/dpm-synth"
+edit_uri = "edit/main/docs/"
+copyright = "Copyright &copy; 2026 Luuk Hopman. Not affiliated with or endorsed by the European Banking Authority."
+docs_dir = "docs"
+site_dir = "site"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Getting started" = "getting-started.md" },
+  { "How-to guides" = [
+    "guides/index.md",
+    { "Write a template by hand" = "guides/write-a-template.md" },
+    { "Generate from a DPM export" = "guides/dpm-export.md" },
+    { "Load-test with scaled packages" = "guides/load-testing.md" },
+    { "Reproduce a report with seeds" = "guides/reproducible-seeds.md" },
+    { "Validate the output with dpm-xbrl and dpm-xl" = "guides/validate-output.md" },
+  ] },
+  { "Concepts" = [
+    "concepts/index.md",
+    { "The evaluate-and-repair loop" = "concepts/repair-loop.md" },
+    { "Limits of the loop" = "concepts/limits.md" },
+  ] },
+  { "Reference" = [
+    "reference/index.md",
+    { "Template format" = "reference/template-format.md" },
+    { "CLI" = "reference/cli.md" },
+    { "Exit statuses" = "reference/exit-statuses.md" },
+    { "JSON output" = "reference/json-output.md" },
+    { "Python API" = "reference/api.md" },
+  ] },
+  { "AI agents" = "agents.md" },
+  { "Project" = [
+    { "Changelog" = "project/changelog.md" },
+    { "Stability and versioning" = "project/stability.md" },
+    { "Security" = "project/security.md" },
+    { "Contributing" = "project/contributing.md" },
+    { "Licence" = "project/licence.md" },
+  ] },
+]
+
+[project.theme]
+language = "en"
+logo = "assets/logo-header.svg"
+favicon = "assets/favicon.svg"
+features = [
+  "content.action.edit",
+  "content.code.copy",
+  "content.tabs.link",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.tabs",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+  "toc.follow",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "lucide/sun-moon"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to system preference"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/luukhopman/dpm-synth"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/python"
+link = "https://pypi.org/project/dpm-synth/"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+pymdownx.highlight.anchor_linenums = true
+pymdownx.highlight.pygments_lang_class = true
+pymdownx.inlinehilite = {}
+pymdownx.snippets.base_path = ["."]
+pymdownx.snippets.check_paths = true
+pymdownx.snippets.auto_append = ["docs/.snippets/links.md"]
+pymdownx.superfences = {}
+pymdownx.tabbed.alternate_style = true
+
+[project.plugins.search]
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.mkdocstrings.handlers.python.options]
+docstring_style = "google"
+docstring_section_style = "list"
+filters = "public"
+heading_level = 2
+members_order = "source"
+merge_init_into_class = true
+separate_signature = true
+show_if_no_docstring = true
+show_root_heading = true
+show_root_full_path = true
+show_signature_annotations = true
+show_source = false
+show_symbol_type_heading = true
+show_symbol_type_toc = true
+signature_crossrefs = true
