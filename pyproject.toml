@@ -116,8 +116,3 @@ branch = true
 url = "https://pypi.org/simple"
 default = true
 
-# dpm-xl and dpm-xbrl 1.0 are not on PyPI yet; until they are, both come from
-# their GitHub main branches. See AGENTS.md.
-[tool.uv.sources]
-dpm-xl = { git = "https://github.com/luukhopman/dpm-xl", branch = "main" }
-dpm-xbrl = { git = "https://github.com/luukhopman/dpm-xbrl", branch = "main" }
