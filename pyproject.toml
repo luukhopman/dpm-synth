@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "dpm-synth"
-version = "0.1.0"
+version = "1.0.0"
 description = "Generate synthetic EBA xBRL-CSV reports that satisfy a module's DPM-XL validation rules"
 readme = "README.md"
 license = "MIT"
