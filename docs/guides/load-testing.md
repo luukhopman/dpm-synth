@@ -22,8 +22,8 @@ wrote big.zip (100018 facts)
 
 The summary is that of the solved report; the scaled rows are not
 evaluated. Table `S_03.00`, keyed by LEIs, got 100,000 rows. Table
-`S_02.00.a` is keyed by an enumerated property with two allowed items, so
-it cannot have more than two distinct rows and keeps two. On a laptop, a
+`S_02.00.a` is keyed only by an enumerated property, so it keeps its two
+solved rows. On a laptop, a
 million rows take about six seconds and 35 MB of memory.
 
 ## From Python
@@ -66,16 +66,18 @@ print(len(report.facts), report.facts[-1].keys)
   10-digit row number and two ISO 17442 check digits, so they are unique,
   pass LEI validation and are visibly fictional. A table can have up to
   9,999,999,999 rows.
-- An enumerated key cycles through its allowed items. When every key of a
-  table is enumerated, the table gets at most as many rows as the item
-  combinations.
+- An enumerated key keeps the value of the solved row that the scaled row
+  repeats, so the scaled rows have the same mix of items as the solved
+  ones. When every key of a table is enumerated, the table keeps its solved
+  rows; generate with more `--open-rows` to have more item combinations.
 - Closed tables are written as generated.
 
 ## Which rules still hold
 
-Row-wise rules, such as "amount at most the exposure" within one row or a
-`match` on the key, hold on every scaled row, because each row repeats a
-solved one. Rules that add up an open table, such as "the sum over all
+Row-wise rules, such as "amount at most the exposure" within one row, a
+`match` on the key, or a rule on the rows with one enumerated key value
+(`[where CT = [eba_CT:x1]]`), hold on every scaled row, because each row
+repeats a solved one with its enumerated key values. Rules that add up an open table, such as "the sum over all
 counterparties equals the total in another table", are not re-solved and
 will fail: the totals are those of the solved rows. Use the scaled package
 to test volume, and the unscaled package to test validation results.

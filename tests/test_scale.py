@@ -91,11 +91,12 @@ def test_several_typed_and_enumerated_keys(tmp_path: Path) -> None:
     path = tmp_path / "keys.zip"
     assert write_scaled_package(data, path, rows=4) == {"T": 4}
     facts = read_report(path).facts
+    # Enumerated keys repeat the two generated rows' values.
     assert [fact.keys["qAB"] for fact in facts] == [
         "eba_AB:x1",
         "eba_AB:x2",
-        "eba_AB:x3",
         "eba_AB:x1",
+        "eba_AB:x2",
     ]
     assert [fact.keys["c0005"][:8] for fact in facts] == ["SYNTHABX"] * 4
     assert len({fact.keys["c0005"] for fact in facts}) == 4
@@ -108,3 +109,71 @@ def test_large_package_streams(tmp_path: Path, result) -> None:
     with zipfile.ZipFile(path) as archive:
         info = archive.getinfo("large/reports/s_03.00.csv")
         assert info.file_size > 4_000_000
+
+
+def test_rules_filtered_on_enumerated_keys_hold_on_scaled_rows(tmp_path: Path) -> None:
+    from dpmxl import evaluate_rule
+
+    from tests.support import PackageProvider
+
+    template = load_template(
+        {
+            "format": "dpm-synth-template/1",
+            "release": "1",
+            "module": "M",
+            "tables": [
+                {
+                    "code": "T",
+                    "open_keys": [
+                        {"code": "LEI"},
+                        {
+                            "code": "CT",
+                            "items": ["eba_CT:x1", "eba_CT:x2", "eba_CT:x3"],
+                        },
+                    ],
+                    "cells": [
+                        {
+                            "id": "a",
+                            "row": "*",
+                            "column": "0010",
+                            "datapoint": "dpA",
+                            "data_type": "m",
+                        }
+                    ],
+                }
+            ],
+            "rules": [
+                {
+                    "code": "x1",
+                    "expression": "with {tT, c0010}: {r*}[where CT = [eba_CT:x1]] >= 5000000",
+                },
+                {
+                    "code": "x2",
+                    "expression": "with {tT, c0010}: {r*}[where CT = [eba_CT:x2]] <= 10",
+                },
+            ],
+        }
+    )
+    result = generate(template, seed=1)
+    assert result.failed == []
+    path = tmp_path / "scaled.zip"
+    assert write_scaled_package(result.data, path, rows=6) == {"T": 6}
+    provider = PackageProvider(template, read_report(path))
+    for rule in template.rules:
+        outcome = evaluate_rule(rule.expression, provider)
+        assert outcome.status == "passed", rule.code
+        assert len(outcome.outcomes) == 3
+
+
+def test_only_enumerated_keys_keep_the_generated_rows(tmp_path: Path) -> None:
+    template = load_template(
+        document(
+            [cell("0010", "0010", 1)],
+            [],
+            open_keys=[
+                {"code": "qAB", "items": ["eba_AB:x1", "eba_AB:x2", "eba_AB:x3"]}
+            ],
+        )
+    )
+    data = generate(template, open_rows=3).data
+    assert write_scaled_package(data, tmp_path / "keys.zip", rows=100) == {"T": 3}

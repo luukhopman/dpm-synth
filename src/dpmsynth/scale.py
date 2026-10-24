@@ -16,14 +16,13 @@ from __future__ import annotations
 
 import csv
 import io
-import itertools
 import os
 import re
 import zipfile
 from collections.abc import Iterator, Mapping
 from dataclasses import replace
 from pathlib import Path
-from typing import IO
+from typing import IO, Any
 
 from dpmxbrl import write_xbrl_csv
 
@@ -36,43 +35,42 @@ _PREFIX = re.compile(r"[^A-Z0-9]")
 _MAX_ROWS = 10**10 - 1
 
 
-def _key_values(
-    table: TemplateTable, count: int
-) -> Iterator[tuple[tuple[str, str], ...]]:
-    """Yield up to ``count`` distinct key rows for a table.
+def _scaled_rows(
+    table: TemplateTable, count: int, data: SyntheticData
+) -> Iterator[tuple[tuple[tuple[str, Any], ...], list[str]]]:
+    """Yield up to ``count`` scaled rows: the solved row each repeats, and keys.
 
-    Enumerated keys cycle through their allowed items; typed keys (no item
-    list) get unique, checksum-valid, visibly fictional LEI-shaped
-    identifiers (``SYNTH``, three characters of the key code, a row number
-    and check digits), so the rows stay
-    distinct. A table whose keys are all enumerated yields at most the
-    product of its item lists.
+    Row ``i`` repeats solved row ``i`` modulo the solved rows, with that
+    row's enumerated key values, so a rule that filters on an enumerated key
+    sees the values solved for it. Typed keys (no item list) get unique,
+    checksum-valid, visibly fictional LEI-shaped identifiers (``SYNTH``,
+    three characters of the key code, a row number and check digits). A
+    table whose keys are all enumerated has only its solved rows.
 
     Yields:
-        tuple[tuple[str, str], ...]: ``(key code, lexical value)`` pairs.
+        tuple: The solved row's keys, and the key values to write in column
+        order.
     """
+    solved = data.key_rows[table.code]
     typed = [key for key in table.open_keys if not key.items]
     if not typed:
-        lists = [list(key.items or ()) for key in table.open_keys]
-        for combination in itertools.islice(itertools.product(*lists), count):
-            yield tuple(
-                (key.code, value.strip())
-                for key, value in zip(table.open_keys, combination, strict=True)
-            )
-        return
+        count = min(count, len(solved))
     prefixes = {
         key.code: LEI_PREFIX + (_PREFIX.sub("", key.code.upper()) + "XXX")[:3]
         for key in typed
     }
     for number in range(count):
-        row = []
-        for key in table.open_keys:
-            if key.items:
-                row.append((key.code, key.items[number % len(key.items)].strip()))
-            else:
-                identifier = _with_check_digits(f"{prefixes[key.code]}{number:010d}")
-                row.append((key.code, identifier))
-        yield tuple(row)
+        source = solved[number % len(solved)]
+        values = dict(source)
+        yield (
+            source,
+            [
+                data._text(values[key.code])
+                if key.items
+                else _with_check_digits(f"{prefixes[key.code]}{number:010d}")
+                for key in table.open_keys
+            ],
+        )
 
 
 def write_scaled_package(
@@ -84,12 +82,13 @@ def write_scaled_package(
     """Write an xBRL-CSV package with every open table scaled to ``rows`` key rows.
 
     Closed tables are written as generated. Each open table gets ``rows``
-    fresh key rows, whose values repeat the generated rows in turn. Typed
-    keys get new identifiers; enumerated keys cycle through their items, so
-    a table with only enumerated keys gets at most as many rows as their
-    combinations. The package is laid out, named and described exactly as
-    ``dpmxbrl.write_xbrl_csv`` writes the unscaled report, but tables are
-    streamed to the ZIP file, so memory stays flat.
+    key rows, whose values repeat the generated rows in turn. Typed keys get
+    new identifiers; enumerated keys keep the values of the generated row
+    that is repeated, so rules that filter on them still hold, and a table
+    with only enumerated keys keeps its generated rows. The package is laid
+    out, named and described exactly as ``dpmxbrl.write_xbrl_csv`` writes the
+    unscaled report, but tables are streamed to the ZIP file, so memory
+    stays flat.
 
     Args:
         data: Generated values, ``GenerationResult.data``.
@@ -160,7 +159,6 @@ def _write_table(
         ["datapoint", "factValue", *(key.column for key in table.open_keys)]
     )
     written = 0
-    base_rows = data.key_rows[table.code]
     if not table.open_keys:
         for cell in table.cells:
             value = data.values.get((cell.datapoint, ()))
@@ -168,9 +166,7 @@ def _write_table(
                 writer.writerow([cell.datapoint, data._text(value)])
                 written += 1
     else:
-        for number, keys in enumerate(_key_values(table, count)):
-            source = base_rows[number % len(base_rows)] if base_rows else ()
-            key_text = [value for _code, value in keys]
+        for source, key_text in _scaled_rows(table, count, data):
             for cell in table.cells:
                 value = data.values.get((cell.datapoint, source))
                 if value is not None:
