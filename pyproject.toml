@@ -1,24 +1,39 @@
 [build-system]
-requires = ["uv_build>=0.12.5,<0.13"]
+requires = ["uv_build>=0.12.5,<0.14"]
 build-backend = "uv_build"
 
 [project]
 name = "dpm-synth"
 version = "0.1.0"
-description = "Generate synthetic EBA reports that satisfy DPM-XL validation rules"
+description = "Generate synthetic EBA xBRL-CSV reports that satisfy a module's DPM-XL validation rules"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
-authors = [{ name = "Luuk Hopman" }]
-keywords = ["DPM", "DPM-XL", "EBA", "XBRL", "xBRL-CSV", "test data"]
+authors = [{ name = "Luuk Hopman", email = "github@luukhopman.nl" }]
+keywords = ["DPM", "DPM-XL", "EBA", "XBRL", "xBRL-CSV", "test data", "synthetic data"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Financial and Insurance Industry",
-    "Private :: Do Not Upload",
+    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
     "Topic :: Office/Business :: Financial",
+    "Topic :: Software Development :: Testing",
     "Typing :: Typed",
 ]
 dependencies = ["dpm-xl>=0.1,<0.2", "dpm-xbrl>=0.1,<0.2"]
+
+[project.urls]
+Homepage = "https://github.com/luukhopman/dpm-synth"
+Source = "https://github.com/luukhopman/dpm-synth"
+Issues = "https://github.com/luukhopman/dpm-synth/issues"
+Changelog = "https://github.com/luukhopman/dpm-synth/blob/main/CHANGELOG.md"
+Documentation = "https://luukhopman.github.io/dpm-synth/"
 
 [project.scripts]
 dpm-synth = "dpmsynth.cli:main"
@@ -35,21 +50,41 @@ line-length = 88
 [tool.ruff.lint]
 preview = true
 select = [
-    "B", "C4", "D", "DOC", "E", "ERA", "F", "I", "PIE", "PTH", "RET", "RSE",
-    "RUF", "S", "SIM", "UP", "W",
+    "B",    # flake8-bugbear
+    "C4",   # flake8-comprehensions
+    "D",    # pydocstyle
+    "DOC",  # pydoclint: docstring parameters, returns, and exceptions
+    "DTZ",  # flake8-datetimez
+    "E",    # pycodestyle errors
+    "ERA",  # eradicate: commented-out code
+    "F",    # Pyflakes
+    "I",    # isort
+    "PIE",  # flake8-pie
+    "PTH",  # flake8-use-pathlib
+    "RET",  # flake8-return
+    "RSE",  # flake8-raise
+    "RUF",  # Ruff-specific rules
+    "S",    # flake8-bandit security checks
+    "SIM",  # flake8-simplify
+    "UP",   # pyupgrade
+    "W",    # pycodestyle warnings
 ]
 ignore = [
-    "incorrect-blank-line-before-class",
-    "multi-line-summary-second-line",
-    "docstring-extraneous-exception",
-    "assert",
+    "incorrect-blank-line-before-class", # incompatible with D211
+    "multi-line-summary-second-line", # incompatible with D212
+    "docstring-extraneous-exception", # propagated exceptions are part of the public contract
+    "assert", # tests and internal invariants intentionally use assert
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D", "S", "line-too-long"]
+# Tests need no docstrings; fixture JSON stays readable unwrapped.
+"tests/*" = ["D", "DOC", "S", "line-too-long"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.format]
+docstring-code-format = true
 
 [tool.ty.src]
 include = ["src", "tests"]
