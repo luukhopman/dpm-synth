@@ -161,6 +161,7 @@ def test_reporting_level_is_a_parameter_for_rules() -> None:
     [
         ({"open_rows": 0}, "open_rows"),
         ({"open_rows": True}, "open_rows"),
+        ({"open_rows": 1001}, "open_rows must be a whole number from 1 to 1000"),
         ({"max_rounds": -1}, "max_rounds"),
         ({"entity": ""}, "entity"),
         ({"entity": "A B"}, "entity"),
@@ -549,3 +550,17 @@ def test_synthetic_data_is_a_provider() -> None:
     ]
     with pytest.raises(LookupError, match=r"T_09\.00 is not in module TEST"):
         data.select(CellQuery("T_09.00"))
+
+
+def test_enumerated_keys_stop_at_their_cycle() -> None:
+    result = run(
+        [cell("0010", "0010", 1)],
+        [],
+        open_keys=[
+            {"code": "qAB", "items": ["eba_AB:x1", "eba_AB:x2", "eba_AB:x3"]},
+            {"code": "qCD", "items": ["eba_CD:y1", "eba_CD:y2"]},
+        ],
+        open_rows=1000,
+    )
+    # Row i takes item i of each key: the rows repeat after lcm(3, 2) = 6.
+    assert len(result.data.key_rows["T"]) == 6

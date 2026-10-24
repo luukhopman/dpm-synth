@@ -23,6 +23,7 @@ https://luukhopman.github.io/dpm-synth/concepts/repair-loop/.
 
 from __future__ import annotations
 
+import math
 import random
 import re
 import string
@@ -70,6 +71,13 @@ DEFAULT_ENTITY = "SYNTHETICDPMXL000002"
 
 DEFAULT_REFERENCE_DATE = date(2026, 12, 31)
 """The reference date of a template that gives none."""
+
+MAX_OPEN_ROWS = 1000
+"""The most key rows per open table that ``generate`` solves.
+
+Every rule is evaluated on every key row in every round, so the time grows
+with the rows; for larger tables, write a scaled package instead.
+"""
 
 _NUMERIC = {"m", "p", "i", "r"}
 _DEFAULT_DECIMALS = {"m": 0, "p": 4, "i": 0, "r": 2}
@@ -199,6 +207,12 @@ class SyntheticData:
     def _key_rows(
         self, table: TemplateTable, count: int
     ) -> list[tuple[tuple[str, Any], ...]]:
+        if not any(not key.items for key in table.open_keys):
+            # Only enumerated keys: row i takes item i of each key, so the
+            # rows repeat after the least common multiple of the item counts.
+            count = min(
+                count, math.lcm(*(len(key.items or ()) for key in table.open_keys))
+            )
         rows = []
         for index in range(count):
             row = []
@@ -751,7 +765,8 @@ def generate(
         template: Module template, from [`load_template`][dpmsynth.load_template].
         seed: Random seed; the same seed, template, options and versions give
             the same report.
-        open_rows: Key rows per open table, at least 1. Enumerated keys take
+        open_rows: Key rows per open table, from 1 to ``MAX_OPEN_ROWS``
+            (1,000). Enumerated keys take
             their allowed items in order, so a table whose keys allow fewer
             combinations gets fewer rows.
         max_rounds: Upper bound on evaluate-and-repair rounds; 0 evaluates the
@@ -776,9 +791,13 @@ def generate(
         >>> result.report.entity_id
         'SYNTHETICDPMXL000002.CON'
     """
-    if isinstance(open_rows, bool) or not isinstance(open_rows, int) or open_rows < 1:
+    if (
+        isinstance(open_rows, bool)
+        or not isinstance(open_rows, int)
+        or not 1 <= open_rows <= MAX_OPEN_ROWS
+    ):
         raise ValueError(
-            f"open_rows must be a whole number of 1 or more: {open_rows!r}"
+            f"open_rows must be a whole number from 1 to {MAX_OPEN_ROWS}: {open_rows!r}"
         )
     if (
         isinstance(max_rounds, bool)
@@ -1069,6 +1088,7 @@ __all__ = [
     "DEFAULT_ENTITY",
     "DEFAULT_REFERENCE_DATE",
     "LEI_PREFIX",
+    "MAX_OPEN_ROWS",
     "GenerationResult",
     "SyntheticData",
     "build_report",

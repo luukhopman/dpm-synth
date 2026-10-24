@@ -65,6 +65,8 @@ immutable.
 
 ::: dpmsynth.LEI_PREFIX
 
+::: dpmsynth.MAX_OPEN_ROWS
+
 ## Writing
 
 ::: dpmsynth.build_report
