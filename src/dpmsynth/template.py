@@ -178,8 +178,8 @@ class ModuleTemplate:
 
         Examples:
             >>> template = load_template("minimal.json")
-            >>> template.table("c_01.00").code
-            'C_01.00'
+            >>> template.table("t_01.00").code
+            'T_01.00'
         """
         folded = code.casefold()
         return next(

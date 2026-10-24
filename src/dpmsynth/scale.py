@@ -105,7 +105,7 @@ def write_scaled_package(
         >>> from dpmsynth import generate, load_template
         >>> result = generate(load_template("sample.json"), seed=7)
         >>> written = write_scaled_package(result.data, "big.zip", rows=1000)
-        >>> written["B_01.01"], written["C_07.00.a"]
+        >>> written["S_03.00"], written["S_02.00.a"]
         (1000, 4)
     """
     counts = {
