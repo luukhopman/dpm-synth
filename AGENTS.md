@@ -49,14 +49,11 @@ All of these must pass before a commit.
 - Use only names in the `__all__` of their modules, as their docs define:
   `dpmxl`, `dpmxl.ast` and the other documented modules; `dpmxbrl`. Never
   import their underscore modules or names.
-- Until dpm-xl 1.0 and dpm-xbrl 1.0 are on PyPI, `[tool.uv.sources]` in
-  `pyproject.toml` takes both from their GitHub `main` branches, so that CI
-  can resolve them. The wheel's metadata carries only the plain
-  requirements `dpm-xl>=1.0,<2` and `dpm-xbrl>=1.0,<2`; `uv build` never
-  writes the sources into it.
-- **Once both are published on PyPI**, delete the `[tool.uv.sources]`
-  table (and the comment above it) and run `uv lock`, so the lock resolves
-  them from PyPI. Do this before tagging a release.
+- Both come from PyPI, within one major version (`>=1.0,<2`). Do not add
+  `[tool.uv.sources]` overrides (local paths or git branches) to a
+  committed `pyproject.toml`: the lock must resolve them from pypi.org, as
+  CI and the published wheel do. To try an unreleased sibling locally, use
+  `uv pip install -e ../dpm-xl` in your environment without committing it.
 
 ## Conventions
 
@@ -92,10 +89,10 @@ All of these must pass before a commit.
 
 ## Release
 
-1. Make sure the git sources are gone and `uv.lock` resolves dpm-xl and
-   dpm-xbrl from PyPI (see above).
-2. Move the `Unreleased` changelog entries under a new version heading.
-3. Set `version` in `pyproject.toml` and run `uv lock`.
+1. Move the `Unreleased` changelog entries under a new version heading.
+2. Set `version` in `pyproject.toml` and run `uv lock`; check that
+   `uv.lock` resolves dpm-xl and dpm-xbrl from `https://pypi.org/simple`.
+3. Run every check in "Commands" above.
 4. Check the build: `uv build` and `uvx twine check --strict dist/*`.
 5. Commit as `build: release X.Y.Z`, tag `vX.Y.Z` and publish a GitHub
    release. `.github/workflows/publish.yml` checks that the tag matches the
