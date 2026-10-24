@@ -24,7 +24,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Check the tag matches the version
         run: test "${GITHUB_REF_NAME#v}" = "$(uv version --short)"
-      - run: uv sync --frozen --all-extras --group test
+      - run: uv sync --frozen --group test
       - run: uv run --frozen pytest
       - run: uv build
       - run: uv publish --trusted-publishing always
