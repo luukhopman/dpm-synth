@@ -216,11 +216,11 @@ def load_template(
         path = Path(source)
         try:
             text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as error:
+        except (OSError, ValueError) as error:  # ValueError: a NUL in the path
             raise TemplateError(f"{path}: cannot read: {_reason(error)}") from error
         try:
             document = json.loads(text)
-        except json.JSONDecodeError as error:
+        except ValueError as error:  # a JSONDecodeError, or too many digits
             raise TemplateError(f"{path}: not JSON: {error}") from error
         except RecursionError as error:
             raise TemplateError(f"{path}: JSON nested too deeply") from error
@@ -278,6 +278,14 @@ class _Loader:
             self.rule(item, f"rules[{index}]")
             for index, item in enumerate(self.array(root, "rules", ""))
         )
+        codes: dict[str, int] = {}
+        for index, rule in enumerate(rules):
+            if rule.code in codes:
+                raise TemplateError(
+                    f"rules[{index}].code: {rule.code!r} repeats "
+                    f"rules[{codes[rule.code]}].code"
+                )
+            codes[rule.code] = index
         return ModuleTemplate(
             release=release,
             module=module,
@@ -388,7 +396,7 @@ class _Loader:
             raise TemplateError(
                 f"{where}: expected a non-empty string, got {_kind(value)}"
             )
-        return value
+        return _encodable(value, where)
 
     @staticmethod
     def optional_text(parent: Mapping[str, Any], name: str, path: str) -> str | None:
@@ -400,7 +408,7 @@ class _Loader:
             raise TemplateError(
                 f"{where}: expected a string or null, got {_kind(value)}"
             )
-        return value
+        return _encodable(value, where)
 
     @staticmethod
     def items(parent: Mapping[str, Any], path: str) -> tuple[str, ...] | None:
@@ -418,6 +426,7 @@ class _Loader:
                     f"{path}.items[{index}]: expected an item qname such as "
                     f"'eba_AS:x1', got {_kind(item)}"
                 )
+            _encodable(item, f"{path}.items[{index}]")
         return tuple(value) or None
 
     @staticmethod
@@ -452,6 +461,18 @@ class _Loader:
                 )
             result[kind] = number
         return result
+
+
+def _encodable(value: str, where: str) -> str:
+    # Packages are UTF-8, so a lone surrogate could not be written.
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise TemplateError(
+            f"{where}: {value!r} cannot be written as UTF-8 "
+            f"(a lone surrogate at position {error.start})"
+        ) from None
+    return value
 
 
 def _kind(value: object) -> str:

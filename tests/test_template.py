@@ -279,3 +279,44 @@ def test_unreadable_files(tmp_path: Path) -> None:
 
 def test_template_error_is_a_value_error() -> None:
     assert issubclass(TemplateError, ValueError)
+
+
+def test_huge_numbers_and_nul_paths(tmp_path: Path) -> None:
+    huge = tmp_path / "huge.json"
+    huge.write_text('{"format": ' + "9" * 5000 + "}", encoding="utf-8")
+    with pytest.raises(TemplateError, match=r"huge\.json: not JSON: Exceeds the limit"):
+        load_template(huge)
+    with pytest.raises(TemplateError, match="cannot read: embedded null byte"):
+        load_template(str(tmp_path / "a\x00b.json"))
+
+
+@pytest.mark.parametrize(
+    ("path", "where"),
+    [
+        (["entry_point"], "entry_point"),
+        (["tables", 0, "filing_indicator"], "tables[0].filing_indicator"),
+        (["tables", 0, "cells", 0, "datapoint"], "tables[0].cells[0].datapoint"),
+        (["tables", 0, "open_keys", 0, "column"], "tables[0].open_keys[0].column"),
+        (["rules", 0, "expression"], "rules[0].expression"),
+    ],
+)
+def test_lone_surrogates_are_rejected(path, where) -> None:
+    raw = _broken(_set(path, "x\ud800"))
+    with pytest.raises(TemplateError) as raised:
+        load_template(raw)
+    assert str(raised.value) == (
+        f"{where}: 'x\\ud800' cannot be written as UTF-8 "
+        "(a lone surrogate at position 1)"
+    )
+    items = _broken(_set(["tables", 0, "cells", 0, "items"], ["eba_AB:\udc00"]))
+    with pytest.raises(TemplateError, match=r"cells\[0\]\.items\[0\]: .* UTF-8"):
+        load_template(items)
+
+
+def test_repeated_rule_codes_are_rejected() -> None:
+    raw = document()
+    raw["rules"].append({"code": "v1", "expression": "{tT_01.00, c0010} < 0"})
+    with pytest.raises(
+        TemplateError, match=r"rules\[1\]\.code: 'v1' repeats rules\[0\]\.code"
+    ):
+        load_template(raw)

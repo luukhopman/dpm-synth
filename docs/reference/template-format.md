@@ -117,7 +117,7 @@ monetary value is written as a multiple of 1,000.
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `code` | string | yes | The rule code, such as `"v0001_m"`. Results list rules by code, so keep codes unique. |
+| `code` | string | yes | The rule code, such as `"v0001_m"`. Unique within the template: results list rules by code. |
 | `expression` | string | yes | The DPM-XL expression, as [dpm-xl] parses it. |
 | `precondition` | string or null | no | A DPM-XL precondition, such as `"{v_C_07.00}"`; the rule applies only when it holds. |
 | `source` | string or null | no | Who defines the rule, such as `"eba"`. Default `"eba"`. Informative: filter the rules before generating if you want only some sources. |
@@ -132,7 +132,9 @@ reported as not evaluated, with the syntax error.
 
 [`load_template`][dpmsynth.load_template] checks every field above and
 raises [`TemplateError`][dpmsynth.TemplateError] for the first problem,
-naming the field by its path:
+naming the field by its path. Text that cannot be written as UTF-8, such as
+a lone surrogate escape `\ud800` in the JSON, is rejected too, since the
+package is UTF-8:
 
 ```python
 import json
