@@ -153,8 +153,9 @@ rounds: 2 (failing rules per round: 3, 0)
 wrote x.zip (5 facts)
 ```
 
-On EBA DPM 4.3 COREP_OF, with its 1,205 EBA rules, generation takes about
-15 seconds and 15 rounds, and 988 of the 1,051 rules that apply pass. The
+On EBA DPM 4.3 COREP_OF, with its 1,205 EBA rules, generation takes 15
+rounds (about 15 seconds on a laptop), and 999 of the 1,051 rules that
+apply pass. The
 other 154 rules do not apply to the generated report: they select no
 generated cell, such as rows filtered on key values that the generated
 rows do not have.

@@ -60,8 +60,8 @@ that writes the
 - **Rules satisfied**: an evaluate-and-repair loop over the rules, with
   [dpm-xl](https://luukhopman.github.io/dpm-xl/), repairs sums,
   differences, products, sign rules, `isnull`, `in` and `match`. On EBA
-  DPM 4.3 COREP_OF, 988 of the 1,051 rules that apply pass, in about 15
-  seconds; the result names the rest.
+  DPM 4.3 COREP_OF, 999 of the 1,051 rules that apply pass, in 15 rounds;
+  the result names the rest.
 - **Valid packages**: written by
   [dpm-xbrl](https://luukhopman.github.io/dpm-xbrl/), with a fictional LEI,
   and read back without broken EBA filing rules other than the file name.

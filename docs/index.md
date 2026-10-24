@@ -79,7 +79,7 @@ This installs dpm-xl and dpm-xbrl too, and the `dpm-synth` command.
   every other DPM framework; see the [template format](reference/template-format.md).
 - **Rules satisfied, not just shapes.** Sums, differences, products of two
   cells, sign rules, `isnull`, `in` and `match` are repaired; on EBA DPM 4.3
-  COREP_OF, 988 of the 1,051 rules that apply pass. See
+  COREP_OF, 999 of the 1,051 rules that apply pass. See
   [the evaluate-and-repair loop](concepts/repair-loop.md) and
   [its limits](concepts/limits.md).
 - **Valid packages.** Packages are written by dpm-xbrl and read back without

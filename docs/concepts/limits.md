@@ -13,15 +13,17 @@ guaranteed; the result always says which rules still fail.
 ## Results on EBA modules
 
 EBA DPM 4.3 modules, their EBA validation rules only, seed 7, default
-options, on a laptop (AMD Ryzen 7 4700U):
+options, dpm-synth 1.0.0 with dpm-xl and dpm-xbrl 1.0.0. Times are wall
+clock on a laptop (AMD Ryzen 7 4700U) and only indicate the scale; the
+other columns do not depend on the machine:
 
 | Module | Tables | Cells | Rules | Apply | Pass | Fail | Not applicable | Not evaluated | Rounds | Time |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| COREP_OF | 81 | 21,339 | 1,205 | 1,051 | 988 | 63 | 154 | 0 | 15 | 15 s |
-| FINREP9 | 124 | 13,834 | 2,260 | 2,258 | 1,938 | 320 | 0 | 2 | 19 | 15 s |
-| AE | 23 | 1,306 | 218 | 218 | 207 | 11 | 0 | 0 | 10 | 1 s |
-| COREP_LCR_DA | 14 | 5,119 | 328 | 328 | 321 | 7 | 0 | 0 | 9 | 3 s |
-| COREP_LE | 5 | 79 | 25 | 25 | 24 | 1 | 0 | 0 | 8 | < 1 s |
+| COREP_OF | 81 | 21,339 | 1,205 | 1,051 | 999 | 52 | 154 | 0 | 15 | 13 s |
+| FINREP9 | 124 | 13,834 | 2,260 | 2,258 | 1,929 | 329 | 0 | 2 | 14 | 10 s |
+| AE | 23 | 1,306 | 218 | 218 | 207 | 11 | 0 | 0 | 10 | < 1 s |
+| COREP_LCR_DA | 14 | 5,119 | 328 | 328 | 321 | 7 | 0 | 0 | 9 | 2 s |
+| COREP_LE | 5 | 79 | 25 | 25 | 24 | 1 | 0 | 0 | 9 | < 1 s |
 
 "Apply" counts the rules that are evaluated and whose precondition holds.
 On each of these modules, the rules that pass and fail on the generated values are
