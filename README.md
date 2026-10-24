@@ -1,88 +1,97 @@
+<p align="center"><a href="https://luukhopman.github.io/dpm-synth/"><img src="https://luukhopman.github.io/dpm-synth/assets/logo.svg" alt="dpm-synth" width="240"></a></p>
+
 # dpm-synth
 
-Generate synthetic EBA xBRL-CSV report packages that satisfy a module's DPM-XL
-validation rules. Useful for exercising downstream pipelines, loaders and
-validators with realistic, internally consistent submissions for any module.
+Generate synthetic EBA xBRL-CSV report packages that satisfy a module's
+DPM-XL validation rules. Give dpm-synth a template with a module's tables,
+cells and rules; it fills every cell with a plausible value, repairs the
+values until the rules pass, and writes a report package that reads and
+validates like a real submission. Use it to test loaders, data warehouses
+and validators for EBA reports, for any module, without real supervisory
+data. It is an independent project, not affiliated with or endorsed by the
+EBA.
 
-```bash
-# 1. Describe a module from a prepared a DPM tool release
-dpm-export 4.3 COREP_OF -o corep_of.json
-
-# 2. Generate a report package
-dpm-synth generate corep_of.json -o corep_of.zip --seed 7
-# rules: 1205, passed: 982, failed: 61
-# rounds: 16 (failing rules per round: [703, 200, 133, …])
-```
-
-Depends on [`dpm-xl`](../dpm-xl) (evaluation) and [`dpm-xbrl`](../dpm-xbrl)
-(writing the package). The same seed and template always give the same report.
-
-## How it works
-
-`dpmsynth.generate` is an evaluate-and-repair loop, not a complete solver:
-
-1. **Initial values** by data type: monetary amounts in thousands, ratios in
-   `(0, 1)`, integers, the first allowed item for enumerations, the reference
-   date, LEI-shaped text. Open tables get `--open-rows` key rows (allowed items,
-   or LEI-shaped identifiers for typed keys).
-2. **Analysis.** Single-cell sign rules (`{x} >= 0`, `{(c0020, c0030)} <= 0`)
-   become per-cell bounds, and initial values are moved inside them. Every
-   `=` rule with a single-cell side *defines* that cell; rules are ordered so
-   that the definitions of components run before the totals that use them.
-3. **Repair rounds.** Each failing record is traced to the first failing
-   comparison. Its two sides are linearized into `coefficient × cell` terms
-   (sums, differences, constants, `abs`, and products of two cells at their
-   current values) and one cell absorbs the difference — preferably a cell no
-   other rule defines, and never outside its bounds. `isnull`, `not isnull`,
-   `in {…}` and `match` (LEI and `dd/mm/yyyy` patterns) are repaired directly.
-4. The loop stops when nothing fails, nothing changes, or the failing count
-   stops improving; values are then rounded to the reporting decimals
-   (`m` 0, `p` 4, `i` 0, `r` 2 by default) and the rules are evaluated once more.
-
-Generated facts carry the same decimals tolerance during evaluation that the
-written package declares, so rounded ratios are judged as a validator would.
-
-## Results and limits
-
-On EBA DPM 4.3 COREP_OF (81 tables, 21,339 cells, 1,205 rules) the loop
-satisfies 982 of the 1,043 rules that apply, in about 20 seconds; DPM
-A DPM validator reports the same 61 failures for the written package.
-The remainder are coupled systems that local repair cannot settle:
-
-- a cell defined by two different rules (for example CET1 as a sum of
-  components and as ratio × TREA, while the ratio also has a minimum);
-- totals over open-table key rows that are also constrained per key;
-- rules on tables outside the module, `time_shift` (needs a previous period)
-  and regular expressions other than the two recognized shapes.
-
-A complete approach would solve the linear equalities jointly (for example
-with a sparse least-squares or MILP solver) before repairing the rest; the
-template format already carries everything such a solver needs.
-
-## Template format
-
-`dpm-synth-template/1` JSON: `release`, `module`, `entry_point`,
-`reference_date`, `decimals` (per data type), `tables[]` (`code`,
-`filing_indicator`, `open_keys[]` with `code`, `column`, `items`, and
-`cells[]` with `id`, `row`, `column`, `sheet`, `datapoint`, `data_type`,
-`items`) and `rules[]` (`source`, `code`, `expression`, `precondition`). See
-`src/dpmsynth/template.py` for the full description.
-
-## CLI
+**Documentation: <https://luukhopman.github.io/dpm-synth/>**
 
 ```text
-dpm-synth generate TEMPLATE -o REPORT.zip [--seed N] [--open-rows N]
-    [--max-rounds N] [--reference-date YYYY-MM-DD] [--entity LEI]
-    [--level CON|IND] [--json]
+pip install dpm-synth   # Python 3.11+; installs dpm-xl and dpm-xbrl
 ```
 
-Exit status is 0 when every evaluable rule passes, 1 when some still fail
-(the package is written either way), and 2 for an invalid template.
+## Quickstart
+
+```python
+from dpmxbrl import write_xbrl_csv
+
+from dpmsynth import generate, load_template
+
+template = load_template("minimal.json")  # a module's tables, cells and rules
+result = generate(template, seed=7)
+print(result.passed, "of", result.rules, "rules pass; failing:", result.failed)
+write_xbrl_csv(result.report, "report.zip")
+```
+
+```text
+2 of 2 rules pass; failing: []
+```
+
+From the command line, with an exit status of 1 if some rules still fail:
+
+```console
+$ dpm-synth generate minimal.json -o report.zip --seed 7
+rules: 2, passed: 2, failed: 0, not evaluated: 0, not applicable: 0
+rounds: 2 (failing rules per round: 1, 0)
+wrote report.zip (3 facts)
+```
+
+The sample template `minimal.json` is in
+[`docs/samples`](https://github.com/luukhopman/dpm-synth/tree/main/docs/samples);
+templates for real EBA modules are exported from a DPM database, for
+example with a DPM tool.
+
+## Features
+
+- **Any module**: the `dpm-synth-template/1` format describes tables, open
+  keys, cells, data types, allowed items and DPM-XL rules.
+- **Rules satisfied**: an evaluate-and-repair loop over the rules, with
+  [dpm-xl](https://luukhopman.github.io/dpm-xl/), repairs sums,
+  differences, products, sign rules, `isnull`, `in` and `match`. On EBA
+  DPM 4.3 COREP_OF, 988 of the 1,051 rules that apply pass, in about 15
+  seconds; the result names the rest.
+- **Valid packages**: written by
+  [dpm-xbrl](https://luukhopman.github.io/dpm-xbrl/), with a fictional LEI,
+  and read back without broken EBA filing rules other than the file name.
+- **Reproducible**: the same template, seed and versions give the same
+  bytes.
+- **Large**: scaled packages stream open tables with millions of rows.
+
+## Learn more
+
+- [Getting started](https://luukhopman.github.io/dpm-synth/getting-started/)
+- [How-to guides](https://luukhopman.github.io/dpm-synth/guides/): write a
+  template, generate from a DPM export, load-test, reproducible
+  seeds, validate the output with dpm-xbrl and dpm-xl
+- [Concepts](https://luukhopman.github.io/dpm-synth/concepts/): the
+  evaluate-and-repair loop and its limits
+- [Reference](https://luukhopman.github.io/dpm-synth/reference/): the
+  [template format](https://luukhopman.github.io/dpm-synth/reference/template-format/),
+  the [CLI](https://luukhopman.github.io/dpm-synth/reference/cli/) and the
+  [Python API](https://luukhopman.github.io/dpm-synth/reference/api/)
+- For AI agents: [llms.txt](https://luukhopman.github.io/dpm-synth/llms.txt)
+  and [llms-full.txt](https://luukhopman.github.io/dpm-synth/llms-full.txt)
+- [Changelog](https://github.com/luukhopman/dpm-synth/blob/main/CHANGELOG.md),
+  [stability policy](https://luukhopman.github.io/dpm-synth/project/stability/)
+  and [security policy](https://luukhopman.github.io/dpm-synth/project/security/)
 
 ## Development
 
-```bash
+```text
 uv sync
 uv run pytest
-uv run ruff check . && uv run ruff format --check . && uv run ty check
+uv run ruff check
+uv run ruff format --check
+uv run ty check
+uv run python scripts/build_docs.py
 ```
+
+See [contributing](https://luukhopman.github.io/dpm-synth/project/contributing/).
+Released under the MIT licence.
