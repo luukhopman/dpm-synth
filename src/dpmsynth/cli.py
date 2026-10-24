@@ -75,6 +75,12 @@ def _date(text: str) -> date:
         ) from None
 
 
+def _package(text: str) -> Path:
+    if not text.casefold().endswith(".zip"):
+        raise argparse.ArgumentTypeError(f"expected a .zip file, got {text!r}")
+    return Path(text)
+
+
 def _entity(text: str) -> str:
     if not _IDENTIFIER.fullmatch(text):
         raise argparse.ArgumentTypeError(
@@ -105,7 +111,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument(
         "-o",
         "--output",
-        type=Path,
+        type=_package,
         required=True,
         metavar="ZIP",
         help="report package to write (.zip)",
@@ -169,10 +175,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         still fail, 3 when the template or the package cannot be read or
         written. Usage errors exit with status 2 through ``SystemExit``.
     """
-    parser = _parser()
-    arguments = parser.parse_args(argv)
-    if arguments.output.suffix.casefold() != ".zip":
-        parser.error(f"--output must end in .zip: {arguments.output}")
+    arguments = _parser().parse_args(argv)
     try:
         template = load_template(arguments.template)
     except TemplateError as error:
