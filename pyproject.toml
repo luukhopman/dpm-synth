@@ -41,7 +41,15 @@ dpm-synth = "dpmsynth.cli:main"
 [dependency-groups]
 test = ["pytest", "pytest-cov>=7.1,<8"]
 lint = ["ruff", "ty"]
-dev = [{ include-group = "test" }, { include-group = "lint" }]
+docs = [
+    "zensical>=0.0.72,<0.1",
+    "mkdocstrings-python>=2.0.10,<3",
+]
+dev = [
+    { include-group = "test" },
+    { include-group = "lint" },
+    { include-group = "docs" },
+]
 
 [tool.ruff]
 target-version = "py311"
@@ -79,6 +87,8 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # Tests need no docstrings; fixture JSON stays readable unwrapped.
 "tests/*" = ["D", "DOC", "S", "line-too-long"]
+# The docs build runs the zensical command it is given, never user input.
+"scripts/*" = ["suspicious-subprocess-import", "subprocess-without-shell-equals-true"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
