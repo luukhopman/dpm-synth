@@ -29,6 +29,7 @@ from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, cast
 
+from dpmxbrl import Fact, Report
 from dpmxl import (
     CellQuery,
     DataPoint,
@@ -36,6 +37,7 @@ from dpmxl import (
     Item,
     Number,
     Value,
+    ValueSet,
     axis_matches,
     evaluate_rule,
     iter_points,
@@ -49,13 +51,13 @@ from dpmxl.ast import (
     Literal_,
     Node,
     Selection,
+    SetLiteral,
     Sub,
     Unary,
     Where,
     With,
     walk,
 )
-from dpmxbrl import Fact, Report
 
 from .template import ModuleTemplate, TemplateCell, TemplateTable
 
@@ -381,15 +383,9 @@ class _Repairer:
                     return self.fix(otherwise, desired)
                 return False
             case In(operand=operand, values=values) if desired:
-                member = (
-                    self.evaluation.value_at(values.items[0], {})
-                    if values.items
-                    else []
+                return any(
+                    self.assign_all(operand, member) for member in self.members(values)
                 )
-                target = _literal(values.items[0]) if values.items else None
-                if target is None and member:
-                    target = member[0].value
-                return self.assign_all(operand, target)
             case Call(name="isnull", args=(operand,)):
                 if desired:
                     return self.assign_all(operand, None)
@@ -398,6 +394,39 @@ class _Repairer:
                 text = _matching_text(_literal(pattern), self.data.rng)
                 return text is not None and self.assign_all(operand, text)
         return False
+
+    def members(self, node: Node) -> list[Value]:
+        """Return the members of the set on the right of ``in``, in order.
+
+        A set literal ``{a, b}`` gives its items; any other operand (a
+        ``set-*`` parameter, ``union(...)``, a selection of cells) gives the
+        members of the set it evaluated to, or the values it selected.
+
+        Returns:
+            list[Value]: Candidate values, without nulls.
+        """
+        if isinstance(node, SetLiteral):
+            values = []
+            for item in node.items:
+                value = _literal(item)
+                if value is None:
+                    records = self.evaluation.value_at(
+                        item, self.key
+                    ) or self.evaluation.value_at(item, {})
+                    value = records[0].value if records else None
+                values.append(value)
+        else:
+            records = self.evaluation.value_at(node, self.key)
+            if not records:
+                recordset = self.evaluation.trace.get(id(node))
+                records = list(recordset.records.values()) if recordset else []
+            values = []
+            for record in records:
+                if isinstance(record.value, ValueSet):
+                    values.extend(record.value.members)
+                else:
+                    values.append(record.value)
+        return [value for value in values if value is not None]
 
     def assign_all(self, node: Node, value: Value) -> bool:
         changed = False
@@ -419,9 +448,14 @@ class _Repairer:
         if not isinstance(slot, tuple) or slot not in self.data.values:
             return False
         cell = self.data.cells_by_datapoint.get(slot[0])
+        if (
+            value is not None
+            and cell is not None
+            and (cell.data_type in _NUMERIC) != isinstance(value, Number)
+        ):
+            # Numbers go in numeric cells only, and nothing else does.
+            return False
         if isinstance(value, Number) and cell is not None:
-            if cell.data_type not in _NUMERIC:
-                return False
             value = self.data.number(cell, value.value)
             if not self.data.within_bounds(slot, value.value):
                 return False

@@ -2,8 +2,8 @@ import json
 from decimal import Decimal
 
 import pytest
-from dpmxl import Item, Number, evaluate_rule
 from dpmxbrl import read_report
+from dpmxl import Item, Number, evaluate_rule
 
 from dpmsynth import TemplateError, generate, load_template
 from dpmsynth.cli import main
@@ -202,3 +202,46 @@ def test_scaled_package_repeats_solved_rows_under_unique_keys(tmp_path) -> None:
     assert report.reference_date.isoformat() == "2026-12-31"
     assert report.entity_scheme == "https://eurofiling.info/eu/rs"
     assert report.entity_id == "SYNTHETICDPMXL000002.CON"
+
+
+def test_in_is_repaired_for_any_set_operand() -> None:
+    def enumerated(row, number, items):
+        return cell(row, "0010", number, "e", items=items)
+
+    template = load_template(
+        {
+            "format": "dpm-synth-template/1",
+            "release": "1",
+            "module": "M",
+            "tables": [
+                {
+                    "code": "T",
+                    "cells": [
+                        enumerated("0010", 1, ["eba_AS:x1", "eba_AS:x2"]),
+                        enumerated("0020", 2, ["eba_AS:x2"]),
+                        enumerated("0030", 3, ["eba_AS:x1", "eba_AS:x3"]),
+                        cell("0040", "0010", 4),
+                    ],
+                }
+            ],
+            "rules": [
+                # A selection of cells, a set function and a numeric literal set.
+                {
+                    "code": "cells",
+                    "expression": "{tT, r0010, c0010} in {tT, r0020, c0010}",
+                },
+                {
+                    "code": "union",
+                    "expression": "{tT, r0030, c0010} in union({[eba_AS:x3]}, {[eba_AS:x4]})",
+                },
+                {"code": "numbers", "expression": "{tT, r0040, c0010} in {1000, 2000}"},
+            ],
+        }
+    )
+    result = generate(template)
+    assert result.failed == []
+    assert result.passed == 3
+    assert result.data is not None
+    assert result.data.values["dp1", ()] == Item("AS", "x2")
+    assert result.data.values["dp3", ()] == Item("AS", "x3")
+    assert result.data.values["dp4", ()] == Number(Decimal(1000))
