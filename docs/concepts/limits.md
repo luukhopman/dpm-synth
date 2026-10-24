@@ -47,7 +47,7 @@ dpm-xbrl and evaluated with dpm-xl, as in
   by an amount holds before rounding but can miss by a few units after the
   ratio is rounded to its reporting decimals.
 
-The [export guide](../guides/dpm-export.md#read-the-results) shows
+[Build a template from a DPM release](../guides/from-a-dpm-release.md#read-the-results) shows
 how to explain each failing rule with dpm-xl.
 
 ## Rules that are not evaluated

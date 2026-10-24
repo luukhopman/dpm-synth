@@ -20,7 +20,7 @@ nav = [
   { "How-to guides" = [
     "guides/index.md",
     { "Write a template by hand" = "guides/write-a-template.md" },
-    { "Generate from a DPM export" = "guides/dpm-export.md" },
+    { "Build a template from a DPM release" = "guides/from-a-dpm-release.md" },
     { "Load-test with scaled packages" = "guides/load-testing.md" },
     { "Reproduce a report with seeds" = "guides/reproducible-seeds.md" },
     { "Validate the output with dpm-xbrl and dpm-xl" = "guides/validate-output.md" },

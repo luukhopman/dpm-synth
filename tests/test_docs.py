@@ -11,7 +11,7 @@ directory holding the sample templates from ``docs/samples``:
   ``$ echo $?`` prints the previous command's exit status.
 
 ``<!-- docs: skip -->`` on the line before a block leaves it out, with its
-output; use it only for commands of other tools, such as a DPM tool.
+output; use it only for commands of other tools.
 
 The docstring examples of every module run as doctests, in the same kind of
 directory, and every page must be in the navigation.

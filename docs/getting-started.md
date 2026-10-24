@@ -34,8 +34,9 @@ the rules a report must satisfy. It is a JSON document in the
 - Rule `v1` says row 0010 is the sum of rows 0020 and 0030; rule `v2` says
   both components are zero or more.
 
-For real modules you do not write templates by hand: a DPM tool exports
-them; see [generate from a DPM export](guides/dpm-export.md).
+For real modules you do not write templates by hand: any tool that reads a
+DPM release can export them; see
+[build a template from a DPM release](guides/from-a-dpm-release.md).
 To write your own, see [write a template by hand](guides/write-a-template.md).
 
 ## Generate from the command line

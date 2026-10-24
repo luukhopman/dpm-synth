@@ -8,7 +8,7 @@ A template describes one module of a DPM release: its tables, the cells of
 each table, and the rules a report must satisfy. It is a JSON document
 (UTF-8) in the `dpm-synth-template/1` format, read by
 [`load_template`][dpmsynth.load_template]. Any DPM source can produce one;
-see [generate from a DPM export](../guides/dpm-export.md)
+see [build a template from a DPM release](../guides/from-a-dpm-release.md)
 and [write a template by hand](../guides/write-a-template.md).
 
 ## Example

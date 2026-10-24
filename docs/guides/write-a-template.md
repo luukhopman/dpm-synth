@@ -5,7 +5,7 @@ description: Write a dpm-synth template by hand - a closed table, an open table 
 # Write a template by hand
 
 Templates for real EBA modules come from a DPM tool (see
-[generate from a DPM export](dpm-export.md)). Writing one by
+[build a template from a DPM release](from-a-dpm-release.md)). Writing one by
 hand is useful for your own tables, for a few tables of a module, or for a
 test fixture. This guide builds a template in Python and writes it as JSON;
 the [template format](../reference/template-format.md) lists every field.
