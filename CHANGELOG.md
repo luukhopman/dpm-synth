@@ -7,65 +7,50 @@ All notable changes to this project are documented here. The project follows
 
 The first public release.
 
-### Added
+### Generating reports
 
-- `generate` fills every cell of a `dpm-synth-template/1` template and
-  repairs the values, round by round, until the module's DPM-XL rules pass:
-  sums, differences, products of two cells, `abs`, sign rules, `isnull`,
-  `in`, `match` for LEIs and `dd/mm/yyyy` dates, `and`, `or`, `not` and
-  `if`. Values are rounded to the reporting decimals and every rule is
-  evaluated once more.
-- `GenerationResult` with the report, the generated values (`data`, a
-  dpm-xl provider) and every rule counted once: `passed`, `failed`,
-  `not_evaluated` with the reason, and `not_applicable`.
+- `generate` fills every cell of a `dpm-synth-template/1` template with a
+  value for its data type and repairs the values, round by round, until
+  the module's DPM-XL rules pass. Repairs cover sums, differences, products
+  of two cells, `abs`, sign rules (also inside `and`), `isnull`, `in` with
+  any set operand, `match` for LEIs and `dd/mm/yyyy` dates, `and`, `or`,
+  `not` and `if`. Values are rounded to the reporting decimals and every
+  rule is evaluated once more.
+- `GenerationResult` holds the report, ready for `dpmxbrl.write_xbrl_csv`,
+  the generated values (`data`, a dpm-xl data provider) and every rule
+  counted once: `passed`, `failed`, `not_evaluated` with the reason, and
+  `not_applicable`.
+- Reports are reproducible: the same template, seed, options and versions
+  give the same bytes.
+- Reports are synthetic: the entity is the fictional LEI
+  `SYNTHETICDPMXL000002` (`DEFAULT_ENTITY`), and every generated LEI-shaped
+  identifier starts with `SYNTH` (`LEI_PREFIX`) and has valid ISO 17442
+  check digits, so none can be a real entity's LEI.
+- `build_report` turns changed values into a report again.
 - `write_scaled_package` streams open tables with millions of rows into a
-  package laid out as dpm-xbrl writes it, for load tests.
-- `load_template` validates templates field by field and raises
-  `TemplateError` naming the field, such as `tables[2].cells[0].datapoint`,
-  for unreadable, non-JSON or invalid templates.
+  package laid out as dpm-xbrl writes it, for load tests; scaled rows keep
+  the enumerated key values of the solved rows they repeat.
+
+### Templates
+
+- `load_template` reads and validates a template field by field, and
+  raises `TemplateError`, naming the field such as
+  `tables[2].cells[0].datapoint`, for an unreadable, non-JSON or invalid
+  template, including repeated table, cell or rule codes and text that
+  cannot be written as UTF-8. Unknown fields are ignored.
+
+### Command line
+
 - `dpm-synth generate` with `--seed`, `--open-rows`, `--max-rounds`,
   `--scale-rows`, `--reference-date`, `--entity`, `--level` and `--json`
-  (with `schema_version` 1), `--version`, and examples in `--help`. Exit
-  statuses: 0 every evaluable rule passes, 1 some fail (the package is
+  (with `schema_version` 1), `--version`, and examples in `--help`.
+- Exit statuses: 0 every evaluable rule passes, 1 some fail (the package is
   written), 2 usage error, 3 unreadable or invalid template, or a package
   that cannot be written.
-- `dpmsynth.__version__`, `DEFAULT_ENTITY` (the fictional LEI
-  `SYNTHETICDPMXL000002`) and `DEFAULT_REFERENCE_DATE`.
-- `LEI_PREFIX`: every generated LEI-shaped identifier (text cells, typed
-  keys, `match` repairs and scaled rows) starts with `SYNTH`, so it is
-  visibly fictional, and has valid ISO 17442 check digits.
+
+### Project
+
+- Depends on dpm-xl and dpm-xbrl 1.x, and uses only their public APIs.
+- Python 3.11 to 3.15, tested in CI.
 - A documentation site at https://luukhopman.github.io/dpm-synth/, with
   `llms.txt` and `llms-full.txt` for AI agents.
-- Python 3.11 to 3.15, tested in CI.
-
-### Changed
-
-- **Breaking:** depends on dpm-xl and dpm-xbrl 1.0 instead of 0.1, and uses
-  only their public APIs.
-- **Breaking:** `build_report(data)` and
-  `write_scaled_package(data, target, rows=...)` take the entity,
-  reporting level and reference date from the `SyntheticData` that
-  `generate` returns. `GenerationResult.data` is always set. `lei` and
-  `summarize` are no longer exported.
-- An invalid template exits with status 3 instead of 2.
-
-### Fixed
-
-- `x in s` is repaired for any set operand, such as `{tT, r0010}`, a
-  `set-*` parameter or `union(...)`, instead of failing on operands that
-  are not set literals.
-- Rules that do not parse, and rules whose precondition is false, are
-  counted, as not evaluated and not applicable, instead of being left out
-  of the totals.
-- `{vReportingLevel}` is the reporting level asked for, not always `con`.
-- Repairs no longer write numbers into text or enumerated cells, or text
-  into numeric cells, nor numbers beyond 10^15.
-- Strict sign rules and strict comparisons use one reporting step of the
-  cell, so a percentage is no longer pushed a whole unit; starting values
-  move fully inside bounds that are stricter than the sign.
-- Items keep the prefix the template gives them, `-0` is written as `0`,
-  and `dd/mm/yyyy` patterns get the reference date.
-- Scaled packages declare the `rs` and `iso4217` namespaces, use the
-  Report Packages 1.0 document type, name the root folder as the ZIP file
-  and write `decimals*` parameters only for the data types used, so
-  dpm-xbrl reads them without warnings.
