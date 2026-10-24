@@ -71,7 +71,7 @@ counterparty. Each key becomes a column of the table's file.
 | --- | --- | --- | --- |
 | `code` | string | yes | The key's property code, as rules name it, such as `"qEBB"` in `[where qEBB = …]`. |
 | `column` | string or null | no | The key's column in the table's file. Default: the code. Unique within the table, and not `datapoint` or `factValue`. |
-| `items` | array of strings or null | no | The allowed item qnames of an enumerated key, such as `"eba_qEC:qx16"`. Null or empty for a typed key, whose values are generated LEI-shaped identifiers. |
+| `items` | array of strings or null | no | The allowed item qnames of an enumerated key, such as `"eba_qEC:qx16"`. Null or empty for a typed key, whose values are generated LEI-shaped identifiers starting with `SYNTH`. |
 
 The generator gives every open table `open_rows` key rows (default 2).
 Enumerated keys take their items in order, row by row, so an enumerated key
@@ -107,7 +107,7 @@ repairs apply, how the value is rounded and how it is written.
 | `e` | enumerated | the first of `items`, else `eba_qx:qx0` | the item qname as the template writes it |
 | `b` | boolean | `true` | `true` or `false` |
 | `d` | date | the reference date | `YYYY-MM-DD` |
-| anything else, or null | text | a random LEI-shaped identifier | the text |
+| anything else, or null | text | a random LEI-shaped identifier starting with `SYNTH` | the text |
 
 Only numeric cells (`m`, `p`, `i`, `r`) take part in arithmetic repairs.
 Negative decimals round to tens, hundreds or thousands: with `"m": -3` a

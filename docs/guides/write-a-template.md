@@ -153,16 +153,17 @@ l_01.00 dp102 583000 {}
 l_01.00 dp103 868000 {}
 l_01.00 dp104 0.4018 {}
 l_01.00 dp105 eba_CT:x2 {}
-l_02.00 dp201 694000 {'c0010': 'EQH524YNG5BY1A2ROG48', 'c0020': 'eba_CT:x1'}
-l_02.00 dp202 3SB09GLSHV616MTS5680 {'c0010': 'EQH524YNG5BY1A2ROG48', 'c0020': 'eba_CT:x1'}
-l_02.00 dp201 225000 {'c0010': 'UBBB8AYN1B7O259OWO65', 'c0020': 'eba_CT:x2'}
-l_02.00 dp202 ZC4PZ0LX9XF26GK7ZX46 {'c0010': 'UBBB8AYN1B7O259OWO65', 'c0020': 'eba_CT:x2'}
+l_02.00 dp201 993000 {'c0010': 'SYNTHEQH524YNG5BY106', 'c0020': 'eba_CT:x1'}
+l_02.00 dp202 SYNTHB7O259OWOO3SB53 {'c0010': 'SYNTHEQH524YNG5BY106', 'c0020': 'eba_CT:x1'}
+l_02.00 dp201 433000 {'c0010': 'SYNTHA2ROGUBBB8AYN47', 'c0020': 'eba_CT:x2'}
+l_02.00 dp202 SYNTH09GLSHV616MTS07 {'c0010': 'SYNTHA2ROGUBBB8AYN47', 'c0020': 'eba_CT:x2'}
 ```
 
 Monetary amounts are multiples of 1,000, as `"decimals": {"m": -3}` asks,
 the share in row 0040 times the total gives the secured loans within the
 precision the package reports, and the item rule picked `eba_CT:x2`. Text
-cells get LEI-shaped values; only `match` rules with the LEI or
+cells and typed keys get visibly fictional LEI-shaped values starting with
+`SYNTH`; only `match` rules with the LEI or
 `dd/mm/yyyy` pattern ask for anything else.
 
 The same file works from the command line:

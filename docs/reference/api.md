@@ -63,6 +63,8 @@ immutable.
 
 ::: dpmsynth.DEFAULT_REFERENCE_DATE
 
+::: dpmsynth.LEI_PREFIX
+
 ## Writing
 
 ::: dpmsynth.build_report

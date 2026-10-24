@@ -18,7 +18,14 @@ monetary amounts in thousands, ratios between 0 and 1, small integers, the
 first allowed item of an enumerated cell, the reference date for dates and
 an LEI-shaped identifier for text. Every open table gets `open_rows` key
 rows: allowed items for enumerated keys, LEI-shaped identifiers for typed
-keys. With `max_rounds=0` you see these values unrepaired:
+keys.
+
+Every generated LEI-shaped identifier starts with `SYNTH`
+([`LEI_PREFIX`][dpmsynth.LEI_PREFIX]), followed by 13 random letters and
+digits and two valid ISO 17442 check digits: it passes LEI validation, but
+is visibly fictional and cannot coincide with a real entity's LEI. The
+reporting entity is the fictional `SYNTHETICDPMXL000002` unless you pass
+another. With `max_rounds=0` you see the starting values unrepaired:
 
 ```python
 from dpmsynth import generate, load_template
@@ -68,7 +75,7 @@ construct:
 | `if c then a else b endif` | Repair the branch that the condition selects. |
 | `isnull(x)` | Clear `x`; `not isnull(x)` gives a cleared cell a starting value again. |
 | `x in {…}` or `x in s` | Set `x` to the first member of the set that fits its cell: a number for a numeric cell, an item for an enumerated one. Any set works: a literal, a `set-*` parameter, `union(...)`, or a selection of cells. |
-| `match(x, pattern)` | For the LEI pattern `[A-Z0-9]{18}[0-9]{2}`, a checksum-valid LEI-shaped identifier; for `dd/mm/yyyy`, the reference date. |
+| `match(x, pattern)` | For the LEI pattern `[A-Z0-9]{18}[0-9]{2}`, a checksum-valid LEI-shaped identifier starting with `SYNTH`; for `dd/mm/yyyy`, the reference date. |
 
 Numbers never go into text or enumerated cells and nothing else goes into a
 numeric cell. A repair that would need a number beyond 10^15, as a ratio

@@ -27,11 +27,13 @@ from typing import IO
 
 from dpmxbrl import write_xbrl_csv
 
-from .generator import SyntheticData, _with_check_digits, build_report
+from .generator import LEI_PREFIX, SyntheticData, _with_check_digits, build_report
 from .template import TemplateTable
 
 _ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 _PREFIX = re.compile(r"[^A-Z0-9]")
+# Typed keys number their rows with ten digits.
+_MAX_ROWS = 10**10 - 1
 
 
 def _key_values(
@@ -40,7 +42,9 @@ def _key_values(
     """Yield up to ``count`` distinct key rows for a table.
 
     Enumerated keys cycle through their allowed items; typed keys (no item
-    list) get unique, checksum-valid LEI-shaped identifiers, so the rows stay
+    list) get unique, checksum-valid, visibly fictional LEI-shaped
+    identifiers (``SYNTH``, three characters of the key code, a row number
+    and check digits), so the rows stay
     distinct. A table whose keys are all enumerated yields at most the
     product of its item lists.
 
@@ -57,7 +61,8 @@ def _key_values(
             )
         return
     prefixes = {
-        key.code: (_PREFIX.sub("", key.code.upper()) + "XXXXXX")[:6] for key in typed
+        key.code: LEI_PREFIX + (_PREFIX.sub("", key.code.upper()) + "XXX")[:3]
+        for key in typed
     }
     for number in range(count):
         row = []
@@ -65,7 +70,7 @@ def _key_values(
             if key.items:
                 row.append((key.code, key.items[number % len(key.items)].strip()))
             else:
-                identifier = _with_check_digits(f"{prefixes[key.code]}{number:012d}")
+                identifier = _with_check_digits(f"{prefixes[key.code]}{number:010d}")
                 row.append((key.code, identifier))
         yield tuple(row)
 
@@ -135,9 +140,13 @@ def _rows(code: str, rows: int | Mapping[str, int], data: SyntheticData) -> int:
         if not isinstance(rows, Mapping)
         else rows.get(code, len(data.key_rows[code]))
     )
-    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
+    if (
+        isinstance(count, bool)
+        or not isinstance(count, int)
+        or not 1 <= count <= _MAX_ROWS
+    ):
         raise ValueError(
-            f"rows for {code} must be a whole number of 1 or more: {count!r}"
+            f"rows for {code} must be a whole number from 1 to {_MAX_ROWS:_}: {count!r}"
         )
     return count
 

@@ -31,6 +31,9 @@ The first public release.
   that cannot be written.
 - `dpmsynth.__version__`, `DEFAULT_ENTITY` (the fictional LEI
   `SYNTHETICDPMXL000002`) and `DEFAULT_REFERENCE_DATE`.
+- `LEI_PREFIX`: every generated LEI-shaped identifier (text cells, typed
+  keys, `match` repairs and scaled rows) starts with `SYNTH`, so it is
+  visibly fictional, and has valid ISO 17442 check digits.
 - A documentation site at https://luukhopman.github.io/dpm-synth/, with
   `llms.txt` and `llms-full.txt` for AI agents.
 - Python 3.11 to 3.15, tested in CI.
@@ -61,8 +64,7 @@ The first public release.
   cell, so a percentage is no longer pushed a whole unit; starting values
   move fully inside bounds that are stricter than the sign.
 - Items keep the prefix the template gives them, `-0` is written as `0`,
-  generated LEIs have valid ISO 17442 check digits, and `dd/mm/yyyy`
-  patterns get the reference date.
+  and `dd/mm/yyyy` patterns get the reference date.
 - Scaled packages declare the `rs` and `iso4217` namespaces, use the
   Report Packages 1.0 document type, name the root folder as the ZIP file
   and write `decimals*` parameters only for the data types used, so

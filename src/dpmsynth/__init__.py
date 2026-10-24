@@ -17,6 +17,7 @@ from ._version import __version__
 from .generator import (
     DEFAULT_ENTITY,
     DEFAULT_REFERENCE_DATE,
+    LEI_PREFIX,
     GenerationResult,
     SyntheticData,
     build_report,
@@ -37,6 +38,7 @@ from .template import (
 __all__ = [
     "DEFAULT_ENTITY",
     "DEFAULT_REFERENCE_DATE",
+    "LEI_PREFIX",
     "TEMPLATE_FORMAT",
     "GenerationResult",
     "ModuleTemplate",

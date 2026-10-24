@@ -422,6 +422,7 @@ def test_match_writes_leis_and_dates() -> None:
     )
     assert result.failed == []
     lei = value(result, 1)
+    assert lei.startswith("SYNTH")
     assert int("".join(str(int(character, 36)) for character in lei)) % 97 == 1
     assert value(result, 2) == "31/03/2025"
     assert value(result, 3) is None
@@ -453,7 +454,7 @@ def test_initial_values_by_data_type() -> None:
     assert e == Item("qx", "qx0")
     assert b is True
     assert d == date(2026, 12, 31)
-    assert isinstance(s, str) and len(s) == 20
+    assert isinstance(s, str) and len(s) == 20 and s.startswith("SYNTH")
     assert isinstance(text, str)
 
 
@@ -502,6 +503,7 @@ def test_typed_keys_are_valid_leis() -> None:
     keys = [fact.keys["ERI"] for fact in result.report.facts]
     assert len(set(keys)) == 5
     for key in keys:
+        assert key.startswith("SYNTH")
         digits = int("".join(str(int(character, 36)) for character in key))
         assert digits % 97 == 1
 

@@ -56,15 +56,16 @@ print(len(report.facts), report.facts[-1].keys)
 ```
 
 ```text
-50018 {'c0010': 'ERIXXX00000004999989'}
+50018 {'c0010': 'SYNTHERI000004999908'}
 ```
 
 ## New keys
 
-- A typed key, such as an LEI column, gets identifiers made of the first
-  six letters and digits of the key code, padded with `X`, a 12-digit row
-  number and two ISO 17442 check digits, so they are unique and pass LEI
-  validation.
+- A typed key, such as an LEI column, gets identifiers made of `SYNTH`, the
+  first three letters and digits of the key code (padded with `X`), a
+  10-digit row number and two ISO 17442 check digits, so they are unique,
+  pass LEI validation and are visibly fictional. A table can have up to
+  9,999,999,999 rows.
 - An enumerated key cycles through its allowed items. When every key of a
   table is enumerated, the table gets at most as many rows as the item
   combinations.

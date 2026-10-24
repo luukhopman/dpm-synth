@@ -75,6 +75,9 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
   is frozen too, but `result.data.values` is a mutable dict.
 - `--json` output carries `schema_version` (1); it changes only with a
   major version.
+- Every generated LEI-shaped identifier starts with `SYNTH`
+  (`LEI_PREFIX`) and has valid check digits; the default entity is the
+  fictional `SYNTHETICDPMXL000002`. None can be a real entity's LEI.
 - Nothing is fetched over the network.
 
 ## Pitfalls

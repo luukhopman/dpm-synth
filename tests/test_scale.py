@@ -27,6 +27,7 @@ def test_scaled_package_repeats_solved_rows_under_unique_keys(
     assert {fact.keys["qEBB"] for fact in keyed} == {"eba_qEC:qx16", "eba_qEC:qx23"}
     assert len(report.facts) == sum(written.values())
     for fact in typed:
+        assert fact.keys["c0010"].startswith("SYNTHERI")
         digits = int("".join(str(int(c, 36)) for c in fact.keys["c0010"]))
         assert digits % 97 == 1
 
@@ -69,9 +70,9 @@ def test_rows_per_table(tmp_path: Path, result) -> None:
     assert written["S_02.00.a"] == 4  # the generated rows
 
 
-@pytest.mark.parametrize("rows", [0, -1, True, {"S_03.00": 0}])
+@pytest.mark.parametrize("rows", [0, -1, True, {"S_03.00": 0}, 10**10])
 def test_invalid_rows(tmp_path: Path, result, rows) -> None:
-    with pytest.raises(ValueError, match="1 or more"):
+    with pytest.raises(ValueError, match="from 1 to 9_999_999_999"):
         write_scaled_package(result.data, tmp_path / "scaled.zip", rows=rows)
 
 
@@ -96,7 +97,7 @@ def test_several_typed_and_enumerated_keys(tmp_path: Path) -> None:
         "eba_AB:x3",
         "eba_AB:x1",
     ]
-    assert [fact.keys["c0005"][:6] for fact in facts] == ["ABXXXX"] * 4
+    assert [fact.keys["c0005"][:8] for fact in facts] == ["SYNTHABX"] * 4
     assert len({fact.keys["c0005"] for fact in facts}) == 4
 
 

@@ -427,18 +427,27 @@ def _selected(code: str | None, selector: Any) -> bool:
 
 _LEI_ALPHABET = string.ascii_uppercase + string.digits
 
+LEI_PREFIX = "SYNTH"
+"""The prefix of every LEI-shaped identifier dpm-synth generates.
+
+Generated identifiers are ``SYNTH`` followed by 13 letters and digits and
+two ISO 17442 check digits, so they pass LEI validation but are visibly
+fictional and cannot coincide with an entity's real LEI by chance.
+"""
+
 
 def _lei(rng: random.Random) -> str:
-    """Return a random, checksum-valid identifier shaped like an LEI.
+    """Return a random, checksum-valid, visibly fictional LEI-shaped identifier.
 
-    Eighteen upper-case letters and digits followed by the two ISO 17442
-    check digits, so validators that check LEIs accept it. The identifier is
-    random, not a registered LEI.
+    ``SYNTH``, thirteen random upper-case letters and digits, and the two
+    ISO 17442 check digits, so validators that check LEIs accept it while
+    the prefix marks it as synthetic.
 
     Returns:
         str: The identifier.
     """
-    return _with_check_digits("".join(rng.choice(_LEI_ALPHABET) for _ in range(18)))
+    body = "".join(rng.choice(_LEI_ALPHABET) for _ in range(18 - len(LEI_PREFIX)))
+    return _with_check_digits(LEI_PREFIX + body)
 
 
 def _with_check_digits(base: str) -> str:
@@ -1059,6 +1068,7 @@ def _column(table: TemplateTable, code: str) -> str:
 __all__ = [
     "DEFAULT_ENTITY",
     "DEFAULT_REFERENCE_DATE",
+    "LEI_PREFIX",
     "GenerationResult",
     "SyntheticData",
     "build_report",
