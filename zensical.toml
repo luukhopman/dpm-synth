@@ -10,7 +10,7 @@ site_author = "Luuk Hopman"
 repo_url = "https://github.com/luukhopman/dpm-synth"
 repo_name = "luukhopman/dpm-synth"
 edit_uri = "edit/main/docs/"
-copyright = "Copyright &copy; 2026 Luuk Hopman. Not affiliated with or endorsed by the European Banking Authority."
+copyright = "Copyright &copy; 2026 Luuk Hopman. Part of the dpm toolkit: <a href=\"https://luukhopman.github.io/dpm-xl/\">dpm-xl</a>, <a href=\"https://luukhopman.github.io/dpm-xbrl/\">dpm-xbrl</a> and <a href=\"https://luukhopman.github.io/dpm-synth/\">dpm-synth</a>. Not affiliated with or endorsed by the European Banking Authority."
 docs_dir = "docs"
 site_dir = "site"
 
@@ -39,6 +39,11 @@ nav = [
     { "Python API" = "reference/api.md" },
   ] },
   { "AI agents" = "agents.md" },
+  { "Toolkit" = [
+    { "Toolkit tour" = "https://luukhopman.github.io/dpm-xl/guides/toolkit-tour/" },
+    { "dpm-xl" = "https://luukhopman.github.io/dpm-xl/" },
+    { "dpm-xbrl" = "https://luukhopman.github.io/dpm-xbrl/" },
+  ] },
   { "Project" = [
     { "Changelog" = "project/changelog.md" },
     { "Stability and versioning" = "project/stability.md" },
