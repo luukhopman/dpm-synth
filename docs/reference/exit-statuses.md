@@ -8,7 +8,7 @@ description: The exit statuses of dpm-synth generate - 0 all evaluable rules pas
 | --- | --- | --- |
 | 0 | Every rule that could be evaluated passes. Rules that are not evaluated (such as `time_shift`) or not applicable do not count. | yes |
 | 1 | Some rules still fail; the summary names them. | yes |
-| 2 | Usage error: an unknown option, a missing argument, or a bad option value, such as `--open-rows 0` or an output not ending in `.zip`. argparse prints the usage and the error. | no |
+| 2 | Usage error: an unknown option, a missing argument, or a bad option value, such as `--open-rows 0`, `--open-rows 5000`, a reference date not written as `YYYY-MM-DD` or an output not ending in `.zip`. argparse prints the usage and the error. | no |
 | 3 | The template cannot be read, is not JSON or is not a valid [template](template-format.md); or the package cannot be written. One line `error: ...` on standard error. | no |
 
 The statuses match the sibling commands: 2 is always a usage error, and

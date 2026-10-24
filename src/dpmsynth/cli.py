@@ -16,11 +16,11 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
-from dpmxbrl import ReportError, write_xbrl_csv
+from dpmxbrl import write_xbrl_csv
 
 from ._version import __version__
-from .generator import DEFAULT_ENTITY, GenerationResult, generate
-from .scale import write_scaled_package
+from .generator import DEFAULT_ENTITY, MAX_OPEN_ROWS, GenerationResult, generate
+from .scale import _MAX_ROWS, write_scaled_package
 from .template import TemplateError, load_template
 
 RULES_FAILED = 1
@@ -64,7 +64,7 @@ class _Main(_Options, argparse.RawDescriptionHelpFormatter):
     """Keeps the line breaks of the description and the epilog."""
 
 
-def _whole(minimum: int) -> Any:
+def _whole(minimum: int, maximum: int | None = None) -> Any:
     def parse(text: str) -> int:
         try:
             value = int(text)
@@ -76,6 +76,10 @@ def _whole(minimum: int) -> Any:
             raise argparse.ArgumentTypeError(
                 f"expected a whole number of {minimum} or more, got {text!r}"
             )
+        if maximum is not None and value > maximum:
+            raise argparse.ArgumentTypeError(
+                f"expected a whole number of at most {maximum:_}, got {text!r}"
+            )
         return value
 
     parse.__name__ = "number"
@@ -84,6 +88,8 @@ def _whole(minimum: int) -> Any:
 
 def _date(text: str) -> date:
     try:
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+            raise ValueError(text)  # fromisoformat also takes 20261231
         return date.fromisoformat(text)
     except ValueError:
         raise argparse.ArgumentTypeError(
@@ -138,10 +144,10 @@ def _parser() -> argparse.ArgumentParser:
     )
     run.add_argument(
         "--open-rows",
-        type=_whole(1),
+        type=_whole(1, MAX_OPEN_ROWS),
         default=2,
         metavar="N",
-        help="key rows per open table (default 2)",
+        help=f"key rows per open table, at most {MAX_OPEN_ROWS} (default 2)",
     )
     run.add_argument(
         "--max-rounds",
@@ -152,7 +158,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     run.add_argument(
         "--scale-rows",
-        type=_whole(1),
+        type=_whole(1, _MAX_ROWS),
         metavar="N",
         help="after solving, write every open table with N key rows "
         "(load testing; rules over open-table totals will fail)",
@@ -215,7 +221,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result.data, arguments.output, rows=arguments.scale_rows
             )
             facts = sum(written.values())
-    except (OSError, ReportError) as error:
+    except (OSError, ValueError) as error:  # ReportError is a ValueError
         return _fail(f"{arguments.output}: cannot write: {_reason(error)}")
     if arguments.json:
         print(json.dumps(_summary(result, arguments, facts), indent=2))

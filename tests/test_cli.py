@@ -147,6 +147,9 @@ def test_unwritable_output_exits_with_status_3(
         ["generate", "t.json"],
         ["generate", "t.json", "-o", "report.csv"],
         ["generate", "t.json", "-o", "r.zip", "--open-rows", "0"],
+        ["generate", "t.json", "-o", "r.zip", "--open-rows", "1001"],
+        ["generate", "t.json", "-o", "r.zip", "--scale-rows", "10000000000"],
+        ["generate", "t.json", "-o", "r.zip", "--reference-date", "20261231"],
         ["generate", "t.json", "-o", "r.zip", "--max-rounds", "-1"],
         ["generate", "t.json", "-o", "r.zip", "--scale-rows", "many"],
         ["generate", "t.json", "-o", "r.zip", "--reference-date", "31/12/2026"],
@@ -174,3 +177,17 @@ def test_version_and_help(capsys) -> None:
     assert "examples:" in help_text
     assert "dpm-synth generate template.json -o report.zip --seed 7" in help_text
     assert "exit statuses:" in help_text
+
+
+def test_any_write_failure_exits_with_status_3(
+    tmp_path: Path, sample: Path, capsys, monkeypatch
+) -> None:
+    def fail(*args, **kwargs):
+        raise UnicodeEncodeError("utf-8", "\ud800", 0, 1, "surrogates not allowed")
+
+    monkeypatch.setattr("dpmsynth.cli.write_xbrl_csv", fail)
+    output = tmp_path / "report.zip"
+    assert main(["generate", str(sample), "-o", str(output)]) == 3
+    error = capsys.readouterr().err
+    assert error.startswith(f"error: {output}: cannot write: ")
+    assert "Traceback" not in error

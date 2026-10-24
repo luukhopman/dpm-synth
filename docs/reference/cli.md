@@ -55,7 +55,7 @@ options:
   -h, --help            show this help message and exit
   -o, --output ZIP      report package to write (.zip)
   --seed N              random seed (default 0)
-  --open-rows N         key rows per open table (default 2)
+  --open-rows N         key rows per open table, at most 1000 (default 2)
   --max-rounds N        most evaluate-and-repair rounds (default 40)
   --scale-rows N        after solving, write every open table with N key rows
                         (load testing; rules over open-table totals will fail)
@@ -93,10 +93,10 @@ wrote sample.zip (20 facts)
 | --- | --- |
 | `-o`, `--output ZIP` | The package to write; required, and must end in `.zip`. Its name without `.zip` names the package's root folder. An existing file is replaced. |
 | `--seed N` | Random seed, any whole number. The same template, seed, options and versions give the same package; see [reproduce a report](../guides/reproducible-seeds.md). |
-| `--open-rows N` | Key rows per open table while solving, 1 or more. |
+| `--open-rows N` | Key rows per open table while solving, from 1 to 1,000 ([`MAX_OPEN_ROWS`][dpmsynth.MAX_OPEN_ROWS]). A table whose keys are all enumerated gets at most as many rows as its item lists repeat after. |
 | `--max-rounds N` | Most evaluate-and-repair rounds, 0 or more; 0 writes the starting values. |
-| `--scale-rows N` | Write every open table with `N` key rows, 1 or more, by repeating the solved rows under new keys; see [load-test with scaled packages](../guides/load-testing.md). The summary and the exit status are those of the unscaled report. |
-| `--reference-date YYYY-MM-DD` | Overrides the template's reference date. |
+| `--scale-rows N` | Write every open table with `N` key rows, from 1 to 9,999,999,999, by repeating the solved rows under new keys; see [load-test with scaled packages](../guides/load-testing.md). The summary and the exit status are those of the unscaled report. |
+| `--reference-date YYYY-MM-DD` | Overrides the template's reference date; exactly `YYYY-MM-DD`, as in the template. |
 | `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme. |
 | `--level CON\|IND` | The reporting level, consolidated or individual. |
 | `--json` | Print the summary as JSON instead; see [JSON output](json-output.md). |
