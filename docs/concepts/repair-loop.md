@@ -49,7 +49,8 @@ Before the first round, the rules are read once:
 
 - **Bounds.** A rule that compares cells with a constant, such as
   `{(r0020, r0030)} >= 0` or `{c0020} <= 0`, becomes a bound on each of
-  those cells. Starting values outside a bound change sign, or take the
+  those cells, and so does such a comparison joined to the rest of a rule
+  by `and`. Starting values outside a bound change sign, or take the
   bound; repairs never move a cell outside its bounds. A strict bound
   (`> 0`) is one reporting step past the constant, such as 1 for an amount
   or 0.0001 for a percentage.

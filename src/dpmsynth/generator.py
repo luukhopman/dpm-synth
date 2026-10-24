@@ -506,22 +506,23 @@ class _Repairer:
 
     def fix(self, node: Node, desired: bool) -> bool:
         node = _unwrap(node)
+        while isinstance(node, Unary) and node.op == "not":
+            node, desired = _unwrap(node.operand), not desired
         current = self.value(node)
         if current is desired:
             return False
         match node:
-            case Unary(op="not", operand=operand):
-                return self.fix(operand, not desired)
-            case Binary(op="and", left=left, right=right):
-                if desired:
-                    changed = self.fix(left, True)
-                    return self.fix(right, True) or changed
-                return self.fix(left, False)
-            case Binary(op="or", left=left, right=right):
-                if desired:
-                    return self.fix(left, True) or self.fix(right, True)
-                changed = self.fix(left, False)
-                return self.fix(right, False) or changed
+            case Binary(op="and" | "or" as op):
+                # Chains such as a and b and c are flattened, so a long chain
+                # does not recurse once per operand.
+                operands = _operands(node, op)
+                if (op == "and") == desired:  # every operand must change
+                    changed = False
+                    for operand in operands:
+                        changed = self.fix(operand, desired) or changed
+                    return changed
+                # One operand suffices: the first that can be changed.
+                return any(self.fix(operand, desired) for operand in operands)
             case Binary(op=op) if op in _COMPARISONS:
                 return self.comparison(node, op if desired else _NEGATED[op])
             case If(condition=condition, then=then, otherwise=otherwise):
@@ -642,18 +643,20 @@ class _Repairer:
         terms = self.terms(node.left, Decimal(1)) + self.terms(node.right, Decimal(-1))
         owners = self.owners
 
-        def rank(item: tuple[int, tuple[Any, Decimal]]) -> tuple[int, int]:
-            index, (slot, _coefficient) = item
+        def rank(item: tuple[int, tuple[Any, Decimal, Decimal]]) -> tuple[int, int]:
+            index, (slot, _coefficient, _seen) = item
             others = owners.get(slot, set()) - {self.rule}
             return (1 if others else 0, index)
 
-        for _index, (slot, coefficient) in sorted(enumerate(terms), key=rank):
+        for _index, (slot, coefficient, seen) in sorted(enumerate(terms), key=rank):
             if not coefficient or not self.data._numeric_slot(slot):
                 continue
             step = self.data._quantum(self.data._cell(slot)) * abs(coefficient)
             goal = _goal(op, step)
-            current = self.data.values.get(slot)
-            base = current.value if isinstance(current, Number) else Decimal(0)
+            # The difference is the one the evaluation saw, so the cell moves
+            # from the value the evaluation saw too: an earlier repair of the
+            # same record (a and b on one cell) is not added twice.
+            base = seen
             try:
                 value = base + (goal - difference) / coefficient
             except ArithmeticError:
@@ -662,39 +665,62 @@ class _Repairer:
                 return True
         return False
 
-    def terms(self, node: Node, coefficient: Decimal) -> list[tuple[Any, Decimal]]:
-        """Expand an arithmetic node into ``(slot, coefficient)`` terms.
+    def terms(
+        self, node: Node, coefficient: Decimal
+    ) -> list[tuple[Any, Decimal, Decimal]]:
+        """Expand an arithmetic node into ``(slot, coefficient, value)`` terms.
+
+        The value is the cell's value as the evaluation saw it. Sums and
+        differences are expanded with a stack, so a long chain such as
+        ``a + b + ... + z`` does not recurse once per term.
 
         Returns:
-            list[tuple[Any, Decimal]]: Cells whose change moves the node linearly.
+            list[tuple[Any, Decimal, Decimal]]: Cells whose change moves the
+            node linearly.
         """
-        node = _unwrap(node)
-        match node:
-            case Binary(op="+", left=left, right=right):
-                return self.terms(left, coefficient) + self.terms(right, coefficient)
-            case Binary(op="-", left=left, right=right):
-                return self.terms(left, coefficient) + self.terms(right, -coefficient)
-            case Unary(op="-", operand=operand):
-                return self.terms(operand, -coefficient)
-            case Unary(op="+", operand=operand):
-                return self.terms(operand, coefficient)
-            case Binary(op="*", left=left, right=right):
-                return self.terms(
-                    left, coefficient * _value(self.value(right))
-                ) + self.terms(right, coefficient * _value(self.value(left)))
-            case Binary(op="/", left=left, right=right):
-                divisor = _value(self.value(right))
-                return self.terms(left, coefficient / divisor) if divisor else []
-            case Call(name="sum") | Selection() | Where() | Sub():
-                return [
-                    (point.ref, coefficient)
-                    for point in reversed(self.points(node))
-                    if isinstance(point.ref, tuple)
-                ]
-            case Call(name="abs", args=(operand,)):
-                sign = Decimal(-1) if _value(self.value(operand)) < 0 else Decimal(1)
-                return self.terms(operand, coefficient * sign)
-        return []
+        found: list[tuple[Any, Decimal, Decimal]] = []
+        stack = [(node, coefficient)]
+        while stack:
+            node, coefficient = stack.pop()
+            node = _unwrap(node)
+            match node:
+                case Binary(op="+" | "-" as op, left=left, right=right):
+                    stack.append((right, coefficient if op == "+" else -coefficient))
+                    stack.append((left, coefficient))
+                case Unary(op="-", operand=operand):
+                    stack.append((operand, -coefficient))
+                case Unary(op="+", operand=operand):
+                    stack.append((operand, coefficient))
+                case Binary(op="*", left=left, right=right):
+                    stack.append((right, coefficient * _value(self.value(left))))
+                    stack.append((left, coefficient * _value(self.value(right))))
+                case Binary(op="/", left=left, right=right):
+                    divisor = _value(self.value(right))
+                    if divisor:
+                        stack.append((left, coefficient / divisor))
+                case Call(name="sum") | Selection() | Where() | Sub():
+                    found.extend(
+                        (point.ref, coefficient, _value(point.value))
+                        for point in reversed(self.points(node))
+                        if isinstance(point.ref, tuple)
+                    )
+                case Call(name="abs", args=(operand,)):
+                    negative = _value(self.value(operand)) < 0
+                    stack.append((operand, -coefficient if negative else coefficient))
+        return found
+
+
+def _operands(node: Node, op: str) -> list[Node]:
+    """Return the operands of a chain of ``op``, such as ``a and b and c``."""
+    operands = []
+    stack = [node]
+    while stack:
+        current = _unwrap(stack.pop())
+        if isinstance(current, Binary) and current.op == op:
+            stack.extend((current.right, current.left))
+        else:
+            operands.append(current)
+    return operands
 
 
 def _unwrap(node: Node) -> Node:
@@ -848,8 +874,13 @@ def generate(
                     rule=rule.code,
                     owners=owners,
                 )
-                if repairer.fix(result.evaluation.root, True):
-                    changed += 1
+                try:
+                    if repairer.fix(result.evaluation.root, True):
+                        changed += 1
+                except RecursionError:
+                    # Too deeply nested to follow (dpm-xl evaluated it); the
+                    # rule keeps its status but is not repaired.
+                    break
         history.append(failing)
         repairs += changed
         if not failing or not changed or _stalled(history):
@@ -916,8 +947,14 @@ def _definitions(
         evaluation = result.evaluation
         if evaluation is None:
             continue
-        _record_bounds(_unwrap(node), evaluation, data)
-        for comparison in walk(node):
+        try:
+            # A sign rule may be one part of an and: {x} = ... and {x} >= 0.
+            for part in _operands(node, "and"):
+                _record_bounds(part, evaluation, data)
+            comparisons = walk(node)
+        except RecursionError:
+            continue
+        for comparison in comparisons:
             if not (isinstance(comparison, Binary) and comparison.op == "="):
                 continue
             for side, other in (

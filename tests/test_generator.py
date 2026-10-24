@@ -564,3 +564,47 @@ def test_enumerated_keys_stop_at_their_cycle() -> None:
     )
     # Row i takes item i of each key: the rows repeat after lcm(3, 2) = 6.
     assert len(result.data.key_rows["T"]) == 6
+
+
+X = "{tT, r0010, c0010}"
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        " and ".join([f"{X} = 5"] * 1000),
+        " and ".join([f"{X} >= 0"] * 999 + [f"{X} = 5"]),
+        " or ".join([f"{X} = 1"] * 999 + [f"{X} = 5"]),
+        f"{X} = " + " + ".join(["{tT, r0020, c0010}"] * 1000),
+        f"{X} = 5 + " + " - ".join(["{tT, r0020, c0010}"] * 1000),
+    ],
+    ids=["and", "and-bounds", "or", "sum", "differences"],
+)
+def test_long_chains_are_repaired_without_recursion(rule) -> None:
+    result = run([cell("0010", "0010", 1), cell("0020", "0010", 2)], [rule])
+    assert result.failed == []
+    assert result.passed == 1
+
+
+def test_too_deeply_nested_rules_are_reported_not_raised() -> None:
+    nested = "not (" * 3000 + f"{X} = 5" + ")" * 3000
+    result = run([cell("0010", "0010", 1)], [nested, f"{X} >= 0"])
+    assert result.passed + len(result.failed) + len(result.not_evaluated) == 2
+    assert "r2" not in result.failed
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        f"{X} = 5 and {X} = 5",
+        f"not(not({X} = 5))",
+        "with {tT, c0010}: {r0010} = {r0020} + {r0030} and {r0010} >= 5000000",
+        "with {tT, c0010}: {r0010} >= 2000000 and {r0010} <= 3000000",
+    ],
+)
+@pytest.mark.parametrize("seed", [0, 1, 2])
+def test_and_repairs_are_not_applied_twice(rule, seed) -> None:
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    result = run(cells, [rule], seed=seed)
+    assert result.failed == [], rule
+    assert result.rounds <= 2
