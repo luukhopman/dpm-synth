@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Typing :: Typed",
 ]
-dependencies = ["dpm-xl>=0.1,<0.2", "dpm-xbrl>=0.1,<0.2"]
+dependencies = ["dpm-xl>=1.0,<2", "dpm-xbrl>=1.0,<2"]
 
 [project.urls]
 Homepage = "https://github.com/luukhopman/dpm-synth"
@@ -101,6 +101,12 @@ addopts = ["--strict-config", "--strict-markers", "--import-mode=importlib"]
 source = ["dpmsynth"]
 branch = true
 
+[[tool.uv.index]]
+url = "https://pypi.org/simple"
+default = true
+
+# dpm-xl and dpm-xbrl 1.0 are not on PyPI yet; until they are, both come from
+# their GitHub main branches. See AGENTS.md.
 [tool.uv.sources]
-dpm-xl = { path = "../dpm-xl", editable = true }
-dpm-xbrl = { path = "../dpm-xbrl", editable = true }
+dpm-xl = { git = "https://github.com/luukhopman/dpm-xl", branch = "main" }
+dpm-xbrl = { git = "https://github.com/luukhopman/dpm-xbrl", branch = "main" }

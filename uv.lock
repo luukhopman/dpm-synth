@@ -157,8 +157,8 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "dpm-xbrl", editable = "../dpm-xbrl" },
-    { name = "dpm-xl", editable = "../dpm-xl" },
+    { name = "dpm-xbrl", git = "https://github.com/luukhopman/dpm-xbrl?branch=main" },
+    { name = "dpm-xl", git = "https://github.com/luukhopman/dpm-xl?branch=main" },
 ]
 
 [package.metadata.requires-dev]
@@ -179,52 +179,13 @@ test = [
 
 [[package]]
 name = "dpm-xbrl"
-version = "0.1.0"
-source = { editable = "../dpm-xbrl" }
-
-[package.metadata]
-requires-dist = [
-    { name = "isal", marker = "extra == 'fast'", specifier = ">=1.8,<2" },
-    { name = "polars", marker = "extra == 'frames'", specifier = ">=2.0,<3" },
-]
-provides-extras = ["frames", "fast"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-lint = [
-    { name = "ruff" },
-    { name = "ty" },
-]
-test = [{ name = "pytest" }]
+version = "1.0.0"
+source = { git = "https://github.com/luukhopman/dpm-xbrl?branch=main#75b283887f038adc650664a38b7dfcf5dac3bad9" }
 
 [[package]]
 name = "dpm-xl"
-version = "0.1.0"
-source = { editable = "../dpm-xl" }
-
-[package.metadata]
-requires-dist = [{ name = "polars", marker = "extra == 'columnar'", specifier = ">=2.0,<3" }]
-provides-extras = ["columnar"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest" },
-    { name = "pytest-cov", specifier = ">=7.1,<8" },
-    { name = "ruff" },
-    { name = "ty" },
-]
-lint = [
-    { name = "ruff" },
-    { name = "ty" },
-]
-test = [
-    { name = "pytest" },
-    { name = "pytest-cov", specifier = ">=7.1,<8" },
-]
+version = "1.0.0"
+source = { git = "https://github.com/luukhopman/dpm-xl?branch=main#05c0fa340d96b9d13d38516d636d5e881a47c990" }
 
 [[package]]
 name = "iniconfig"
