@@ -48,6 +48,22 @@ package cannot be written.
 The template format: https://luukhopman.github.io/dpm-synth/reference/template-format/"""
 
 
+class _Options(argparse.HelpFormatter):
+    """Lists ``-o, --output ZIP`` as Python 3.13 and later do, on every version."""
+
+    def _format_action_invocation(self, action: argparse.Action) -> str:
+        if not action.option_strings or action.nargs == 0:
+            return super()._format_action_invocation(action)
+        value = self._format_args(
+            action, self._get_default_metavar_for_optional(action)
+        )
+        return f"{', '.join(action.option_strings)} {value}"
+
+
+class _Main(_Options, argparse.RawDescriptionHelpFormatter):
+    """Keeps the line breaks of the description and the epilog."""
+
+
 def _whole(minimum: int) -> Any:
     def parse(text: str) -> int:
         try:
@@ -95,7 +111,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Generate synthetic EBA xBRL-CSV reports that satisfy a module's\n"
         "DPM-XL validation rules.",
         epilog=_EPILOG,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        formatter_class=_Main,
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
@@ -104,6 +120,7 @@ def _parser() -> argparse.ArgumentParser:
     run = commands.add_parser(
         "generate",
         help="write an xBRL-CSV report package for a template",
+        formatter_class=_Options,
         description="Generate values for every cell of a template, repair them "
         "until the rules pass, and write an xBRL-CSV report package.",
     )
