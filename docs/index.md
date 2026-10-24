@@ -10,14 +10,13 @@ tables, cells and rules; it fills every cell with a plausible value, repairs
 the values until the rules pass, and writes a report package that reads and
 validates like a real submission.
 
+dpm-synth is an independent project, not affiliated with or endorsed by the
+European Banking Authority.
+
 It builds on two sibling packages: [dpm-xl] evaluates the rules and
-[dpm-xbrl] writes the package. It needs Python 3.11 or newer.
-
-!!! note "Independent project"
-
-    dpm-synth is an independent project, not affiliated with or endorsed by
-    the EBA. The reports it writes are synthetic: the entity is a fictional
-    LEI and every value is generated.
+[dpm-xbrl] writes the package. It needs Python 3.11 or newer. The reports it
+writes are synthetic: the entity is a fictional LEI and every value is
+generated.
 
 ## Who it is for
 
@@ -90,6 +89,10 @@ This installs dpm-xl and dpm-xbrl too, and the `dpm-synth` command.
   same bytes; see [reproduce a report](guides/reproducible-seeds.md).
 - **Large.** Scaled packages stream open tables with millions of rows in
   seconds; see [load-test with scaled packages](guides/load-testing.md).
+
+## Toolkit
+
+--8<-- "docs/.snippets/toolkit.md"
 
 ## Where next
 

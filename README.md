@@ -1,6 +1,8 @@
-<p align="center"><a href="https://luukhopman.github.io/dpm-synth/"><img src="https://luukhopman.github.io/dpm-synth/assets/logo.svg" alt="dpm-synth" width="240"></a></p>
+<p align="center">
+  <a href="https://luukhopman.github.io/dpm-synth/"><img src="https://luukhopman.github.io/dpm-synth/assets/logo.svg" alt="dpm-synth" width="240"></a>
+</p>
 
-# dpm-synth
+<p align="center"><em>Generate synthetic EBA reports that satisfy DPM-XL validation rules.</em></p>
 
 Generate synthetic EBA xBRL-CSV report packages that satisfy a module's
 DPM-XL validation rules. Give dpm-synth a template with a module's tables,
@@ -8,10 +10,12 @@ cells and rules; it fills every cell with a plausible value, repairs the
 values until the rules pass, and writes a report package that reads and
 validates like a real submission. Use it to test loaders, data warehouses
 and validators for EBA reports, for any module, without real supervisory
-data. It is an independent project, not affiliated with or endorsed by the
-EBA.
+data.
 
-**Documentation: <https://luukhopman.github.io/dpm-synth/>**
+dpm-synth is an independent project, not affiliated with or endorsed by the
+European Banking Authority.
+
+## Installation
 
 ```text
 pip install dpm-synth   # Python 3.11+; installs dpm-xl and dpm-xbrl
@@ -65,7 +69,23 @@ that writes the
   bytes.
 - **Large**: scaled packages stream open tables with millions of rows.
 
-## Learn more
+## Toolkit
+
+**Part of the dpm toolkit**, three Python packages that work together:
+
+| Package | What it does |
+| :-- | :-- |
+| <a href="https://luukhopman.github.io/dpm-xl/"><img src="https://luukhopman.github.io/dpm-xl/assets/logo.svg" alt="dpm-xl" height="32"></a> | Parse and evaluate DPM-XL validation rules |
+| <a href="https://luukhopman.github.io/dpm-xbrl/"><img src="https://luukhopman.github.io/dpm-xbrl/assets/logo.svg" alt="dpm-xbrl" height="32"></a> | Read, write and check xBRL-CSV and XBRL-XML reports |
+| <a href="https://luukhopman.github.io/dpm-synth/"><img src="https://luukhopman.github.io/dpm-synth/assets/logo.svg" alt="dpm-synth" height="32"></a> | Generate test reports that satisfy DPM-XL rules **(this package)** |
+
+The [toolkit tour](https://luukhopman.github.io/dpm-xl/guides/toolkit-tour/)
+takes one report through all three: generated with dpm-synth, read with
+dpm-xbrl, then evaluated and explained with dpm-xl.
+
+## Documentation
+
+**Documentation: <https://luukhopman.github.io/dpm-synth/>**
 
 - [Getting started](https://luukhopman.github.io/dpm-synth/getting-started/)
 - [How-to guides](https://luukhopman.github.io/dpm-synth/guides/): write a
@@ -95,4 +115,7 @@ uv run python scripts/build_docs.py
 ```
 
 See [contributing](https://luukhopman.github.io/dpm-synth/project/contributing/).
-Released under the MIT licence.
+
+## Licence
+
+MIT. See [LICENSE](https://github.com/luukhopman/dpm-synth/blob/main/LICENSE).
