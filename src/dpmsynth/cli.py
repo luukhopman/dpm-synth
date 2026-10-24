@@ -11,7 +11,7 @@ from pathlib import Path
 
 from dpmxbrl import write_xbrl_csv
 
-from .generator import generate, summarize
+from .generator import generate
 from .scale import write_scaled_package
 from .template import TemplateError, load_template
 
@@ -63,13 +63,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         facts = len(result.report.facts)
     else:
         written = write_scaled_package(
-            template,
-            result.data,
-            arguments.output,
-            rows=arguments.scale_rows,
-            entity=arguments.entity,
-            reporting_level=arguments.level,
-            reference_date=arguments.reference_date,
+            result.data, arguments.output, rows=arguments.scale_rows
         )
         facts = sum(written.values())
     if arguments.json:
@@ -90,8 +84,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
     else:
-        for line in summarize(result):
-            print(line)
+        print(
+            f"rules: {result.rules}, passed: {result.passed}, "
+            f"failed: {len(result.failed)}"
+        )
         print(f"wrote {arguments.output} ({facts} facts)")
     return 1 if result.failed else 0
 

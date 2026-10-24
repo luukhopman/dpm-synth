@@ -1,6 +1,27 @@
-"""Generate synthetic EBA reports that satisfy DPM-XL validation rules."""
+"""Generate synthetic EBA xBRL-CSV reports that satisfy DPM-XL validation rules.
 
-from .generator import GenerationResult, SyntheticData, build_report, generate
+Typical use::
+
+    from dpmxbrl import write_xbrl_csv
+
+    from dpmsynth import generate, load_template
+
+    result = generate(load_template("template.json"), seed=7)
+    write_xbrl_csv(result.report, "report.zip")
+    print(result.passed, result.failed)
+
+Everything in ``__all__`` is the public API; import it from ``dpmsynth``.
+"""
+
+from ._version import __version__
+from .generator import (
+    DEFAULT_ENTITY,
+    DEFAULT_REFERENCE_DATE,
+    GenerationResult,
+    SyntheticData,
+    build_report,
+    generate,
+)
 from .scale import write_scaled_package
 from .template import (
     TEMPLATE_FORMAT,
@@ -14,6 +35,8 @@ from .template import (
 )
 
 __all__ = [
+    "DEFAULT_ENTITY",
+    "DEFAULT_REFERENCE_DATE",
     "TEMPLATE_FORMAT",
     "GenerationResult",
     "ModuleTemplate",
@@ -23,6 +46,7 @@ __all__ = [
     "TemplateError",
     "TemplateRule",
     "TemplateTable",
+    "__version__",
     "build_report",
     "generate",
     "load_template",

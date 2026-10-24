@@ -15,13 +15,7 @@
     }
   ],
   "rules": [
-    {
-      "code": "v1",
-      "expression": "with {tT_01.00, c0010, default: 0, interval: true}: {r0010} = {r0020} + {r0030}"
-    },
-    {
-      "code": "v2",
-      "expression": "with {tT_01.00, c0010}: {(r0020, r0030)} >= 0"
-    }
+    {"code": "v1", "expression": "with {tT_01.00, c0010, default: 0, interval: true}: {r0010} = {r0020} + {r0030}"},
+    {"code": "v2", "expression": "with {tT_01.00, c0010}: {(r0020, r0030)} >= 0"}
   ]
 }

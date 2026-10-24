@@ -1,21 +1,24 @@
 """Generate a report that satisfies a module's DPM-XL rules.
 
-The generator is a repair loop, not a complete constraint solver:
+The generator is an evaluate-and-repair loop, not a complete constraint
+solver:
 
-1. Every cell gets a plausible random value for its data type, and every open
-   table gets a few key rows.
-2. All rules are evaluated with :mod:`dpmxl`. For each failing record the
-   first failing comparison is located through the evaluation trace and one
-   operand is reassigned so the comparison holds: a single cell takes the
-   other side's value, or one term of a sum absorbs the difference.
-   ``isnull``, ``in`` and ``match`` failures are repaired by clearing, choosing
-   a member, or synthesizing a matching identifier.
-3. Steps 2 repeats until no rule fails or a round changes nothing.
+1. Every cell gets a plausible value for its data type, and every open table
+   gets a few key rows.
+2. Single-cell sign rules become per-cell bounds, and every ``=`` rule with a
+   single-cell side defines that cell; rules are ordered so the definitions
+   of components run before the totals that use them.
+3. All rules are evaluated with dpm-xl. For each failing record the first
+   failing comparison is found through the evaluation trace and one cell is
+   changed so the comparison holds. ``isnull``, ``in`` and ``match`` failures
+   are repaired by clearing, choosing a member, or writing a matching
+   identifier.
+4. Step 3 repeats until no rule fails, a round changes nothing, or the
+   failing count stops improving. Values are then rounded to the reporting
+   decimals and every rule is evaluated once more.
 
-Totals propagate up hierarchies over successive rounds, so most EBA modules
-converge in a few rounds. Rules that still fail (contradictory constraints,
-``time_shift``, regular expressions it cannot satisfy) are reported in
-:class:`GenerationResult`.
+How the loop works, and where it stops, is explained at
+https://luukhopman.github.io/dpm-synth/concepts/repair-loop/.
 """
 
 from __future__ import annotations
@@ -23,16 +26,17 @@ from __future__ import annotations
 import random
 import re
 import string
-from collections.abc import Hashable, Iterable, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Hashable, Sequence
+from dataclasses import dataclass, field, replace
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, cast
 
 from dpmxbrl import Fact, Report
 from dpmxl import (
     CellQuery,
     DataPoint,
+    DpmXlSyntaxError,
     Evaluation,
     Item,
     Number,
@@ -61,6 +65,12 @@ from dpmxl.ast import (
 
 from .template import ModuleTemplate, TemplateCell, TemplateTable
 
+DEFAULT_ENTITY = "SYNTHETICDPMXL000002"
+"""The fictional LEI that reports are generated for unless told otherwise."""
+
+DEFAULT_REFERENCE_DATE = date(2026, 12, 31)
+"""The reference date of a template that gives none."""
+
 _NUMERIC = {"m", "p", "i", "r"}
 _DEFAULT_DECIMALS = {"m": 0, "p": 4, "i": 0, "r": 2}
 _DECIMALS_PARAMETERS = {
@@ -72,30 +82,83 @@ _DECIMALS_PARAMETERS = {
 _COMPARISONS = {"=", "!=", "<", "<=", ">", ">="}
 _NEGATED = {"=": "!=", "!=": "=", "<": ">=", "<=": ">", ">": "<=", ">=": "<"}
 _MIRRORED = {"=": "=", "!=": "!=", "<": ">", "<=": ">=", ">": "<", ">=": "<="}
+# Repairs never write a number larger than this: past it a linearized product
+# or ratio has diverged, and the value would only break other rules.
+_LIMIT = Decimal(10) ** 15
+_STORED = Decimal("1e-8")
+_IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+_RSCHEME = "https://eurofiling.info/eu/rs"
 
 Slot = tuple[str, tuple[tuple[str, Any], ...]]
 
 
-@dataclass
+@dataclass(frozen=True)
 class GenerationResult:
-    """The generated report and how far the repair loop got."""
+    """The generated report and how far the repair loop got.
+
+    ``passed``, ``failed``, ``not_evaluated`` and ``not_applicable`` together
+    count every rule of the template once.
+
+    Attributes:
+        report: The report, ready for ``dpmxbrl.write_xbrl_csv``.
+        data: The generated values, a dpm-xl data provider; pass it to
+            [`write_scaled_package`][dpmsynth.write_scaled_package] or
+            evaluate rules on it.
+        rules: Rules in the template.
+        passed: Rules that pass on the final, rounded values.
+        failed: Codes of the rules that still fail.
+        not_evaluated: Rules dpm-xl could not evaluate, such as
+            ``time_shift`` without a previous report or a syntax error, with
+            the reason, by rule code.
+        not_applicable: Codes of the rules whose precondition is false or
+            that select no cell of the template.
+        rounds: Evaluate-and-repair rounds run.
+        repairs: Failing records repaired over all rounds.
+        history: Failing rules at the start of each round.
+    """
 
     report: Report
-    rounds: int
+    data: SyntheticData
     rules: int
     passed: int
     failed: list[str]
     not_evaluated: dict[str, str]
+    not_applicable: list[str]
+    rounds: int
     repairs: int
     history: list[int] = field(default_factory=list)
-    data: SyntheticData | None = None
 
 
 class SyntheticData:
-    """Mutable values for a template, exposed as a :class:`dpmxl.DataProvider`."""
+    """Generated values for a template, readable as a dpm-xl data provider.
+
+    [`generate`][dpmsynth.generate] creates and repairs one; it is
+    [`GenerationResult.data`][dpmsynth.GenerationResult]. It implements the
+    ``dpmxl.DataProvider`` protocol, with the optional ``open_keys``, so
+    ``dpmxl.evaluate_rule(expression, data)`` evaluates any rule on the
+    generated values.
+
+    Attributes:
+        template: The template, with the reference date the report uses.
+        values: Cell values by ``(datapoint, keys)``, where ``keys`` is a
+            tuple of ``(key code, value)`` pairs of an open table's row, and
+            ``()`` for a closed table. Numbers are ``dpmxl.Number``,
+            enumerated values ``dpmxl.Item``.
+        key_rows: Key rows by table code; ``[()]`` for a closed table.
+        entity: The LEI of the reporting entity.
+        reporting_level: ``CON`` or ``IND``, the suffix of the entity
+            identifier and the ``ReportingLevel`` parameter.
+        decimals: Reporting decimals by data type code.
+    """
 
     def __init__(
-        self, template: ModuleTemplate, rng: random.Random, open_rows: int
+        self,
+        template: ModuleTemplate,
+        rng: random.Random,
+        open_rows: int,
+        *,
+        entity: str = DEFAULT_ENTITY,
+        reporting_level: str = "CON",
     ) -> None:
         """Create initial values and open-table key rows.
 
@@ -103,23 +166,35 @@ class SyntheticData:
             template: Module template.
             rng: Random source.
             open_rows: Key rows to generate per open table.
+            entity: LEI of the reporting entity.
+            reporting_level: Suffix of the entity identifier.
         """
         self.template = template
         self.rng = rng
-        self.decimals = {**_DEFAULT_DECIMALS, **template.decimals}
+        self.entity = entity
+        self.reporting_level = reporting_level
+        self.decimals: dict[str, int] = {**_DEFAULT_DECIMALS, **template.decimals}
         self.values: dict[Slot, Value] = {}
-        self.cells_by_datapoint: dict[str, TemplateCell] = {}
         self.key_rows: dict[str, list[tuple[tuple[str, Any], ...]]] = {}
+        self._cells: dict[str, TemplateCell] = {}
         self._query_cells: dict[CellQuery, list[TemplateCell]] = {}
         # Slot -> (lower, upper) from single-cell sign rules such as {x} >= 0.
-        self.bounds: dict[Slot, tuple[Decimal | None, Decimal | None]] = {}
+        self._bounds: dict[Slot, tuple[Decimal | None, Decimal | None]] = {}
+        # Item -> the qname the template wrote, for the written report.
+        self._item_names: dict[Item, str] = {}
+        for table in template.tables:
+            for name in [
+                *(item for key in table.open_keys for item in key.items or ()),
+                *(item for cell in table.cells for item in cell.items or ()),
+            ]:
+                self._item_names.setdefault(Item.parse(name), name.strip())
         for table in template.tables:
             rows = self._key_rows(table, open_rows) if table.open_keys else [()]
             self.key_rows[table.code] = rows
             for cell in table.cells:
-                self.cells_by_datapoint.setdefault(cell.datapoint, cell)
+                self._cells.setdefault(cell.datapoint, cell)
                 for keys in rows:
-                    self.values.setdefault((cell.datapoint, keys), self.initial(cell))
+                    self.values.setdefault((cell.datapoint, keys), self._initial(cell))
 
     def _key_rows(
         self, table: TemplateTable, count: int
@@ -131,109 +206,134 @@ class SyntheticData:
                 if key.items:
                     value: Any = Item.parse(key.items[index % len(key.items)])
                 else:
-                    value = lei(self.rng)
+                    value = _lei(self.rng)
                 row.append((key.code, value))
             rows.append(tuple(row))
         return list(dict.fromkeys(rows))
 
-    def initial(self, cell: TemplateCell) -> Value:
-        """Return a random starting value for a cell's data type.
-
-        Returns:
-            Value: The value.
-        """
+    def _initial(self, cell: TemplateCell) -> Value:
+        """Return a random starting value for a cell's data type."""
         kind = cell.data_type
         if kind == "m":
-            return self.number(cell, Decimal(self.rng.randint(1, 1000) * 1000))
+            return self._number(cell, Decimal(self.rng.randint(1, 1000) * 1000))
         if kind == "p":
-            return self.number(cell, Decimal(self.rng.randint(1, 99)) / 100)
+            return self._number(cell, Decimal(self.rng.randint(1, 99)) / 100)
         if kind == "i":
-            return self.number(cell, Decimal(self.rng.randint(1, 50)))
+            return self._number(cell, Decimal(self.rng.randint(1, 50)))
         if kind == "r":
-            return self.number(cell, Decimal(self.rng.randint(100, 999)) / 100)
+            return self._number(cell, Decimal(self.rng.randint(100, 999)) / 100)
         if kind == "e":
             return Item.parse(cell.items[0]) if cell.items else Item("qx", "qx0")
         if kind == "b":
             return True
         if kind == "d":
-            return self.template.reference_date or date(2026, 12, 31)
-        return lei(self.rng)
+            return self.template.reference_date or DEFAULT_REFERENCE_DATE
+        return _lei(self.rng)
 
-    def numeric_slot(self, slot: Any) -> bool:
-        """Whether a slot holds a numeric cell that repairs may change.
-
-        Returns:
-            bool: ``True`` for numeric data types.
-        """
+    def _cell(self, slot: object) -> TemplateCell | None:
         if not isinstance(slot, tuple) or slot not in self.values:
-            return False
-        cell = self.cells_by_datapoint.get(slot[0])
+            return None
+        return self._cells.get(slot[0])
+
+    def _numeric_slot(self, slot: object) -> bool:
+        # Whether a slot holds a numeric cell that repairs may change.
+        cell = self._cell(slot)
         return cell is not None and cell.data_type in _NUMERIC
 
-    def assign(self, slot: Slot, value: Decimal) -> bool:
+    def _quantum(self, cell: TemplateCell | None) -> Decimal:
+        # The smallest step a cell's value is reported in.
+        decimals = self.decimals.get(cell.data_type or "", 2) if cell else 2
+        return Decimal(1).scaleb(-decimals)
+
+    def _assign(self, slot: Slot, value: Decimal) -> bool:
         """Set an unrounded numeric value, clamped into the slot's bounds.
 
         Returns:
             bool: Whether the stored value changed.
         """
-        lower, upper = self.bounds.get(slot, (None, None))
+        lower, upper = self._bounds.get(slot, (None, None))
         if lower is not None and value < lower:
             value = lower
         if upper is not None and value > upper:
             value = upper
-        value = value.quantize(Decimal("1e-8"))
+        if abs(value) > _LIMIT:
+            return False
+        value = value.quantize(_STORED)
         current = self.values.get(slot)
         if isinstance(current, Number) and current.value == value:
             return False
         self.values[slot] = Number(value)
         return True
 
-    def round_all(self) -> None:
+    def _round_all(self) -> None:
         """Round every numeric value to its reporting decimals."""
         for slot, value in self.values.items():
-            cell = self.cells_by_datapoint.get(slot[0])
+            cell = self._cells.get(slot[0])
             if isinstance(value, Number) and cell is not None:
-                self.values[slot] = self.number(cell, value.value)
+                self.values[slot] = self._number(cell, value.value)
 
-    def within_bounds(self, slot: Slot, value: Decimal) -> bool:
-        """Whether a value respects the slot's sign-rule bounds.
-
-        Returns:
-            bool: ``True`` when no recorded bound is violated.
-        """
-        lower, upper = self.bounds.get(slot, (None, None))
+    def _within_bounds(self, slot: Slot, value: Decimal) -> bool:
+        # Whether a value respects the slot's sign-rule bounds.
+        lower, upper = self._bounds.get(slot, (None, None))
         return (lower is None or value >= lower) and (upper is None or value <= upper)
 
-    def apply_bounds(self) -> None:
-        """Flip or clamp initial values into their sign-rule bounds."""
-        for slot, (lower, upper) in self.bounds.items():
+    def _apply_bounds(self) -> None:
+        """Move initial values inside their sign-rule bounds.
+
+        A value on the wrong side of zero changes sign, so that a cell that
+        must not be positive keeps a magnitude like its neighbours'; a value
+        still outside its bounds takes the nearest bound.
+        """
+        for slot, (lower, upper) in self._bounds.items():
             current = self.values.get(slot)
             if not isinstance(current, Number):
                 continue
             value = current.value
             if upper is not None and value > upper:
                 value = -abs(value) if upper <= 0 else upper
+                value = min(value, upper)
             if lower is not None and value < lower:
                 value = abs(value) if lower >= 0 else lower
+                value = max(value, lower)
             self.values[slot] = Number(value)
 
-    def number(self, cell: TemplateCell | None, value: Decimal) -> Number:
-        """Round a value to the cell type's reporting decimals.
+    def _number(self, cell: TemplateCell | None, value: Decimal) -> Number:
+        # Round a value to the cell type's reporting decimals.
+        try:
+            rounded = value.quantize(self._quantum(cell), rounding=ROUND_HALF_UP)
+        except InvalidOperation:  # too many digits to round; never written
+            rounded = value
+        return Number(rounded + 0)  # + 0 turns -0 into 0
 
-        Returns:
-            Number: An exact number.
-        """
-        decimals = self.decimals.get(cell.data_type or "", 2) if cell else 2
-        quantum = Decimal(1).scaleb(-decimals)
-        return Number(value.quantize(quantum, rounding=ROUND_HALF_UP))
+    def _text(self, value: object) -> str:
+        """Return the lexical form of a value, as written to the package."""
+        if isinstance(value, Number):
+            number = value.value
+            return format(number.copy_abs() if number.is_zero() else number, "f")
+        if isinstance(value, Item):
+            known = self._item_names.get(value)
+            if known is not None:
+                return known
+            return (
+                f"eba_{value.category}:{value.code}" if value.category else value.code
+            )
+        if isinstance(value, bool):
+            return "true" if value else "false"
+        if isinstance(value, date):
+            return value.isoformat()
+        return str(value)
 
     # DataProvider -----------------------------------------------------------
 
     def select(self, query: CellQuery) -> Sequence[DataPoint]:
-        """Return selected cells for every key row of the table.
+        """Return the selected cells for every key row of the table.
+
+        Numbers carry their reporting decimals, so rules are judged with the
+        same tolerance as the written report.
 
         Returns:
-            Sequence[DataPoint]: Points referencing ``(datapoint, keys)`` slots.
+            Sequence[DataPoint]: Points whose ``ref`` is the
+            ``(datapoint, keys)`` slot.
 
         Raises:
             LookupError: If the table is not in the template.
@@ -277,10 +377,13 @@ class SyntheticData:
         return points
 
     def table_reported(self, table: str) -> bool | None:
-        """Every template table is reported.
+        """Whether a table or filing indicator is in the template.
+
+        Every table of the template is reported.
 
         Returns:
-            bool | None: Whether a table or filing indicator matches.
+            bool | None: Whether a table code, a filing indicator or a table
+            under a template code such as ``C_07.00`` matches, ignoring case.
         """
         folded = table.casefold()
         return any(
@@ -291,17 +394,27 @@ class SyntheticData:
         )
 
     def parameter(self, name: str) -> Value:
-        """Return report parameters.
+        """Return a report parameter.
 
         Returns:
-            Value: ``refPeriod`` or ``ReportingLevel``; otherwise ``None``.
+            Value: ``refPeriod`` (the reference date) or ``ReportingLevel``
+            (``con`` or ``ind``); otherwise ``None``.
         """
         folded = name.casefold()
         if folded == "refperiod":
-            return self.template.reference_date or date(2026, 12, 31)
+            return self.template.reference_date or DEFAULT_REFERENCE_DATE
         if folded == "reportinglevel":
-            return "con"
+            return self.reporting_level.casefold()
         return None
+
+    def open_keys(self, table: str) -> tuple[str, ...]:
+        """Return the open key codes of a table.
+
+        Returns:
+            tuple[str, ...]: Key codes; empty for a closed or unknown table.
+        """
+        found = self.template.table(table)
+        return tuple(key.code for key in found.open_keys) if found else ()
 
 
 def _selected(code: str | None, selector: Any) -> bool:
@@ -312,16 +425,30 @@ def _selected(code: str | None, selector: Any) -> bool:
     return axis_matches(code, selector)
 
 
-def lei(rng: random.Random) -> str:
-    """Return a random identifier shaped like an LEI.
+_LEI_ALPHABET = string.ascii_uppercase + string.digits
+
+
+def _lei(rng: random.Random) -> str:
+    """Return a random, checksum-valid identifier shaped like an LEI.
+
+    Eighteen upper-case letters and digits followed by the two ISO 17442
+    check digits, so validators that check LEIs accept it. The identifier is
+    random, not a registered LEI.
 
     Returns:
-        str: 18 upper-case alphanumerics followed by two digits.
+        str: The identifier.
     """
-    alphabet = string.ascii_uppercase + string.digits
-    return (
-        "".join(rng.choice(alphabet) for _ in range(18)) + f"{rng.randint(0, 99):02d}"
-    )
+    return _with_check_digits("".join(rng.choice(_LEI_ALPHABET) for _ in range(18)))
+
+
+def _with_check_digits(base: str) -> str:
+    """Append the ISO 17442 (ISO 7064 MOD 97-10) check digits to 18 characters.
+
+    Returns:
+        str: The 20-character identifier.
+    """
+    number = int("".join(str(int(character, 36)) for character in base + "00"))
+    return f"{base}{98 - number % 97:02d}"
 
 
 # Repair ---------------------------------------------------------------------
@@ -355,8 +482,7 @@ class _Repairer:
         ]
 
     def fix(self, node: Node, desired: bool) -> bool:
-        while isinstance(node, With):
-            node = node.body
+        node = _unwrap(node)
         current = self.value(node)
         if current is desired:
             return False
@@ -391,7 +517,7 @@ class _Repairer:
                     return self.assign_all(operand, None)
                 return self.fill(operand)
             case Call(name="match", args=(operand, pattern)) if desired:
-                text = _matching_text(_literal(pattern), self.data.rng)
+                text = _matching_text(_literal(pattern), self.data)
                 return text is not None and self.assign_all(operand, text)
         return False
 
@@ -439,25 +565,26 @@ class _Repairer:
         for point in self.points(node):
             slot = cast(Slot, point.ref)
             if self.data.values.get(slot) is None:
-                cell = self.data.cells_by_datapoint.get(slot[0])
+                cell = self.data._cell(slot)
                 if cell is not None:
-                    changed = self.put(slot, self.data.initial(cell)) or changed
+                    changed = self.put(slot, self.data._initial(cell)) or changed
         return changed
 
-    def put(self, slot: Any, value: Value) -> bool:
-        if not isinstance(slot, tuple) or slot not in self.data.values:
+    def put(self, slot: object, value: Value) -> bool:
+        cell = self.data._cell(slot)
+        if cell is None:
             return False
-        cell = self.data.cells_by_datapoint.get(slot[0])
-        if (
-            value is not None
-            and cell is not None
-            and (cell.data_type in _NUMERIC) != isinstance(value, Number)
+        slot = cast(Slot, slot)
+        if value is not None and (cell.data_type in _NUMERIC) != isinstance(
+            value, Number
         ):
             # Numbers go in numeric cells only, and nothing else does.
             return False
-        if isinstance(value, Number) and cell is not None:
-            value = self.data.number(cell, value.value)
-            if not self.data.within_bounds(slot, value.value):
+        if isinstance(value, Number):
+            if abs(value.value) > _LIMIT:
+                return False
+            value = self.data._number(cell, value.value)
+            if not self.data._within_bounds(slot, value.value):
                 return False
         if self.data.values.get(slot) == value:
             return False
@@ -466,9 +593,7 @@ class _Repairer:
 
     def comparison(self, node: Binary, op: str) -> bool:
         left, right = self.value(node.left), self.value(node.right)
-        numeric = isinstance(left, Number | type(None)) and isinstance(
-            right, Number | type(None)
-        )
+        numeric = isinstance(left, Number | None) and isinstance(right, Number | None)
         if numeric and (left is not None or right is not None):
             return self.linear(node, op)
         if op == "=" and right is not None:
@@ -484,15 +609,13 @@ class _Repairer:
         of two cells are linearized at the current values. The chosen cell is
         the first one no other rule defines and whose new value respects its
         sign bounds, so a total owned by one rule is not pulled around by rules
-        that merely use it.
+        that merely use it. A strict inequality is met by one reporting step
+        of the chosen cell.
 
         Returns:
             bool: Whether a value changed.
         """
         difference = _value(self.value(node.left)) - _value(self.value(node.right))
-        goal = _goal(op, difference)
-        if goal is None:
-            return False
         terms = self.terms(node.left, Decimal(1)) + self.terms(node.right, Decimal(-1))
         owners = self.owners
 
@@ -502,12 +625,17 @@ class _Repairer:
             return (1 if others else 0, index)
 
         for _index, (slot, coefficient) in sorted(enumerate(terms), key=rank):
-            if not coefficient or not self.data.numeric_slot(slot):
+            if not coefficient or not self.data._numeric_slot(slot):
                 continue
+            step = self.data._quantum(self.data._cell(slot)) * abs(coefficient)
+            goal = _goal(op, step)
             current = self.data.values.get(slot)
             base = current.value if isinstance(current, Number) else Decimal(0)
-            value = base + (goal - difference) / coefficient
-            if self.data.within_bounds(slot, value) and self.data.assign(slot, value):
+            try:
+                value = base + (goal - difference) / coefficient
+            except ArithmeticError:
+                continue
+            if self.data._within_bounds(slot, value) and self.data._assign(slot, value):
                 return True
         return False
 
@@ -556,20 +684,17 @@ def _value(value: Value | None) -> Decimal:
     return value.value if isinstance(value, Number) else Decimal(0)
 
 
-def _goal(op: str, difference: Decimal) -> Decimal | None:
+def _goal(op: str, step: Decimal) -> Decimal:
     """Return the ``left - right`` difference that satisfies ``op``.
 
     Returns:
-        Decimal | None: The nearest satisfying difference.
+        Decimal: Zero, or one step to the required side of it.
     """
-    match op:
-        case "=" | "<=" | ">=":
-            return Decimal(0)
-        case ">" | "!=":
-            return Decimal(1)
-        case "<":
-            return Decimal(-1)
-    return None
+    if op in {">", "!="}:
+        return step
+    if op == "<":
+        return -step
+    return Decimal(0)
 
 
 def _literal(node: Node) -> Value:
@@ -581,18 +706,20 @@ def _literal(node: Node) -> Value:
 
 
 _LEI_PATTERN = re.compile(r"\[A-Z0-9\]\{18\}\[0-9\]\{2\}")
+_DATE_PATTERN = re.compile(
+    r"\^?\[0-9\]\{2\}\[/\]\{1\}\[0-9\]\{2\}\[/\]\{1\}\[0-9\]\{4\}\$?"
+)
 
 
-def _matching_text(pattern: Value, rng: random.Random) -> str | None:
+def _matching_text(pattern: Value, data: SyntheticData) -> str | None:
+    """Return text matching one of the two regular expressions EBA rules use."""
     if not isinstance(pattern, str):
         return None
     if _LEI_PATTERN.search(pattern):
-        return lei(rng)
-    date_like = re.fullmatch(
-        r"\^?\[0-9\]\{2\}\[/\]\{1\}\[0-9\]\{2\}\[/\]\{1\}\[0-9\]\{4\}\$?", pattern
-    )
-    if date_like:
-        return "31/12/2026"
+        return _lei(data.rng)
+    if _DATE_PATTERN.fullmatch(pattern):
+        reference = data.template.reference_date or DEFAULT_REFERENCE_DATE
+        return reference.strftime("%d/%m/%Y")
     return None
 
 
@@ -605,36 +732,76 @@ def generate(
     seed: int = 0,
     open_rows: int = 2,
     max_rounds: int = 40,
-    entity: str = "SYNTHETICDPMXL000002",
+    entity: str = DEFAULT_ENTITY,
     reporting_level: str = "CON",
     reference_date: date | None = None,
 ) -> GenerationResult:
-    """Generate a report for ``template`` that satisfies as many rules as possible.
+    """Generate a report for ``template`` that satisfies as many rules as it can.
 
     Args:
-        template: Module template.
-        seed: Random seed; the same seed and template give the same report.
-        open_rows: Key rows per open table.
-        max_rounds: Upper bound on evaluate-and-repair rounds.
+        template: Module template, from [`load_template`][dpmsynth.load_template].
+        seed: Random seed; the same seed, template, options and versions give
+            the same report.
+        open_rows: Key rows per open table, at least 1. Enumerated keys take
+            their allowed items in order, so a table whose keys allow fewer
+            combinations gets fewer rows.
+        max_rounds: Upper bound on evaluate-and-repair rounds; 0 evaluates the
+            initial values only.
         entity: LEI of the reporting entity.
-        reporting_level: ``CON`` or ``IND`` suffix of the entity identifier.
+        reporting_level: Suffix of the entity identifier, such as ``CON`` or
+            ``IND``; also the ``ReportingLevel`` parameter, in lower case.
         reference_date: Overrides the template's reference date.
 
     Returns:
         GenerationResult: The report and the final rule status.
+
+    Raises:
+        ValueError: If ``open_rows`` or ``max_rounds`` is out of range, or
+            ``entity`` or ``reporting_level`` is not an identifier.
+
+    Examples:
+        >>> from dpmsynth import load_template
+        >>> result = generate(load_template("minimal.json"), seed=7)
+        >>> result.passed, result.failed
+        (2, [])
+        >>> result.report.entity_id
+        'SYNTHETICDPMXL000002.CON'
     """
+    if isinstance(open_rows, bool) or not isinstance(open_rows, int) or open_rows < 1:
+        raise ValueError(
+            f"open_rows must be a whole number of 1 or more: {open_rows!r}"
+        )
+    if (
+        isinstance(max_rounds, bool)
+        or not isinstance(max_rounds, int)
+        or max_rounds < 0
+    ):
+        raise ValueError(
+            f"max_rounds must be a whole number of 0 or more: {max_rounds!r}"
+        )
+    for name, value in (("entity", entity), ("reporting_level", reporting_level)):
+        if not isinstance(value, str) or not _IDENTIFIER.fullmatch(value):
+            raise ValueError(
+                f"{name} must be letters and digits, optionally with '.', '_' "
+                f"and '-': {value!r}"
+            )
     if reference_date is not None:
-        template = _with_reference_date(template, reference_date)
+        template = replace(template, reference_date=reference_date)
     rng = random.Random(seed)  # ruff: ignore[suspicious-non-cryptographic-random-usage] - reproducible test data, not secrets
-    data = SyntheticData(template, rng, open_rows)
+    data = SyntheticData(
+        template, rng, open_rows, entity=entity, reporting_level=reporting_level
+    )
     parsed = []
+    not_evaluated: dict[str, str] = {}
     for rule in template.rules:
         try:
             parsed.append((rule, parse(rule.expression), rule.precondition))
-        except ValueError:
-            continue
+        except DpmXlSyntaxError as error:
+            not_evaluated[rule.code] = f"syntax error: {error}"
+        except RecursionError:
+            not_evaluated[rule.code] = "expression too deeply nested"
     owners = _definitions(parsed, data)
-    data.apply_bounds()
+    data._apply_bounds()
     history: list[int] = []
     repairs = 0
     rounds = 0
@@ -659,30 +826,35 @@ def generate(
         repairs += changed
         if not failing or not changed or _stalled(history):
             break
-    data.round_all()
+    data._round_all()
     passed = 0
     failed: list[str] = []
-    not_evaluated: dict[str, str] = {}
+    not_applicable: list[str] = []
     for rule, node, precondition in parsed:
         result = evaluate_rule(node, data, precondition=precondition, trace=False)
         if result.status == "passed":
             passed += 1
         elif result.status == "failed":
             failed.append(rule.code)
-        elif result.status in {"error", "unsupported"}:
+        elif result.status == "not_applicable":
+            not_applicable.append(rule.code)
+        else:
             not_evaluated[rule.code] = result.message or result.status
     return GenerationResult(
-        report=build_report(
-            template, data, entity=entity, reporting_level=reporting_level
-        ),
-        rounds=rounds,
+        report=build_report(data),
+        data=data,
         rules=len(template.rules),
         passed=passed,
         failed=failed,
-        not_evaluated=not_evaluated,
+        not_evaluated={
+            rule.code: not_evaluated[rule.code]
+            for rule in template.rules
+            if rule.code in not_evaluated
+        },
+        not_applicable=not_applicable,
+        rounds=rounds,
         repairs=repairs,
         history=history,
-        data=data,
     )
 
 
@@ -703,7 +875,8 @@ def _definitions(
     """Map each cell to the rules whose equality defines it.
 
     A rule defines a cell when one side of an ``=`` comparison is that single
-    cell, preferring the left side.
+    cell, preferring the left side. Records sign-rule bounds on the way and
+    orders ``parsed`` so definitions of components come first.
 
     Returns:
         dict[Any, set[str]]: Slot to rule codes.
@@ -776,7 +949,10 @@ def _order_by_depth(
 
 
 def _record_bounds(node: Node, evaluation: Evaluation, data: SyntheticData) -> None:
-    """Record ``{cells} op constant`` sign rules as per-cell bounds."""
+    """Record ``{cells} op constant`` sign rules as per-cell bounds.
+
+    A strict inequality bounds the cell one reporting step past the constant.
+    """
     if not (isinstance(node, Binary) and node.op in {">=", ">", "<=", "<"}):
         return
     left, right, op = _unwrap(node.left), _unwrap(node.right), node.op
@@ -792,40 +968,43 @@ def _record_bounds(node: Node, evaluation: Evaluation, data: SyntheticData) -> N
         return
     for record in recordset.records.values():
         for point in iter_points(record.points):
-            lower, upper = data.bounds.get(cast(Slot, point.ref), (None, None))
+            slot = cast(Slot, point.ref)
+            step = data._quantum(data._cell(slot)) if op in {">", "<"} else 0
+            lower, upper = data._bounds.get(slot, (None, None))
             if op in {">=", ">"}:
-                bound = constant.value + (1 if op == ">" else 0)
+                bound = constant.value + step
                 lower = bound if lower is None else max(lower, bound)
             else:
-                bound = constant.value - (1 if op == "<" else 0)
+                bound = constant.value - step
                 upper = bound if upper is None else min(upper, bound)
-            data.bounds[cast(Slot, point.ref)] = (lower, upper)
+            data._bounds[slot] = (lower, upper)
 
 
-def _with_reference_date(template: ModuleTemplate, value: date) -> ModuleTemplate:
-    return ModuleTemplate(
-        release=template.release,
-        module=template.module,
-        entry_point=template.entry_point,
-        tables=template.tables,
-        rules=template.rules,
-        reference_date=value,
-        decimals=template.decimals,
-    )
+def build_report(data: SyntheticData) -> Report:
+    """Turn generated values into a report that dpm-xbrl can write.
 
+    Facts follow the EBA xBRL-CSV convention: a ``datapoint`` and
+    ``factValue`` per cell, with the open keys of the row. The entity is
+    ``<entity>.<reporting level>`` in the reporting-subject scheme, every
+    table's filing indicator is reported, and a ``decimals*`` parameter is
+    set for each numeric data type the template uses.
+    [`generate`][dpmsynth.generate] calls it; call it yourself after changing
+    ``data.values``.
 
-def build_report(
-    template: ModuleTemplate,
-    data: SyntheticData,
-    *,
-    entity: str,
-    reporting_level: str,
-) -> Report:
-    """Turn generated values into an xBRL-CSV style report.
+    Args:
+        data: Generated values, ``GenerationResult.data``.
 
     Returns:
-        Report: Datapoint facts per table, filing indicators and parameters.
+        Report: The report, for ``dpmxbrl.write_xbrl_csv``.
+
+    Examples:
+        >>> from dpmsynth import generate, load_template
+        >>> data = generate(load_template("minimal.json"), seed=7).data
+        >>> report = build_report(data)
+        >>> [fact.datapoint for fact in report.facts]
+        ['dp1001', 'dp1002', 'dp1003']
     """
+    template = data.template
     facts: list[Fact] = []
     emitted: set[tuple[str, Slot]] = set()
     for table in template.tables:
@@ -838,37 +1017,36 @@ def build_report(
                 emitted.add((table.code, slot))
                 facts.append(
                     Fact(
-                        _lexical(value),
+                        data._text(value),
                         datapoint=cell.datapoint,
                         template=table.code.lower(),
                         keys={
-                            _column(table, name): _lexical(key) for name, key in keys
+                            _column(table, name): data._text(key) for name, key in keys
                         },
                     )
                 )
-    decimals = {**_DEFAULT_DECIMALS, **template.decimals}
     used_types = {cell.data_type for table in template.tables for cell in table.cells}
     return Report(
         format="xbrl-csv",
         entry_point=template.entry_point,
         # A subject with a suffix uses the reporting-subject scheme (EBA
         # filing rule 3.6).
-        entity_scheme="https://eurofiling.info/eu/rs",
-        entity_id=f"{entity}.{reporting_level}",
-        reference_date=template.reference_date or date(2026, 12, 31),
+        entity_scheme=_RSCHEME,
+        entity_id=f"{data.entity}.{data.reporting_level}",
+        reference_date=template.reference_date or DEFAULT_REFERENCE_DATE,
         base_currency="iso4217:EUR",
         parameters={},
         decimals_parameters={
-            parameter: decimals[kind]
+            parameter: data.decimals[kind]
             for kind, parameter in _DECIMALS_PARAMETERS.items()
             if kind in used_types
         },
         filing_indicators=dict.fromkeys(
-            dict.fromkeys(t.filing_indicator for t in template.tables), True
+            dict.fromkeys(table.filing_indicator for table in template.tables), True
         ),
         facts=tuple(facts),
         namespaces={
-            "rs": "https://eurofiling.info/eu/rs",
+            "rs": _RSCHEME,
             "iso4217": "http://www.xbrl.org/2003/iso4217",
         },
     )
@@ -878,39 +1056,11 @@ def _column(table: TemplateTable, code: str) -> str:
     return next((key.column for key in table.open_keys if key.code == code), code)
 
 
-def _lexical(value: Value | Any) -> str:
-    if isinstance(value, Number):
-        return format(value.value, "f")
-    if isinstance(value, Item):
-        return f"eba_{value.category}:{value.code}" if value.category else value.code
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, date):
-        return value.isoformat()
-    return str(value)
-
-
-def summarize(result: GenerationResult) -> Iterable[str]:
-    """Yield human-readable summary lines.
-
-    Yields:
-        str: One line per fact.
-    """
-    failed = len(result.failed)
-    yield f"rules: {result.rules}, passed: {result.passed}, failed: {failed}"
-    yield f"rounds: {result.rounds} (failing rules per round: {result.history})"
-    yield f"repairs: {result.repairs}, facts: {len(result.report.facts)}"
-    if result.failed:
-        yield f"still failing: {', '.join(result.failed[:20])}"
-    if result.not_evaluated:
-        yield f"not evaluated: {len(result.not_evaluated)}"
-
-
 __all__ = [
+    "DEFAULT_ENTITY",
+    "DEFAULT_REFERENCE_DATE",
     "GenerationResult",
     "SyntheticData",
     "build_report",
     "generate",
-    "lei",
-    "summarize",
 ]

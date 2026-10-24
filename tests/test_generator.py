@@ -1,247 +1,549 @@
-import json
+import random
+import subprocess
+import sys
+from datetime import date
 from decimal import Decimal
 
 import pytest
-from dpmxbrl import read_report
-from dpmxl import Item, Number, evaluate_rule
+from dpmxl import CellQuery, Item, Number, evaluate_rule
 
-from dpmsynth import TemplateError, generate, load_template
-from dpmsynth.cli import main
-
-
-def cell(row, column, number, data_type="m", sheet=None, items=None):
-    return {
-        "id": f"cell-{number}",
-        "row": row,
-        "column": column,
-        "sheet": sheet,
-        "datapoint": f"dp{number}",
-        "data_type": data_type,
-        "items": items,
-    }
+from dpmsynth import (
+    DEFAULT_ENTITY,
+    GenerationResult,
+    SyntheticData,
+    build_report,
+    generate,
+    load_template,
+)
+from tests.support import SAMPLES, cell, document
 
 
-def template_document():
-    return {
-        "format": "dpm-synth-template/1",
-        "release": "4.3",
-        "module": "COREP_OF",
-        "entry_point": "http://www.eba.europa.eu/eu/fr/xbrl/crr/fws/corep/4.3/mod/corep_of.json",
-        "reference_date": "2026-12-31",
-        "decimals": {"m": 0, "p": 4},
-        "tables": [
-            {
-                "code": "C_01.00",
-                "filing_indicator": "C_01.00",
-                "open_keys": [],
-                "cells": [
-                    cell(row, column, 10 * index + offset)
-                    for index, row in enumerate(("0010", "0020", "0030", "0040"), 1)
-                    for offset, column in enumerate(("0010", "0020", "0030"))
-                ]
-                + [
-                    cell("0050", "0010", 50, "p"),
-                    cell("0060", "0010", 60, "e", items=["eba_AS:x1", "eba_AS:x2"]),
-                ],
-            },
-            {
-                "code": "C_07.00.a",
-                "filing_indicator": "C_07.00",
-                "open_keys": [
-                    {
-                        "code": "qEBB",
-                        "column": "qEBB",
-                        "items": ["eba_qEC:qx16", "eba_qEC:qx23"],
-                    }
-                ],
-                "cells": [
-                    cell("0010", "0010", 70, sheet="*"),
-                    cell("0020", "0010", 71, sheet="*"),
-                ],
-            },
-            {
-                "code": "B_01.01",
-                "filing_indicator": "B_01.01",
-                "open_keys": [{"code": "ERI", "column": "c0010", "items": None}],
-                "cells": [cell("*", "0020", 80, "s")],
-            },
-        ],
-        "rules": [
-            # Row totals and column totals of the same block.
-            {
-                "code": "rows",
-                "expression": "with {tC_01.00, (c0010, c0020, c0030), default: 0, interval: true}: {r0010} = {r0020} + {r0030} + {r0040}",
-                "precondition": "{v_C_01.00}",
-            },
-            {
-                "code": "columns",
-                "expression": "with {tC_01.00, (r0010, r0020, r0030, r0040), default: 0, interval: true}: {c0010} = {c0020} + {c0030}",
-            },
-            {
-                "code": "sign",
-                "expression": "with {tC_01.00, r0040, default: 0, interval: false}: {(c0020, c0030)} <= 0",
-            },
-            {
-                "code": "ratio",
-                "expression": "{tC_01.00, r0050, c0010, default: 0, interval: true} * {tC_01.00, r0020, c0010, default: 0, interval: true} = {tC_01.00, r0030, c0010, default: 0, interval: true}",
-            },
-            {"code": "item", "expression": "{tC_01.00, r0060, c0010} in {[eba_AS:x2]}"},
-            {
-                "code": "open",
-                "expression": "with {tC_07.00.a, c0010, default: 0, interval: true}: {r0020} <= {r0010}",
-            },
-            {
-                "code": "open-total",
-                "expression": "sum({tC_07.00.a, r0010, c0010, default: 0}) = {tC_01.00, r0010, c0010}",
-            },
-            {
-                "code": "lei",
-                "expression": 'match({tB_01.01, c0020}, "^[A-Z0-9]{18}[0-9]{2}$") and match({tB_01.01, c0020}[get ERI], "^[A-Z0-9]{18}[0-9]{2}$")',
-            },
-            {
-                "code": "history",
-                "expression": "{tC_01.00, r0010, c0010} = time_shift({tC_01.00, r0010, c0010}, A, 1, refPeriod)",
-            },
-        ],
-    }
+def run(cells, rules, **options) -> GenerationResult:
+    open_keys = options.pop("open_keys", ())
+    decimals = options.pop("decimals", None)
+    more_tables = options.pop("more_tables", ())
+    raw = document(
+        cells, rules, open_keys=open_keys, decimals=decimals, more_tables=more_tables
+    )
+    return generate(
+        load_template(raw),
+        **options,
+    )
 
 
-def test_generated_report_satisfies_every_evaluable_rule() -> None:
-    template = load_template(template_document())
+def value(result: GenerationResult, number: int, keys=()):
+    return result.data.values[f"dp{number}", keys]
+
+
+# The sample template ------------------------------------------------------------
+
+
+def test_sample_satisfies_every_evaluable_rule() -> None:
+    template = load_template(SAMPLES / "sample.json")
     result = generate(template, seed=3)
 
     assert result.failed == []
     assert result.passed == 8
     assert set(result.not_evaluated) == {"history"}
-    assert result.data is not None
+    assert "time_shift" in result.not_evaluated["history"]
+    assert result.not_applicable == []
+    assert result.rules == 9
     for rule in template.rules[:-1]:
-        assert (
-            evaluate_rule(
-                rule.expression, result.data, precondition=rule.precondition
-            ).status
-            == "passed"
-        ), rule.code
+        status = evaluate_rule(
+            rule.expression, result.data, precondition=rule.precondition
+        ).status
+        assert status == "passed", rule.code
     values = result.data.values
     assert values["dp60", ()] == Item("AS", "x2")
     for number in (41, 42):
         bounded = values[f"dp{number}", ()]
         assert isinstance(bounded, Number) and bounded.value <= 0
     for number in (10, 11, 12, 20, 21, 22, 30, 31, 32, 40, 41, 42):
-        value = values[f"dp{number}", ()]
-        assert isinstance(value, Number)
-        assert value.value == value.value.to_integral_value()
+        amount = values[f"dp{number}", ()]
+        assert isinstance(amount, Number)
+        assert amount.value == amount.value.to_integral_value()
 
 
-def test_report_is_deterministic_and_round_trips(tmp_path) -> None:
-    template = load_template(template_document())
+def test_report_is_deterministic() -> None:
+    template = load_template(SAMPLES / "sample.json")
     first, second = generate(template, seed=5), generate(template, seed=5)
     assert first.report == second.report
-    report = first.report
-    assert report.filing_indicators == {
-        "C_01.00": True,
-        "C_07.00": True,
-        "B_01.01": True,
+    assert first.history == second.history
+    assert generate(template, seed=6).report != first.report
+
+
+def test_report_does_not_depend_on_string_hashing(tmp_path) -> None:
+    script = (
+        "from dpmsynth import generate, load_template;"
+        f"r = generate(load_template({str(SAMPLES / 'sample.json')!r}), seed=4);"
+        "print([(f.datapoint, f.value, sorted(f.keys.items())) for f in r.report.facts])"
+    )
+    outputs = {
+        subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=True,
+            env={"PYTHONHASHSEED": seed},
+        ).stdout
+        for seed in ("1", "2", "3")
     }
+    assert len(outputs) == 1
+
+
+def test_report_layout() -> None:
+    result = generate(load_template(SAMPLES / "sample.json"), seed=5)
+    report = result.report
+    assert report.format == "xbrl-csv"
+    assert report.entity_id == f"{DEFAULT_ENTITY}.CON"
+    assert report.entity_scheme == "https://eurofiling.info/eu/rs"
+    assert report.reference_date == date(2026, 12, 31)
+    assert report.base_currency == "iso4217:EUR"
+    assert report.filing_indicators == {
+        "S_01.00": True,
+        "S_02.00": True,
+        "S_03.00": True,
+    }
+    # Only the numeric types the template uses get a decimals parameter.
     assert report.decimals_parameters == {
         "decimalsMonetary": 0,
         "decimalsPercentage": 4,
     }
-    keyed = [fact for fact in report.facts if fact.template == "c_07.00.a"]
+    keyed = [fact for fact in report.facts if fact.template == "s_02.00.a"]
     assert {fact.keys["qEBB"] for fact in keyed} == {"eba_qEC:qx16", "eba_qEC:qx23"}
-    lei_rows = [fact for fact in report.facts if fact.template == "b_01.01"]
-    assert all(len(fact.keys["c0010"]) == 20 for fact in lei_rows)
-
-    path = tmp_path / "report.zip"
-    assert (
-        main(["generate", str(_write(tmp_path)), "-o", str(path), "--seed", "5"]) == 0
-    )
-    read = read_report(path)
-    assert read.entity_id == "SYNTHETICDPMXL000002.CON"
-    # A suffixed subject takes the reporting-subject scheme (EBA rule 3.6).
-    assert read.entity_scheme == "https://eurofiling.info/eu/rs"
-    assert not [item for item in read.filing if item.rule in {"2.8", "3.6"}]
-    assert len(read.facts) == len(report.facts)
-    assert {fact.datapoint for fact in read.facts} == {
-        fact.datapoint for fact in report.facts
-    }
+    typed = [fact for fact in report.facts if fact.template == "s_03.00"]
+    assert len(typed) == 2
+    assert all(len(fact.keys["c0010"]) == 20 for fact in typed)
+    assert build_report(result.data) == report
 
 
 def test_percentages_keep_reporting_decimals() -> None:
-    result = generate(load_template(template_document()), seed=1)
+    result = generate(load_template(SAMPLES / "sample.json"), seed=1)
     ratio = next(fact for fact in result.report.facts if fact.datapoint == "dp50")
     assert ratio.value is not None
     exponent = Decimal(ratio.value).as_tuple().exponent
     assert isinstance(exponent, int) and -exponent <= 4
 
 
-def _write(tmp_path):
-    path = tmp_path / "template.json"
-    path.write_text(json.dumps(template_document()), encoding="utf-8")
-    return path
+# Options ------------------------------------------------------------------------
 
 
-def test_cli_reports_invalid_templates(tmp_path, capsys) -> None:
-    path = tmp_path / "bad.json"
-    path.write_text('{"format": "other"}', encoding="utf-8")
-    assert main(["generate", str(path), "-o", str(tmp_path / "x.zip")]) == 2
-    assert "dpm-synth-template/1" in capsys.readouterr().err
-    with pytest.raises(TemplateError):
-        load_template({"format": "dpm-synth-template/1", "release": "4.3"})
+def test_options_reach_the_report() -> None:
+    template = load_template(SAMPLES / "sample.json")
+    result = generate(
+        template,
+        entity="SYNTHETICDPMXL000002",
+        reporting_level="IND",
+        reference_date=date(2025, 6, 30),
+        open_rows=1,
+    )
+    assert result.report.entity_id == "SYNTHETICDPMXL000002.IND"
+    assert result.report.reference_date == date(2025, 6, 30)
+    assert result.data.template.reference_date == date(2025, 6, 30)
+    assert template.reference_date == date(2026, 12, 31)  # unchanged
+    assert result.data.parameter("ReportingLevel") == "ind"
+    assert result.data.parameter("refPeriod") == date(2025, 6, 30)
+    assert result.data.parameter("other") is None
+    assert len(result.data.key_rows["S_02.00.a"]) == 1
 
 
-def test_scaled_package_repeats_solved_rows_under_unique_keys(tmp_path) -> None:
-    path = tmp_path / "scaled.zip"
-    arguments = ["generate", str(_write(tmp_path)), "-o", str(path)]
-    assert main([*arguments, "--seed", "5", "--scale-rows", "50"]) in (0, 1)
-    report = read_report(path)
-    lei_rows = [fact for fact in report.facts if fact.template == "b_01.01"]
-    # Typed keys get one fresh value per row; enumerated keys cap the rows.
-    assert len({fact.keys["c0010"] for fact in lei_rows}) == 50
-    keyed = [fact for fact in report.facts if fact.template == "c_07.00.a"]
-    assert {fact.keys["qEBB"] for fact in keyed} == {"eba_qEC:qx16", "eba_qEC:qx23"}
-    assert report.reference_date.isoformat() == "2026-12-31"
-    assert report.entity_scheme == "https://eurofiling.info/eu/rs"
-    assert report.entity_id == "SYNTHETICDPMXL000002.CON"
+def test_reporting_level_is_a_parameter_for_rules() -> None:
+    rules = ['if {vReportingLevel} = "ind" then {tT, r0010, c0010} = 5 endif']
+    individual = run([cell("0010", "0010", 1)], rules, reporting_level="IND")
+    assert individual.passed == 1
+    assert value(individual, 1) == Number(Decimal(5))
+    consolidated = run([cell("0010", "0010", 1)], rules)
+    assert value(consolidated, 1) != Number(Decimal(5))
+
+
+@pytest.mark.parametrize(
+    ("option", "message"),
+    [
+        ({"open_rows": 0}, "open_rows"),
+        ({"open_rows": True}, "open_rows"),
+        ({"max_rounds": -1}, "max_rounds"),
+        ({"entity": ""}, "entity"),
+        ({"entity": "A B"}, "entity"),
+        ({"reporting_level": "../x"}, "reporting_level"),
+    ],
+)
+def test_invalid_options(option, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        generate(load_template(SAMPLES / "minimal.json"), **option)
+
+
+def test_zero_rounds_evaluates_the_initial_values() -> None:
+    result = generate(load_template(SAMPLES / "minimal.json"), max_rounds=0)
+    assert result.rounds == 0
+    assert result.history == []
+    assert result.repairs == 0
+    assert result.passed + len(result.failed) == 2
+
+
+# Rule accounting ----------------------------------------------------------------
+
+
+def test_every_rule_is_counted_once() -> None:
+    result = run(
+        [cell("0010", "0010", 1)],
+        [
+            "{tT, r0010, c0010} >= 0",
+            "{tT, r0010, c0010} >",  # a syntax error
+            "{tT, r0010, c0010} = time_shift({tT, r0010, c0010}, A, 1, refPeriod)",
+            {
+                "code": "never",
+                "expression": "{tT, r0010, c0010} = 1",
+                "precondition": "{v_X_99.00}",
+            },
+            "{tT, r0990, c0010} = 1",  # selects no cell
+            "{tX_99.00, r0010, c0010} = 1",  # a table outside the module
+        ],
+    )
+    assert result.rules == 6
+    assert result.passed == 1
+    assert result.failed == []
+    assert list(result.not_evaluated) == ["r2", "r3", "r6"]
+    assert result.not_evaluated["r2"].startswith("syntax error:")
+    assert "X_99.00" in result.not_evaluated["r6"]
+    assert result.not_applicable == ["never", "r5"]
+    assert (
+        result.passed
+        + len(result.failed)
+        + len(result.not_evaluated)
+        + len(result.not_applicable)
+        == result.rules
+    )
+
+
+def test_unsatisfiable_rules_are_reported_as_failed() -> None:
+    result = run(
+        [cell("0010", "0010", 1)],
+        ["{tT, r0010, c0010} > 10", "{tT, r0010, c0010} < 5"],
+    )
+    assert len(result.failed) == 1
+    assert result.passed == 1
+
+
+def test_oscillation_stops_the_loop() -> None:
+    result = run(
+        [cell("0010", "0010", 1), cell("0020", "0010", 2)],
+        [
+            "{tT, r0010, c0010} = {tT, r0020, c0010} + 1000",
+            "{tT, r0020, c0010} = {tT, r0010, c0010} + 1000",
+        ],
+        max_rounds=100,
+    )
+    assert result.rounds < 100
+    assert len(result.failed) == 1
+
+
+# Analysis: definitions and bounds -------------------------------------------------
+
+
+def test_totals_are_solved_after_their_components() -> None:
+    # Listed total first: ordering by definition depth still converges.
+    cells = [cell(f"00{n}0", "0010", n) for n in range(1, 6)]
+    result = run(
+        cells,
+        [
+            "with {tT, c0010, default: 0}: {r0010} = {r0020} + {r0030}",
+            "with {tT, c0010, default: 0}: {r0030} = {r0040} + {r0050}",
+        ],
+    )
+    assert result.failed == []
+    assert result.history[-1] == 0
+
+
+def test_sign_rules_bound_cells() -> None:
+    cells = [cell("0010", "0010", 1), cell("0020", "0010", 2), cell("0030", "0010", 3)]
+    result = run(
+        cells,
+        [
+            "{tT, r0010, c0010} <= 0",
+            "0 < {tT, r0020, c0010}",
+            "{tT, r0030, c0010} >= -100",
+            # The total must absorb the difference, not the bounded cells.
+            "with {tT, c0010, default: 0}: {r0010} + {r0020} = 50",
+        ],
+    )
+    assert result.failed == []
+    assert value(result, 1).value <= 0
+    assert value(result, 2).value >= 1
+    assert value(result, 3).value >= -100
+
+
+def test_strict_bounds_use_the_reporting_step() -> None:
+    result = run(
+        [cell("0010", "0010", 1, "p"), cell("0020", "0010", 2, "p")],
+        [
+            "{tT, r0010, c0010} > 0",
+            "{tT, r0010, c0010} < 1",
+            "{tT, r0020, c0010} > {tT, r0010, c0010}",
+            "{tT, r0020, c0010} <= 1",
+        ],
+        decimals={"p": 4},
+    )
+    assert result.failed == []
+    assert 0 < value(result, 1).value < 1
+    assert value(result, 2).value <= 1
+
+
+def test_initial_values_move_fully_inside_bounds() -> None:
+    data = SyntheticData(
+        load_template(document([cell("0010", "0010", 1), cell("0020", "0010", 2)], [])),
+        random.Random(1),
+        1,
+    )
+    data.values["dp1", ()] = Number(Decimal(-3))
+    data.values["dp2", ()] = Number(Decimal(4000))
+    data._bounds["dp1", ()] = (Decimal(-1000), Decimal(-5000))
+    data._bounds["dp2", ()] = (Decimal(10), Decimal(500))
+    data._bounds["dp1", ()] = (None, Decimal(-5000))
+    data._apply_bounds()
+    assert data.values["dp1", ()] == Number(Decimal(-5000))
+    assert data.values["dp2", ()] == Number(Decimal(500))
+
+
+# Repairs ------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "{tT, r0010, c0010} = {tT, r0020, c0010} - {tT, r0030, c0010}",
+        "{tT, r0010, c0010} = -{tT, r0020, c0010}",
+        "{tT, r0010, c0010} = abs({tT, r0020, c0010}) + 7",
+        "{tT, r0010, c0010} = sum({tT, (r0020, r0030), c0010})",
+        "{tT, r0010, c0010} * 2 = {tT, r0020, c0010}",
+        "{tT, r0010, c0010} / 4 = {tT, r0020, c0010}",
+        "{tT, r0010, c0010} != {tT, r0020, c0010}",
+        "{tT, r0010, c0010} > {tT, r0020, c0010} + {tT, r0030, c0010}",
+        "{tT, r0010, c0010} < {tT, r0020, c0010} - 100000",
+        "{tT, r0010, c0010} = 12345",
+    ],
+)
+def test_linear_comparisons_are_repaired(rule) -> None:
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    result = run(cells, [rule])
+    assert result.failed == [], rule
+
+
+def test_products_of_two_cells_are_linearized() -> None:
+    result = run(
+        [
+            cell("0010", "0010", 1, "p"),
+            cell("0020", "0010", 2),
+            cell("0030", "0010", 3),
+        ],
+        [
+            "with {default: 0, interval: true}: "
+            "{tT, r0010, c0010} * {tT, r0020, c0010} = {tT, r0030, c0010}"
+        ],
+    )
+    assert result.failed == []
+
+
+def test_isnull_and_logic_are_repaired() -> None:
+    cells = [cell(f"00{n}0", "0010", n, "s") for n in (1, 2, 3, 4)]
+    result = run(
+        cells,
+        [
+            "isnull({tT, r0010, c0010})",
+            "isnull({tT, r0020, c0010}) or not isnull({tT, r0010, c0010})",
+            "not (not isnull({tT, r0030, c0010}) and isnull({tT, r0040, c0010}))",
+        ],
+    )
+    assert result.failed == []
+    assert value(result, 1) is None
+    assert value(result, 2) is None
+
+
+def test_isnull_negation_fills_a_cleared_cell() -> None:
+    result = run(
+        [cell("0010", "0010", 1), cell("0020", "0010", 2)],
+        [
+            "if {tT, r0020, c0010} > 0 then isnull({tT, r0010, c0010}) endif",
+            "not isnull({tT, r0010, c0010})",
+        ],
+        max_rounds=3,
+    )
+    assert "r2" not in result.failed
+
+
+def test_if_repairs_the_branch_that_applies() -> None:
+    result = run(
+        [cell("0010", "0010", 1), cell("0020", "0010", 2), cell("0030", "0010", 3)],
+        [
+            "if {tT, r0010, c0010} > 0 then {tT, r0020, c0010} = 5 "
+            "else {tT, r0030, c0010} = 5 endif"
+        ],
+    )
+    assert result.failed == []
+    assert value(result, 2) == Number(Decimal(5))
 
 
 def test_in_is_repaired_for_any_set_operand() -> None:
     def enumerated(row, number, items):
         return cell(row, "0010", number, "e", items=items)
 
-    template = load_template(
-        {
-            "format": "dpm-synth-template/1",
-            "release": "1",
-            "module": "M",
-            "tables": [
-                {
-                    "code": "T",
-                    "cells": [
-                        enumerated("0010", 1, ["eba_AS:x1", "eba_AS:x2"]),
-                        enumerated("0020", 2, ["eba_AS:x2"]),
-                        enumerated("0030", 3, ["eba_AS:x1", "eba_AS:x3"]),
-                        cell("0040", "0010", 4),
-                    ],
-                }
-            ],
-            "rules": [
-                # A selection of cells, a set function and a numeric literal set.
-                {
-                    "code": "cells",
-                    "expression": "{tT, r0010, c0010} in {tT, r0020, c0010}",
-                },
-                {
-                    "code": "union",
-                    "expression": "{tT, r0030, c0010} in union({[eba_AS:x3]}, {[eba_AS:x4]})",
-                },
-                {"code": "numbers", "expression": "{tT, r0040, c0010} in {1000, 2000}"},
-            ],
-        }
+    result = run(
+        [
+            enumerated("0010", 1, ["eba_AS:x1", "eba_AS:x2"]),
+            enumerated("0020", 2, ["eba_AS:x2"]),
+            enumerated("0030", 3, ["eba_AS:x1", "eba_AS:x3"]),
+            cell("0040", "0010", 4),
+            enumerated("0050", 5, ["eba_AS:x1"]),
+        ],
+        [
+            # A selection of cells, a set function, a numeric literal set,
+            # and a set whose first member does not fit the cell.
+            "{tT, r0010, c0010} in {tT, r0020, c0010}",
+            "{tT, r0030, c0010} in union({[eba_AS:x3]}, {[eba_AS:x4]})",
+            "{tT, r0040, c0010} in {1000, 2000}",
+            "{tT, r0050, c0010} in {1, [eba_AS:x9]}",
+        ],
     )
-    result = generate(template)
     assert result.failed == []
-    assert result.passed == 3
-    assert result.data is not None
-    assert result.data.values["dp1", ()] == Item("AS", "x2")
-    assert result.data.values["dp3", ()] == Item("AS", "x3")
-    assert result.data.values["dp4", ()] == Number(Decimal(1000))
+    assert value(result, 1) == Item("AS", "x2")
+    assert value(result, 3) == Item("AS", "x3")
+    assert value(result, 4) == Number(Decimal(1000))
+    assert value(result, 5) == Item("AS", "x9")
+
+
+def test_match_writes_leis_and_dates() -> None:
+    result = run(
+        [cell(f"00{n}0", "0010", n, "s") for n in (1, 2, 3)],
+        [
+            'match({tT, r0010, c0010}, "^[A-Z0-9]{18}[0-9]{2}$")',
+            'match({tT, r0020, c0010}, "^[0-9]{2}[/]{1}[0-9]{2}[/]{1}[0-9]{4}$")',
+            'match({tT, r0030, c0010}, "^x+$") or isnull({tT, r0030, c0010})',
+        ],
+        reference_date=date(2025, 3, 31),
+    )
+    assert result.failed == []
+    lei = value(result, 1)
+    assert int("".join(str(int(character, 36)) for character in lei)) % 97 == 1
+    assert value(result, 2) == "31/03/2025"
+    assert value(result, 3) is None
+
+
+def test_huge_corrections_are_not_written() -> None:
+    result = run(
+        [cell("0010", "0010", 1, "p"), cell("0020", "0010", 2)],
+        ["{tT, r0010, c0010} * 0.000000001 = 1000000000000000000000000000000"],
+    )
+    assert result.failed == ["r1"]
+    assert abs(value(result, 1).value) < 10**16
+
+
+# Values and rounding --------------------------------------------------------------
+
+
+def test_initial_values_by_data_type() -> None:
+    kinds = ["m", "p", "i", "r", "e", "b", "d", "s", None]
+    cells = [
+        cell(f"00{index}0", "0010", index, kind) for index, kind in enumerate(kinds, 1)
+    ]
+    result = run(cells, [], seed=11)
+    m, p, i, r, e, b, d, s, text = (value(result, n) for n in range(1, 10))
+    assert m.value % 1000 == 0 and 1000 <= m.value <= 1_000_000
+    assert 0 < p.value < 1
+    assert 1 <= i.value <= 50 and i.value == i.value.to_integral_value()
+    assert 1 <= r.value < 10
+    assert e == Item("qx", "qx0")
+    assert b is True
+    assert d == date(2026, 12, 31)
+    assert isinstance(s, str) and len(s) == 20
+    assert isinstance(text, str)
+
+
+@pytest.mark.parametrize(
+    ("decimals", "expected"),
+    [
+        ({"m": -3}, "1235000"),
+        ({"m": 0}, "1234568"),
+        ({"m": 2}, "1234567.89"),
+    ],
+)
+def test_values_are_rounded_to_the_reporting_decimals(decimals, expected) -> None:
+    result = run(
+        [cell("0010", "0010", 1)],
+        ["{tT, r0010, c0010} = 1234567.891"],
+        decimals=decimals,
+    )
+    fact = result.report.facts[0]
+    assert fact.value == expected
+
+
+def test_negative_zero_is_written_as_zero() -> None:
+    result = run(
+        [cell("0010", "0010", 1), cell("0020", "0010", 2)],
+        ["{tT, r0010, c0010} = -{tT, r0020, c0010}", "{tT, r0020, c0010} = 0"],
+    )
+    values = {fact.datapoint: fact.value for fact in result.report.facts}
+    assert values == {"dp1": "0", "dp2": "0"}
+
+
+def test_items_keep_the_template_prefix() -> None:
+    result = run(
+        [cell("0010", "0010", 1, "e", items=["own_AB:x1", "eba_AB:x2"])],
+        [],
+        open_keys=[{"code": "qKY", "items": ["xyz_KY:k1"]}],
+    )
+    facts = result.report.facts
+    assert {fact.value for fact in facts} == {"own_AB:x1"}
+    assert {fact.keys["qKY"] for fact in facts} == {"xyz_KY:k1"}
+
+
+def test_typed_keys_are_valid_leis() -> None:
+    result = run(
+        [cell("0010", "0010", 1)], [], open_keys=[{"code": "ERI"}], open_rows=5
+    )
+    keys = [fact.keys["ERI"] for fact in result.report.facts]
+    assert len(set(keys)) == 5
+    for key in keys:
+        digits = int("".join(str(int(character, 36)) for character in key))
+        assert digits % 97 == 1
+
+
+def test_enumerated_keys_cap_the_rows() -> None:
+    result = run(
+        [cell("0010", "0010", 1)],
+        [],
+        open_keys=[{"code": "qAB", "items": ["eba_AB:x1", "eba_AB:x2"]}],
+        open_rows=5,
+    )
+    assert len(result.data.key_rows["T"]) == 2
+
+
+# The provider -----------------------------------------------------------------------
+
+
+def test_synthetic_data_is_a_provider() -> None:
+    result = run(
+        [cell("0010", "0010", 1), cell("0020", "0010", 2, sheet="*")],
+        [],
+        open_keys=[{"code": "qAB", "items": ["eba_AB:x1"]}],
+        more_tables=[
+            {
+                "code": "T_02.00.a",
+                "filing_indicator": "T_02.00",
+                "cells": [cell("0010", "0010", 3)],
+            }
+        ],
+    )
+    data = result.data
+    assert data.open_keys("t") == ("qAB",)
+    assert data.open_keys("T_02.00.a") == ()
+    assert data.open_keys("missing") == ()
+    assert data.table_reported("T")
+    assert data.table_reported("t_02.00")
+    assert data.table_reported("T_02.00.a")
+    assert not data.table_reported("T_03.00")
+    points = data.select(CellQuery("T"))
+    assert [(point.row, point.keys) for point in points] == [
+        ("0010", {"qAB": Item("AB", "x1")}),
+        ("0020", {"qAB": Item("AB", "x1")}),
+    ]
+    with pytest.raises(LookupError, match=r"T_09\.00 is not in module TEST"):
+        data.select(CellQuery("T_09.00"))

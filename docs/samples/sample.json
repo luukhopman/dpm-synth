@@ -1,0 +1,62 @@
+{
+  "format": "dpm-synth-template/1",
+  "release": "1.0",
+  "module": "SAMPLE",
+  "entry_point": "https://example.com/taxonomy/sample/1.0/mod/sample.json",
+  "reference_date": "2026-12-31",
+  "decimals": {"m": 0, "p": 4},
+  "tables": [
+    {
+      "code": "S_01.00",
+      "filing_indicator": "S_01.00",
+      "cells": [
+        {"id": "S_01.00/dp10", "row": "0010", "column": "0010", "datapoint": "dp10", "data_type": "m"},
+        {"id": "S_01.00/dp11", "row": "0010", "column": "0020", "datapoint": "dp11", "data_type": "m"},
+        {"id": "S_01.00/dp12", "row": "0010", "column": "0030", "datapoint": "dp12", "data_type": "m"},
+        {"id": "S_01.00/dp20", "row": "0020", "column": "0010", "datapoint": "dp20", "data_type": "m"},
+        {"id": "S_01.00/dp21", "row": "0020", "column": "0020", "datapoint": "dp21", "data_type": "m"},
+        {"id": "S_01.00/dp22", "row": "0020", "column": "0030", "datapoint": "dp22", "data_type": "m"},
+        {"id": "S_01.00/dp30", "row": "0030", "column": "0010", "datapoint": "dp30", "data_type": "m"},
+        {"id": "S_01.00/dp31", "row": "0030", "column": "0020", "datapoint": "dp31", "data_type": "m"},
+        {"id": "S_01.00/dp32", "row": "0030", "column": "0030", "datapoint": "dp32", "data_type": "m"},
+        {"id": "S_01.00/dp40", "row": "0040", "column": "0010", "datapoint": "dp40", "data_type": "m"},
+        {"id": "S_01.00/dp41", "row": "0040", "column": "0020", "datapoint": "dp41", "data_type": "m"},
+        {"id": "S_01.00/dp42", "row": "0040", "column": "0030", "datapoint": "dp42", "data_type": "m"},
+        {"id": "S_01.00/dp50", "row": "0050", "column": "0010", "datapoint": "dp50", "data_type": "p"},
+        {"id": "S_01.00/dp60", "row": "0060", "column": "0010", "datapoint": "dp60", "data_type": "e", "items": ["eba_AS:x1", "eba_AS:x2"]}
+      ]
+    },
+    {
+      "code": "S_02.00.a",
+      "filing_indicator": "S_02.00",
+      "open_keys": [
+        {"code": "qEBB", "column": "qEBB", "items": ["eba_qEC:qx16", "eba_qEC:qx23"]}
+      ],
+      "cells": [
+        {"id": "S_02.00.a/dp70", "row": "0010", "column": "0010", "sheet": "*", "datapoint": "dp70", "data_type": "m"},
+        {"id": "S_02.00.a/dp71", "row": "0020", "column": "0010", "sheet": "*", "datapoint": "dp71", "data_type": "m"}
+      ]
+    },
+    {
+      "code": "S_03.00",
+      "filing_indicator": "S_03.00",
+      "open_keys": [
+        {"code": "ERI", "column": "c0010"}
+      ],
+      "cells": [
+        {"id": "S_03.00/dp80", "row": "*", "column": "0020", "datapoint": "dp80", "data_type": "s"}
+      ]
+    }
+  ],
+  "rules": [
+    {"code": "rows", "expression": "with {tS_01.00, (c0010, c0020, c0030), default: 0, interval: true}: {r0010} = {r0020} + {r0030} + {r0040}", "precondition": "{v_S_01.00}"},
+    {"code": "columns", "expression": "with {tS_01.00, (r0010, r0020, r0030, r0040), default: 0, interval: true}: {c0010} = {c0020} + {c0030}"},
+    {"code": "sign", "expression": "with {tS_01.00, r0040, default: 0, interval: false}: {(c0020, c0030)} <= 0"},
+    {"code": "ratio", "expression": "{tS_01.00, r0050, c0010, default: 0, interval: true} * {tS_01.00, r0020, c0010, default: 0, interval: true} = {tS_01.00, r0030, c0010, default: 0, interval: true}"},
+    {"code": "item", "expression": "{tS_01.00, r0060, c0010} in {[eba_AS:x2]}"},
+    {"code": "open", "expression": "with {tS_02.00.a, c0010, default: 0, interval: true}: {r0020} <= {r0010}"},
+    {"code": "open-total", "expression": "sum({tS_02.00.a, r0010, c0010, default: 0}) = {tS_01.00, r0010, c0010}"},
+    {"code": "lei", "expression": "match({tS_03.00, c0020}, \"^[A-Z0-9]{18}[0-9]{2}$\") and match({tS_03.00, c0020}[get ERI], \"^[A-Z0-9]{18}[0-9]{2}$\")"},
+    {"code": "history", "expression": "{tS_01.00, r0010, c0010} = time_shift({tS_01.00, r0010, c0010}, A, 1, refPeriod)"}
+  ]
+}
