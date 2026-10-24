@@ -270,7 +270,9 @@ def test_unreadable_files(tmp_path: Path) -> None:
     deep = tmp_path / "deep.json"
     deep.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
     with pytest.raises(
-        TemplateError, match=r"deep\.json: (JSON nested too deeply|not JSON)"
+        # A large enough stack parses the array, which is then not an object.
+        TemplateError,
+        match=r"deep\.json: (JSON nested too deeply|not JSON)|expected an object",
     ):
         load_template(deep)
 
