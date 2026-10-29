@@ -21,7 +21,7 @@ For one module of one release, the exporter writes:
 | `release`, `module` | The release code, such as `4.3`, and the module code, such as `COREP_OF`. |
 | `entry_point` | The module's xBRL-CSV entry point (its `.json` URL in the taxonomy), if the consumer of the package needs it. |
 | `tables[].code` | Every non-abstract table version of the module, such as `C_07.00.a`. |
-| `tables[].filing_indicator` | The table's template code: the table code without single-letter parts, such as `C_07.00` for `C_07.00.a`. |
+| `tables[].filing_indicator` | The table's template code, as the module's taxonomy gives it. It is usually the table code without its single-letter parts, such as `C_07.00` for `C_07.00.a` and `C_08.05.1` for `C_08.05.1.a`, but not always. |
 | `filing_indicators` | The filing indicators of every template of the module, so that templates without tables in the template are reported as `false`. |
 | `tables[].open_keys` | The table's open-axis properties: their codes, the CSV column of each, and for an enumerated property the item qnames of its domain or subdomain. |
 | `tables[].cells` | Every reportable cell: its row, column and sheet codes, the datapoint (variable) code that carries its value, the variable's data type code, for enumerated variables the allowed item qnames, and `unit` for a datapoint reported in its currency of denomination. |
@@ -39,6 +39,7 @@ lists, standing in for the query results of your DPM database:
 
 ```python
 import json
+import re
 from pathlib import Path
 
 # Query results of a release, one tuple per row.
@@ -68,7 +69,8 @@ def items(domain):
 
 
 def filing_indicator(code):
-    return ".".join(part for part in code.split(".") if len(part) > 1)
+    # Drop single-letter parts: C_08.05.1.a -> C_08.05.1.
+    return re.sub(r"\.[A-Za-z](?=\.|$)", "", code)
 
 
 template = {

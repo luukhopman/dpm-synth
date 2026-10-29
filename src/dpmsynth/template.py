@@ -8,9 +8,9 @@ https://luukhopman.github.io/dpm-synth/reference/template-format/; in short:
 
     {
       "format": "dpm-synth-template/1",
-      "release": "4.3",
+      "release": "4.2",
       "module": "COREP_OF",
-      "entry_point": "http://…/corep/4.3/mod/corep_of.json",
+      "entry_point": "http://…/corep/4.2/mod/corep_of.json",
       "reference_date": "2026-12-31",
       "decimals": {"m": 0, "p": 4, "i": 0, "r": 2},
       "tables": [
