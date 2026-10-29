@@ -30,7 +30,7 @@ import string
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Any, cast
 
 from dpmxbrl import Fact, Report
@@ -323,7 +323,7 @@ class SyntheticData:
     def _number(self, cell: TemplateCell | None, value: Decimal) -> Number:
         # Round a value to the cell type's reporting decimals.
         try:
-            rounded = value.quantize(self._quantum(cell), rounding=ROUND_HALF_UP)
+            rounded = value.quantize(self._quantum(cell), rounding=ROUND_HALF_EVEN)
         except InvalidOperation:  # too many digits to round; never written
             rounded = value
         return Number(rounded + 0)  # + 0 turns -0 into 0

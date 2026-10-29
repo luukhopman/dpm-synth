@@ -103,7 +103,8 @@ print(result.history, result.rounds, result.repairs)
 
 Repairs work on values with eight decimals. At the end, every number is
 rounded to its reporting decimals (`m` 0, `p` 4, `i` 0, `r` 2 unless the
-template says otherwise), and every rule is evaluated once more on the
+template says otherwise), with ties to the even digit as EBA filing rule
+2.18 requires, and every rule is evaluated once more on the
 rounded values. That final evaluation is what `passed`, `failed`,
 `not_evaluated` and `not_applicable` report.
 

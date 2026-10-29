@@ -22,6 +22,9 @@ All notable changes to this project are documented here. The project follows
 - Cells with `"unit": true` are reported in their currency of
   denomination, in a `unit` column that follows the row's `CUS` or `CUA`
   key.
+- Values are rounded half to even, as EBA filing rule 2.18 requires,
+  instead of half up; a value that ends in exactly 5 past the reporting
+  decimals can change.
 
 ## 1.0.0 - 2026-10-24
 

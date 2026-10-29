@@ -520,12 +520,16 @@ def test_initial_values_by_data_type() -> None:
         ({"m": -3}, "1235000"),
         ({"m": 0}, "1234568"),
         ({"m": 2}, "1234567.89"),
+        ({"m": -3, "value": "1234500"}, "1234000"),  # ties go to the even digit
+        ({"m": -3, "value": "1235500"}, "1236000"),
     ],
 )
 def test_values_are_rounded_to_the_reporting_decimals(decimals, expected) -> None:
+    decimals = dict(decimals)
+    target = decimals.pop("value", "1234567.891")
     result = run(
         [cell("0010", "0010", 1)],
-        ["{tT, r0010, c0010} = 1234567.891"],
+        [f"{{tT, r0010, c0010}} = {target}"],
         decimals=decimals,
     )
     fact = result.report.facts[0]
