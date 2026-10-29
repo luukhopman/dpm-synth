@@ -152,13 +152,13 @@ print(len(own.rules))
 ```console
 $ dpm-synth generate x.json -o x.zip --seed 1
 rules: 3, passed: 3, failed: 0
-rounds: 2 (failing rules per round: 3, 0)
+rounds: 2 (failing rules per round: 1, 0)
 wrote x.zip (5 facts)
 ```
 
-On EBA DPM 4.3 COREP_OF, with its 1,205 EBA rules, generation takes 15
-rounds (about 15 seconds on a laptop), and 999 of the 1,051 rules that
-apply pass. The
+On EBA DPM 4.3 COREP_OF, with its 1,205 EBA rules, generation takes about
+20 rounds (about 20 seconds on a laptop), and 1,050 of the 1,051 rules
+that apply pass. The
 other 154 rules do not apply to the generated report: they select no
 generated cell, such as rows filtered on key values that the generated
 rows do not have.
@@ -177,7 +177,7 @@ from dpmxl import evaluate_rule, explain
 from dpmsynth import generate, load_template
 
 template = load_template("sample.json")
-result = generate(template, seed=7, max_rounds=1)
+result = generate(template, seed=7, max_rounds=0)
 rules = {rule.code: rule for rule in template.rules}
 for code in result.failed:
     rule = rules[code]
@@ -189,12 +189,15 @@ for code in result.failed:
 ```
 
 ```text
-rows 1,135,000 should equal -180,000 (717,000 + 75,000 − 972,000): difference 1,315,000, at least 1,314,998 given the reported precision
-open 39,000 should not exceed -600,000: difference 639,000, at least 638,999 given the reported precision
-open-total 332,000 should equal 1,135,000: difference 803,000
+rows 332,000 should equal 577,000 (405,000 + 75,000 + 97,000): difference 245,000, at least 244,998 given the reported precision
+columns 332,000 should equal 1,126,000 (971,000 + 155,000): difference 794,000, at least 793,998.5 given the reported precision
+ratio 32,400 should equal 75,000: difference 42,600, at least 42,579.2 given the reported precision
+item [AS:x1] is not one of [AS:x2]
+open-total 1,452,000 should equal 332,000: difference 1,120,000
 ```
 
-Here the loop was stopped after one round, so rules that more rounds would
-settle still fail. On a real module, a rule that still fails after the
-loop stops is usually coupled to another rule that defines the same cell
-differently; see [limits of the loop](../concepts/limits.md).
+Here `max_rounds=0` keeps the starting values, so rules that the solver
+and the loop would settle still fail. On a real module, a rule that still
+fails is usually nonlinear and coupled to rules that define the same cells,
+such as a total of `max(...)` terms; see
+[limits of the loop](../concepts/limits.md).

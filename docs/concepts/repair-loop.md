@@ -1,15 +1,15 @@
 ---
-description: How dpm-synth satisfies DPM-XL rules - starting values by data type, sign bounds, defining equalities and rule order, linearized repairs, rounds, stopping and rounding.
+description: How dpm-synth satisfies DPM-XL rules - starting values by data type, sign bounds, a joint solve of the linear rules, linearized repairs, rounds, stopping and rounding.
 ---
 
 # The evaluate-and-repair loop
 
-[`generate`][dpmsynth.generate] does not solve a module's rules as a system
-of equations. It starts from plausible values, evaluates every rule with
-[dpm-xl], and changes one cell for each failing record so that the failing
-comparison holds; then it evaluates again. Most rules in EBA modules are
-local (a total is the sum of its components, an amount is not negative), so
-this converges in a few rounds for most of a module.
+[`generate`][dpmsynth.generate] starts from plausible values and first
+solves the module's linear rules together: sums, differences, constant
+factors and `abs`, as equalities and inequalities. It then evaluates every
+rule with [dpm-xl] and changes one cell for each failing record so that the
+failing comparison holds, which covers the rest (products of cells, `max`,
+`if`, `isnull`, items, dates); then it evaluates again.
 
 ## 1. Starting values
 
@@ -40,8 +40,8 @@ print([fact.value for fact in start.report.facts], start.failed)
 ```
 
 The total in row 0010 is not the sum of rows 0020 and 0030, so rule `v1`
-fails. The first round repairs it by setting the total, the cell that `v1`
-defines, to 1,126,000; the second round finds no failing rule.
+fails. Without `max_rounds=0`, the joint solve of the linear rules sets
+the total to 1,126,000 before the first round, which finds no failing rule.
 
 ## 2. Analysis
 
@@ -61,8 +61,31 @@ Before the first round, the rules are read once:
 - **Order.** Rules are sorted so that a rule defining a component runs
   before the rule that sums the components: totals are then settled from
   components that no longer change in that round.
+- **Linear rules.** Each record of a comparison whose sides are sums of
+  cells times constants, such as `{c0010} * 12.5 = {c0020}` or
+  `abs({r0010}) >= abs({r0020}) + abs({r0030})`, becomes a linear
+  constraint. An `abs` keeps the sign its operand starts with.
 
-## 3. Repairs
+## 3. Solving the linear rules
+
+A total that is both the sum of its row and the sum of its column, or an
+amount that is a sum and 12.5 times a requirement with parts of its own,
+is defined twice: repairs of one cell at a time move it back and forth. So
+the linear constraints are solved together before the first round:
+
+1. Gaussian elimination solves each equality for one of its cells, so the
+   equalities hold whatever the other cells are.
+2. The inequalities and the bounds, rewritten in the other cells, are met
+   by projections: a violated one moves its cells as little as possible
+   together, within their bounds, until all hold or a limit of steps is
+   reached.
+3. Values are rounded to their reporting decimals, and the rounds repair
+   what rounding and the other rules still need.
+
+When rules still fail after the rounds, the linear rules are solved once
+more from the repaired values, and the rounds run again.
+
+## 4. Repairs
 
 Each failing record of a rule is traced to the comparison that fails, using
 the evaluation trace that dpm-xl keeps. Its repair depends on the
@@ -70,7 +93,8 @@ construct:
 
 | Construct | Repair |
 | --- | --- |
-| `a = b`, `a <= b`, `a > b`, ... on numbers | Expand `a - b` into terms `coefficient × cell`: sums, differences, unary minus, constants, `sum(...)`, `abs` (at its current sign), a product of two cells (each at the other's current value) and division by a constant or cell. One cell absorbs the whole difference, the first that no other rule defines and whose new value respects its bounds. Strict comparisons are met by one reporting step. |
+| `a = b`, `a <= b`, `a > b`, ... on numbers | Expand `a - b` into terms `coefficient × cell`: sums, differences, unary minus, constants, `sum(...)`, `abs` (at its current sign), a product of two cells (each at the other's current value) and division by a constant or cell. One cell absorbs the whole difference, the first that no other rule defines and whose new value respects its bounds; when none can, the cells move in turn as far as their bounds allow. Strict comparisons are met by one reporting step. |
+| `a < b`, `a >= b`, ... on dates | Move the earlier side: `a < b` sets `a` to the day before `b`. |
 | `a = b` on items, text or dates | Copy the known side into the cells of the other. |
 | `and`, `or`, `not` | Repair both sides of `and`; the first side of `or` that can be changed; `not` repairs its operand towards the opposite. |
 | `if c then a else b endif` | Repair the branch that the condition selects. |
@@ -82,7 +106,7 @@ Numbers never go into text or enumerated cells and nothing else goes into a
 numeric cell. A repair that would need a number beyond 10^15, as a ratio
 dividing by an almost-zero cell can, is not made.
 
-## 4. Rounds and stopping
+## 5. Rounds and stopping
 
 A round evaluates every rule and repairs every failing record. The loop
 stops when no rule fails, when a round changes nothing, after
@@ -96,10 +120,10 @@ print(result.history, result.rounds, result.repairs)
 ```
 
 ```text
-[5, 3, 1, 1, 0] 5 16
+[2, 0] 2 2
 ```
 
-## 5. Rounding and the final evaluation
+## 6. Rounding and the final evaluation
 
 Repairs work on values with eight decimals. At the end, every number is
 rounded to its reporting decimals (`m` 0, `p` 4, `i` 0, `r` 2 unless the
@@ -115,12 +139,10 @@ as a validator would judge the reported ratio, so a rule that passes here
 passes on the package; the
 [validation guide](../guides/validate-output.md) checks this.
 
-## Why not a solver
+## Why not a complete solver
 
-A complete approach would solve a module's linear equalities jointly, for
-example with a sparse least-squares or a mixed-integer solver, and then
-repair the rest. The repair loop needs no solver dependency, handles the
-non-linear and non-numeric constructs uniformly, and satisfies most rules
-of real modules in seconds. The template carries everything a solver would
-need, so one can be added without changing the format.
+The joint solve is linear: it keeps the signs inside `abs` and leaves
+products of cells, `max` and `if` to the rounds. A mixed-integer solver
+could also choose those, or prove that rules contradict each other, but
+needs a dependency and much longer for a module of thousands of rules.
 [Limits of the loop](limits.md) shows what remains.

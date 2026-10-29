@@ -796,3 +796,96 @@ def test_warnings_are_repaired_like_errors() -> None:
         [{"code": "w", "expression": "{tT, r0010, c0010} = 5", "severity": "warning"}],
     )
     assert result.statuses == {"w": "passed"}
+
+
+# Failure patterns of EBA modules, as small templates --------------------------
+
+
+def _grid_cells(rows, columns, data_type="m"):
+    return [
+        cell(row, column, int(row) * 1000 + int(column), data_type)
+        for row in rows
+        for column in columns
+    ]
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_totals_of_both_rows_and_columns(seed) -> None:
+    # A grid whose last row and last column are totals, the corner defined
+    # twice (as in C_13.01 and C_07.00.a): one cell at a time, the repairs
+    # of the row and the column totals undo each other.
+    rows, columns = ["0010", "0020", "0030", "0040"], ["0010", "0020", "0030", "0040"]
+    rules = [
+        "with {tT, default: 0, interval: true}: {c0040} = {c0010} + {c0020} + {c0030}",
+        "with {tT, default: 0, interval: true}: {r0040} = {r0010} + {r0020} + {r0030}",
+        "with {tT, default: 0, interval: true}: {r0040, c0040} = {r0010, c0040} + {r0020, c0040} + {r0030, c0040}",
+        "{tT, c0010-0040} >= 0",
+        "with {tT, default: 0, interval: true}: {r0020, c0040} >= {r0010, c0040}",
+    ]
+    result = run(_grid_cells(rows, columns), rules, seed=seed)
+    assert result.failed == []
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_chains_through_constant_factors(seed) -> None:
+    # Own funds requirements times 12.5 are exposures (as in C_18.00 and
+    # C_02.00): the exposures total is defined by its parts and by the
+    # requirement, which has parts of its own.
+    cells = [cell(row, "0010", int(row)) for row in ("0010", "0020", "0030")]
+    cells += [cell(row, "0020", 100 + int(row)) for row in ("0010", "0020", "0030")]
+    rules = [
+        "with {tT, c0010, default: 0, interval: true}: {r0010} = {r0020} + {r0030}",
+        "with {tT, c0020, default: 0, interval: true}: {r0010} = {r0020} + {r0030}",
+        "with {tT, default: 0, interval: true}: {r0010, c0010} * 12.5 = {r0010, c0020}",
+        "with {tT, default: 0, interval: true}: {r0020, c0010} * 12.5 = {r0020, c0020}",
+        "{tT, c0010-0020} >= 0",
+    ]
+    result = run(cells, rules, seed=seed)
+    assert result.failed == []
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_absolute_values_of_defined_cells(seed) -> None:
+    # abs(row) >= abs(row) + abs(row) where every cell is also part of a
+    # column total (as in C_13.01), with a row that must not be positive.
+    rows, columns = ["0010", "0020", "0030", "0040"], ["0010", "0020", "0030"]
+    rules = [
+        "with {tT, default: 0, interval: true}: {c0030} = {c0010} + {c0020}",
+        "with {tT, default: 0, interval: true}: "
+        "abs({r0010}) >= abs({r0020}) + abs({r0030}) + abs({r0040})",
+        "with {tT, default: 0, interval: true}: {r0020} >= {r0040}",
+        "{tT, r0030, c0010-0030} <= 0",
+        "{tT, (r0010, r0020, r0040), c0010-0030} >= 0",
+    ]
+    result = run(_grid_cells(rows, columns), rules, seed=seed)
+    assert result.failed == []
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_sums_of_bounded_ratios(seed) -> None:
+    # c = a + b with every percentage between 0 and 1 (as in C_14.00): no
+    # single cell can take the whole difference.
+    cells = [
+        cell("0010", column, int(column), "p") for column in ("0010", "0020", "0030")
+    ]
+    rules = [
+        "with {tT, r0010, default: 0, interval: true}: {c0030} = {c0010} + {c0020}",
+        "{tT, r0010, c0010-0030} >= 0",
+        "{tT, r0010, c0010-0030} <= 1",
+        "{tT, r0010, c0010} >= 0.6",
+        "{tT, r0010, c0020} >= 0.2",
+    ]
+    result = run(cells, rules, seed=seed)
+    assert result.failed == []
+
+
+def test_dates_compared_with_each_other() -> None:
+    # A start date before an end date (as in C_14.00).
+    cells = [cell("0010", "0010", 1, "d"), cell("0010", "0020", 2, "d")]
+    rules = [
+        "{tT, r0010, c0010} < {tT, r0010, c0020}",
+        "{tT, r0010, c0020} >= {tT, r0010, c0010}",
+    ]
+    result = run(cells, rules, seed=0)
+    assert result.failed == []
+    assert value(result, 1) < value(result, 2)

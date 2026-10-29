@@ -31,15 +31,12 @@ $ dpm-synth generate sample.json -o sample.zip --seed 7 --json
   "release": "1.0",
   "module": "SAMPLE",
   "seed": 7,
-  "rounds": 5,
+  "rounds": 2,
   "history": [
-    5,
-    3,
-    1,
-    1,
+    2,
     0
   ],
-  "repairs": 16,
+  "repairs": 2,
   "results": [
     {
       "rule": "rows",

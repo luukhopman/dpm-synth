@@ -22,10 +22,10 @@ A rule that cannot be satisfied makes status 1, not a failure of the run:
 the package is still useful for testing:
 
 ```console
-$ dpm-synth generate sample.json -o sample.zip --seed 7 --max-rounds 1
-rules: 9, passed: 5, failed: 3, unsupported: 1
-rounds: 1 (failing rules per round: 5)
-still failing: rows, open, open-total
+$ dpm-synth generate sample.json -o sample.zip --seed 7 --max-rounds 0
+rules: 9, passed: 3, failed: 5, unsupported: 1
+rounds: 0 (failing rules per round: -)
+still failing: rows, columns, ratio, item, open-total
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 $ echo $?

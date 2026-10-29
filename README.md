@@ -44,7 +44,7 @@ From the command line, with an exit status of 1 if some rules still fail:
 ```console
 $ dpm-synth generate minimal.json -o report.zip --seed 7
 rules: 2, passed: 2, failed: 0
-rounds: 2 (failing rules per round: 1, 0)
+rounds: 1 (failing rules per round: 0)
 wrote report.zip (3 facts)
 ```
 
@@ -60,9 +60,9 @@ that writes the
   keys, cells, data types, allowed items and DPM-XL rules.
 - **Rules satisfied**: an evaluate-and-repair loop over the rules, with
   [dpm-xl](https://luukhopman.github.io/dpm-xl/), repairs sums,
-  differences, products, sign rules, `isnull`, `in` and `match`. On EBA
-  DPM 4.3 COREP_OF, 999 of the 1,051 rules that apply pass, in 15 rounds;
-  the result names the rest.
+  differences, products, sign rules, `isnull`, `in` and `match`, after a
+  joint solve of the linear rules. On EBA DPM 4.3 COREP_OF, 1,050 of the
+  1,051 rules that apply pass; the result names the rest.
 - **Valid packages**: written by
   [dpm-xbrl](https://luukhopman.github.io/dpm-xbrl/), with a fictional LEI,
   and read back without broken EBA filing rules other than the file name.

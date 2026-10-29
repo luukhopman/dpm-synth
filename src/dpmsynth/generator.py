@@ -1,21 +1,24 @@
 """Generate a report that satisfies a module's DPM-XL rules.
 
-The generator is an evaluate-and-repair loop, not a complete constraint
-solver:
+The generator solves the linear rules jointly and then runs an
+evaluate-and-repair loop; it is not a complete constraint solver:
 
 1. Every cell gets a plausible value for its data type, and every open table
    gets a few key rows.
-2. Single-cell sign rules become per-cell bounds, and every ``=`` rule with a
-   single-cell side defines that cell; rules are ordered so the definitions
-   of components run before the totals that use them.
-3. All rules are evaluated with dpm-xl. For each failing record the first
+2. Single-cell sign rules become per-cell bounds, every ``=`` rule with a
+   single-cell side defines that cell, and every comparison of sums of
+   cells times constants (``abs`` included) becomes a linear constraint.
+3. The linear constraints are solved together: Gaussian elimination for the
+   equalities, then projections for the inequalities and bounds.
+4. All rules are evaluated with dpm-xl. For each failing record the first
    failing comparison is found through the evaluation trace and one cell is
    changed so the comparison holds. ``isnull``, ``in`` and ``match`` failures
    are repaired by clearing, choosing a member, or writing a matching
    identifier.
-4. Step 3 repeats until no rule fails, a round changes nothing, or the
-   failing count stops improving. Values are then rounded to the reporting
-   decimals and every rule is evaluated once more.
+5. Step 4 repeats until no rule fails, a round changes nothing, or the
+   failing count stops improving; if rules still fail, steps 3 and 4 run
+   once more. Values are then rounded to the reporting decimals and every
+   rule is evaluated once more.
 
 How the loop works, and where it stops, is explained at
 https://luukhopman.github.io/dpm-synth/concepts/repair-loop/.
@@ -27,6 +30,7 @@ import math
 import random
 import re
 import string
+from collections import deque
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
@@ -686,6 +690,8 @@ class _Repairer:
 
     def comparison(self, node: Binary, op: str) -> bool:
         left, right = self.value(node.left), self.value(node.right)
+        if isinstance(left, date) and isinstance(right, date):
+            return self.dates(node, op, left, right)
         numeric = isinstance(left, Number | None) and isinstance(right, Number | None)
         if numeric and (left is not None or right is not None):
             return self.linear(node, op)
@@ -694,6 +700,23 @@ class _Repairer:
         if op == "=" and left is not None:
             return self.assign_all(node.right, left)
         return False
+
+    def dates(self, node: Binary, op: str, left: date, right: date) -> bool:
+        """Repair a comparison of two dates by moving one side.
+
+        The earlier side moves, so dates do not move past the reference
+        date: ``a < b`` sets ``a`` to the day before ``b``; ``a > b`` sets
+        ``b`` to the day before ``a``; ``a = b`` copies ``b`` into ``a``.
+
+        Returns:
+            bool: Whether a value changed.
+        """
+        day = timedelta(days=1)
+        if op in {"<", "<=", "!="}:
+            return self.assign_all(node.left, right if op == "<=" else right - day)
+        if op in {">", ">="}:
+            return self.assign_all(node.right, left if op == ">=" else left - day)
+        return self.assign_all(node.left, right)
 
     def linear(self, node: Binary, op: str) -> bool:
         """Solve ``left op right`` by moving one cell of the linearized difference.
@@ -717,9 +740,12 @@ class _Repairer:
             others = owners.get(slot, set()) - {self.rule}
             return (1 if others else 0, index)
 
-        for _index, (slot, coefficient, seen) in sorted(enumerate(terms), key=rank):
-            if not coefficient or not self.data._numeric_slot(slot):
-                continue
+        ordered = [
+            (slot, coefficient, seen)
+            for _index, (slot, coefficient, seen) in sorted(enumerate(terms), key=rank)
+            if coefficient and self.data._numeric_slot(slot)
+        ]
+        for slot, coefficient, seen in ordered:
             step = self.data._quantum(self.data._cell(slot)) * abs(coefficient)
             goal = _goal(op, step)
             # The difference is the one the evaluation saw, so the cell moves
@@ -732,7 +758,41 @@ class _Repairer:
                 continue
             if self.data._within_bounds(slot, value) and self.data._assign(slot, value):
                 return True
-        return False
+        return self.spread(ordered, difference, op)
+
+    def spread(
+        self, terms: list[tuple[Any, Decimal, Decimal]], difference: Decimal, op: str
+    ) -> bool:
+        """Share a difference that no single cell can absorb within its bounds.
+
+        Cells move in turn, each as far as its bounds allow, until the
+        comparison holds: ``a = b + c`` with every cell between 0 and 1 is
+        met by lowering ``b`` and ``c`` once ``a`` is at 1.
+
+        Returns:
+            bool: Whether a value changed; the comparison may still fail.
+        """
+        if not terms:
+            return False
+        step = max(
+            self.data._quantum(self.data._cell(slot)) * abs(coefficient)
+            for slot, coefficient, _seen in terms
+        )
+        remaining = _goal(op, step) - difference
+        changed = False
+        for slot, coefficient, seen in terms:
+            if not remaining:
+                break
+            lower, upper = self.data._bounds.get(slot, (None, None))
+            value = seen + remaining / coefficient
+            if lower is not None:
+                value = max(value, lower)
+            if upper is not None:
+                value = min(value, upper)
+            if value != seen and self.data._assign(slot, value):
+                changed = True
+                remaining -= coefficient * (value - seen)
+        return changed
 
     def terms(
         self, node: Node, coefficient: Decimal
@@ -866,7 +926,7 @@ def generate(
             their allowed items in order, so a table whose keys allow fewer
             combinations gets fewer rows.
         max_rounds: Upper bound on evaluate-and-repair rounds; 0 evaluates the
-            initial values only.
+            initial values only, without the joint solve of linear rules.
         entity: LEI of the reporting entity.
         reporting_level: Suffix of the entity identifier, such as ``CON`` or
             ``IND``, from the reference date 2022-12-31 and for a module
@@ -937,37 +997,26 @@ def generate(
             messages[rule.code] = f"syntax error: {error}"
         except RecursionError:
             messages[rule.code] = "expression too deeply nested"
-    owners = _definitions(parsed, data)
+    constraints: list[_Constraint] = []
+    owners = _definitions(parsed, data, constraints)
     data._apply_bounds()
     history: list[int] = []
     repairs = 0
-    rounds = 0
-    for rounds in range(1, max_rounds + 1):  # ruff: ignore[unused-loop-control-variable] - reported after the loop
-        failing, changed = 0, 0
-        for rule, node, precondition in parsed:
-            result = evaluate_rule(node, data, precondition=precondition)
-            if result.status != "failed" or result.evaluation is None:
-                continue
-            failing += 1
-            for outcome in result.failures:
-                repairer = _Repairer(
-                    data,
-                    result.evaluation,
-                    dict(outcome.key),
-                    rule=rule.code,
-                    owners=owners,
-                )
-                try:
-                    if repairer.fix(result.evaluation.root, True):
-                        changed += 1
-                except RecursionError:
-                    # Too deeply nested to follow (dpm-xl evaluated it); the
-                    # rule keeps its status but is not repaired.
-                    break
-        history.append(failing)
-        repairs += changed
-        if not failing or not changed or _stalled(history):
+    # The linear rules are solved jointly, then the loop repairs the rest;
+    # when rules still fail, a second solve restores the linear rules its
+    # repairs broke, and the loop runs again.
+    for _phase in range(2):
+        if len(history) >= max_rounds:
             break
+        _project(constraints, data)
+        # The loop repairs what rounding to the reporting decimals breaks.
+        data._round_all()
+        start = len(history)
+        changes, failing = _repair(parsed, data, owners, max_rounds - start, history)
+        repairs += changes
+        if not failing:
+            break
+    rounds = len(history)
     data._round_all()
     found: dict[str, str] = dict.fromkeys(messages, "error")
     found.update((rule.code, "skipped") for rule in template.rules if not rule.active)
@@ -991,6 +1040,51 @@ def generate(
     )
 
 
+def _repair(
+    parsed: list[tuple[Any, Node, str | None]],
+    data: SyntheticData,
+    owners: dict[Any, set[str]],
+    rounds: int,
+    history: list[int],
+) -> tuple[int, int]:
+    """Run up to ``rounds`` evaluate-and-repair rounds.
+
+    Appends the failing rules at the start of each round to ``history``.
+
+    Returns:
+        tuple[int, int]: The records repaired, and the rules failing in the
+        last round.
+    """
+    repairs, failing, start = 0, 0, len(history)
+    for _round in range(rounds):
+        failing, changed = 0, 0
+        for rule, node, precondition in parsed:
+            result = evaluate_rule(node, data, precondition=precondition)
+            if result.status != "failed" or result.evaluation is None:
+                continue
+            failing += 1
+            for outcome in result.failures:
+                repairer = _Repairer(
+                    data,
+                    result.evaluation,
+                    dict(outcome.key),
+                    rule=rule.code,
+                    owners=owners,
+                )
+                try:
+                    if repairer.fix(result.evaluation.root, True):
+                        changed += 1
+                except RecursionError:
+                    # Too deeply nested to follow (dpm-xl evaluated it); the
+                    # rule keeps its status but is not repaired.
+                    break
+        history.append(failing)
+        repairs += changed
+        if not failing or not changed or _stalled(history[start:]):
+            break
+    return repairs, failing
+
+
 def _stalled(history: list[int], window: int = 6) -> bool:
     """Whether the failing-rule count stopped improving (an oscillation).
 
@@ -1003,7 +1097,9 @@ def _stalled(history: list[int], window: int = 6) -> bool:
 
 
 def _definitions(
-    parsed: list[tuple[Any, Node, str | None]], data: SyntheticData
+    parsed: list[tuple[Any, Node, str | None]],
+    data: SyntheticData,
+    constraints: list[_Constraint] | None = None,
 ) -> dict[Any, set[str]]:
     """Map each cell to the rules whose equality defines it.
 
@@ -1025,6 +1121,8 @@ def _definitions(
             # A sign rule may be one part of an and: {x} = ... and {x} >= 0.
             for part in _operands(node, "and"):
                 _record_bounds(part, evaluation, data)
+                if constraints is not None:
+                    constraints.extend(_linear_constraints(part, evaluation, data))
             comparisons = walk(node)
         except RecursionError:
             continue
@@ -1085,6 +1183,360 @@ def _order_by_depth(
         if not changed:
             break
     parsed.sort(key=lambda item: depth.get(item[0].code, 0))
+
+
+# A linear comparison ``constant + sum(coefficient * cell) op 0`` of one record.
+_Constraint = tuple[str, float, tuple[tuple[Slot, float], ...]]
+_LINEAR_OPS = {"=", "<", "<=", ">", ">="}
+
+
+def _constant(node: Node) -> bool:
+    """Whether a node selects no cell, so its value does not change.
+
+    Returns:
+        bool: ``True`` for a node without selections.
+    """
+    return not any(isinstance(item, Selection | Where | Sub) for item in walk(node))
+
+
+def _is_linear(node: Node) -> bool:
+    """Whether a node is a sum of cells times constants, plus a constant.
+
+    ``abs`` counts too: with its operand's sign kept, it is linear.
+
+    Returns:
+        bool: Whether the node's value is linear in its cells.
+    """
+    stack = [node]
+    while stack:
+        node = _unwrap(stack.pop())
+        match node:
+            case Binary(op="+" | "-", left=left, right=right):
+                stack.extend((left, right))
+            case Binary(op="*", left=left, right=right):
+                if not _constant(left) and not _constant(right):
+                    return False
+                stack.extend((left, right))
+            case Binary(op="/", left=left, right=right):
+                if not _constant(right):
+                    return False
+                stack.append(left)
+            case (
+                Unary(op="+" | "-", operand=operand) | Call(name="abs", args=(operand,))
+            ):
+                stack.append(operand)
+            case Call(name="sum", args=args):
+                stack.extend(args)
+            case Selection() | Where() | Sub() | Literal_():
+                pass
+            case _:
+                return False
+    return True
+
+
+def _linear_constraints(
+    node: Node, evaluation: Evaluation, data: SyntheticData
+) -> list[_Constraint]:
+    """Return the linear comparison of every record of a rule's part.
+
+    Only a comparison whose sides are sums of cells times constants counts,
+    so its coefficients do not depend on the values. An ``abs`` is the
+    operand or its negation, by the operand's sign, which a further
+    constraint keeps.
+
+    Returns:
+        list[_Constraint]: The constraints of every record; empty for
+        anything else.
+    """
+    node = _unwrap(node)
+    if not (
+        isinstance(node, Binary)
+        and node.op in _LINEAR_OPS
+        and _is_linear(node.left)
+        and _is_linear(node.right)
+    ):
+        return []
+    recordset = evaluation.trace.get(id(node))
+    if recordset is None:
+        return []
+    signs = [
+        item for item in walk(node) if isinstance(item, Call) and item.name == "abs"
+    ]
+    found = []
+    for key in recordset.records:
+        repairer = _Repairer(
+            data, evaluation, dict(zip(recordset.keys, key, strict=True))
+        )
+        left, right = repairer.value(node.left), repairer.value(node.right)
+        if not (isinstance(left, Number | None) and isinstance(right, Number | None)):
+            continue
+        found.append(_linear(repairer, node.op, node.left, node.right))
+        for call in signs:
+            operand = call.args[0]
+            negative = _value(repairer.value(operand)) < 0
+            found.append(_linear(repairer, "<=" if negative else ">=", operand, None))
+    return [constraint for constraint in found if constraint[2]]
+
+
+def _linear(
+    repairer: _Repairer, op: str, left: Node, right: Node | None
+) -> _Constraint:
+    """Return ``left - right op 0`` of one record as a linear constraint.
+
+    Returns:
+        _Constraint: The comparison, its constant and its numeric cells.
+    """
+    terms = repairer.terms(left, Decimal(1))
+    constant = _value(repairer.value(left))
+    if right is not None:
+        terms += repairer.terms(right, Decimal(-1))
+        constant -= _value(repairer.value(right))
+    coefficients: dict[Slot, Decimal] = {}
+    for slot, coefficient, seen in terms:
+        if repairer.data._numeric_slot(slot):
+            constant -= coefficient * seen
+            coefficients[slot] = coefficients.get(slot, Decimal(0)) + coefficient
+    return (
+        op,
+        float(constant),
+        tuple(
+            (slot, float(coefficient))
+            for slot, coefficient in coefficients.items()
+            if coefficient
+        ),
+    )
+
+
+# A linear expression: a constant and coefficients by cell.
+_Expression = tuple[float, dict[Slot, float]]
+
+
+def _project(
+    constraints: list[_Constraint],
+    data: SyntheticData,
+    passes: int = 40,
+    relaxation: float = 1.5,
+) -> None:
+    """Move the numeric values onto every linear constraint at once.
+
+    The repair loop changes one cell at a time, so a cell defined by two
+    rules, such as a total of both its row and its column, moves back and
+    forth between them. This solves the linear rules jointly first:
+
+    1. A constraint on one cell is a bound of that cell.
+    2. Gaussian elimination expresses one cell of each equality (its pivot)
+       in the other cells, so every equality holds whatever they are.
+    3. The inequalities and the bounds of the pivots, rewritten in the other
+       cells, are met by projections (Kaczmarz's method, over-relaxed, with
+       a work list), each changing the cells of one constraint as little as
+       possible and keeping every cell inside its bounds.
+    4. The pivots are computed from the other cells.
+
+    Contradictory equalities are left to the repair loop, and the projections
+    stop after ``passes`` times the number of inequalities.
+    """
+    limits: dict[Slot, list[float]] = {}
+
+    def limit(slot: Slot) -> list[float]:
+        found = limits.get(slot)
+        if found is None:
+            lower, upper = data._bounds.get(slot, (None, None))
+            found = limits[slot] = [
+                -math.inf if lower is None else float(lower),
+                math.inf if upper is None else float(upper),
+            ]
+        return found
+
+    equalities: list[tuple[float, tuple[tuple[Slot, float], ...]]] = []
+    # Inequalities as constant + terms >= 0.
+    inequalities: list[tuple[float, tuple[tuple[Slot, float], ...]]] = []
+    for op, constant, terms in constraints:
+        if len(terms) == 1:
+            ((slot, coefficient),) = terms
+            value = -constant / coefficient
+            if op != "=" and coefficient < 0:
+                op = _MIRRORED[op]
+            bounds = limit(slot)
+            if op in {"=", ">=", ">"}:
+                bounds[0] = max(bounds[0], value)
+            if op in {"=", "<=", "<"}:
+                bounds[1] = min(bounds[1], value)
+        elif op == "=":
+            equalities.append((constant, terms))
+        elif op in {">=", ">"}:
+            inequalities.append((constant - (op == ">"), terms))
+        else:
+            negated = tuple((slot, -c) for slot, c in terms)
+            inequalities.append((-constant - (op == "<"), negated))
+    # A cleared cell (an isnull repair) stays cleared: it counts as 0.
+    for _op, _constant, terms in constraints:
+        for slot, _c in terms:
+            if data.values.get(slot) is None:
+                limit(slot)[:] = [0.0, 0.0]
+    pivots = _eliminate(equalities)
+    for slot, bounds in limits.items():
+        if slot in pivots:
+            if bounds[0] > -math.inf:
+                inequalities.append((-bounds[0], ((slot, 1.0),)))
+            if bounds[1] < math.inf:
+                inequalities.append((bounds[1], ((slot, -1.0),)))
+    rows = []
+    for constant, terms in inequalities:
+        expression = _substitute(constant, terms, pivots)
+        if expression[1]:
+            rows.append((expression[0], tuple(expression[1].items())))
+    values: dict[Slot, float] = {}
+
+    def start(slot: Slot) -> None:
+        if slot not in values:
+            value = float(_value(data.values.get(slot)))
+            bounds = limits.get(slot)
+            if bounds is not None and bounds[0] <= bounds[1] and slot not in pivots:
+                value = min(max(value, bounds[0]), bounds[1])
+            values[slot] = value
+
+    for _constant, terms in rows:
+        for slot, _c in terms:
+            start(slot)
+    for _constant, expression in pivots.values():
+        for slot in expression:
+            start(slot)
+    for slot in [*limits, *pivots]:
+        start(slot)
+    original = {slot: float(_value(data.values.get(slot))) for slot in values}
+    _feasible(
+        rows,
+        values,
+        {s: b for s, b in limits.items() if s not in pivots},
+        passes,
+        relaxation,
+    )
+    for slot, (constant, expression) in pivots.items():
+        values[slot] = constant + sum(values[s] * c for s, c in expression.items())
+    for slot, value in values.items():
+        if (
+            value != original[slot]
+            and math.isfinite(value)
+            and data.values.get(slot) is not None
+        ):
+            data._assign(slot, Decimal(repr(value)))
+
+
+def _eliminate(
+    equalities: list[tuple[float, tuple[tuple[Slot, float], ...]]],
+) -> dict[Slot, _Expression]:
+    """Solve equalities for one cell each, by Gauss-Jordan elimination.
+
+    Each equality, with the earlier pivots substituted, takes as its pivot
+    the cell that the fewest earlier pivots use, so the expressions stay
+    short; a pivot is then substituted into the expressions that use it.
+
+    Returns:
+        dict[Slot, _Expression]: Each pivot as an expression in cells that
+        are not pivots. An equality that is redundant, or contradicts the
+        earlier ones, gets none.
+    """
+    pivots: dict[Slot, _Expression] = {}
+    # Cell -> the pivots whose expression uses it, as an ordered set.
+    users: dict[Slot, dict[Slot, None]] = {}
+    for constant, terms in equalities:
+        constant, row = _substitute(constant, terms, pivots)
+        if not row:
+            continue
+        pivot = min(row, key=lambda slot: (len(users.get(slot, ())), -abs(row[slot])))
+        scale = -row.pop(pivot)
+        solved = (constant / scale, {slot: c / scale for slot, c in row.items()})
+        for user in users.pop(pivot, {}):
+            used_constant, used = pivots[user]
+            factor = used.pop(pivot)
+            for slot, c in solved[1].items():
+                value = used.get(slot, 0.0) + factor * c
+                if abs(value) > 1e-12:
+                    used[slot] = value
+                    users.setdefault(slot, {})[user] = None
+                elif slot in used:
+                    del used[slot]
+                    users[slot].pop(user, None)
+            pivots[user] = (used_constant + factor * solved[0], used)
+        pivots[pivot] = solved
+        for slot in solved[1]:
+            users.setdefault(slot, {})[pivot] = None
+    return pivots
+
+
+def _substitute(
+    constant: float,
+    terms: tuple[tuple[Slot, float], ...],
+    pivots: dict[Slot, _Expression],
+) -> _Expression:
+    """Rewrite ``constant + terms`` in the cells that are not pivots.
+
+    Returns:
+        _Expression: The constant and the coefficients of the other cells.
+    """
+    row: dict[Slot, float] = {}
+    for slot, c in terms:
+        solved = pivots.get(slot)
+        if solved is None:
+            row[slot] = row.get(slot, 0.0) + c
+            continue
+        constant += c * solved[0]
+        for other, factor in solved[1].items():
+            row[other] = row.get(other, 0.0) + c * factor
+    return constant, {slot: c for slot, c in row.items() if abs(c) > 1e-12}
+
+
+def _feasible(
+    rows: list[tuple[float, tuple[tuple[Slot, float], ...]]],
+    values: dict[Slot, float],
+    limits: dict[Slot, list[float]],
+    passes: int,
+    relaxation: float,
+) -> None:
+    """Move values until every ``constant + terms >= 0`` holds, if it can.
+
+    A violated row is met by the smallest change of its cells that can move
+    the way it needs, over-relaxed past the boundary so that rows sharing
+    cells settle sooner, and clamped to the cells' bounds. A row is checked
+    again only after one of its cells moved.
+    """
+    uses: dict[Slot, list[int]] = {}
+    for index, (_constant, terms) in enumerate(rows):
+        for slot, _c in terms:
+            uses.setdefault(slot, []).append(index)
+    queue = deque(range(len(rows)))
+    queued = [True] * len(rows)
+    budget = passes * len(rows)
+    while queue and budget:
+        budget -= 1
+        index = queue.popleft()
+        queued[index] = False
+        constant, terms = rows[index]
+        excess = constant + sum(values[slot] * c for slot, c in terms)
+        if excess >= -0.01:
+            continue
+        movable = []
+        for slot, c in terms:
+            bounds = limits.get(slot)
+            if bounds is None or (
+                values[slot] < bounds[1] if c > 0 else values[slot] > bounds[0]
+            ):
+                movable.append((slot, c))
+        norm = sum(c * c for _slot, c in movable)
+        if not norm:
+            continue
+        step = relaxation * excess / norm
+        for slot, c in movable:
+            value = values[slot] - c * step
+            bounds = limits.get(slot)
+            if bounds is not None:
+                value = min(max(value, bounds[0]), bounds[1])
+            if value != values[slot]:
+                values[slot] = value
+                for other in uses[slot]:
+                    if not queued[other]:
+                        queued[other] = True
+                        queue.append(other)
 
 
 def _record_bounds(node: Node, evaluation: Evaluation, data: SyntheticData) -> None:

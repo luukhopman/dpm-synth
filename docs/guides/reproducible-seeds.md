@@ -61,11 +61,11 @@ case or a set of reports for a performance test:
 ```console
 $ dpm-synth generate minimal.json -o report-1.zip --seed 1
 rules: 2, passed: 2, failed: 0
-rounds: 2 (failing rules per round: 1, 0)
+rounds: 1 (failing rules per round: 0)
 wrote report-1.zip (3 facts)
 $ dpm-synth generate minimal.json -o report-2.zip --seed 2
 rules: 2, passed: 2, failed: 0
-rounds: 2 (failing rules per round: 1, 0)
+rounds: 1 (failing rules per round: 0)
 wrote report-2.zip (3 facts)
 ```
 

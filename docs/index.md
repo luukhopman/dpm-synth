@@ -57,7 +57,7 @@ and both components are not negative. The same from the command line:
 ```console
 $ dpm-synth generate minimal.json -o report.zip --seed 7
 rules: 2, passed: 2, failed: 0
-rounds: 2 (failing rules per round: 1, 0)
+rounds: 1 (failing rules per round: 0)
 wrote report.zip (3 facts)
 ```
 
@@ -78,9 +78,9 @@ This installs dpm-xl and dpm-xbrl too, and the `dpm-synth` command.
 - **Any module.** The template format describes tables, open keys, cells,
   data types, allowed items and rules, so one tool covers COREP, FINREP and
   every other DPM framework; see the [template format](reference/template-format.md).
-- **Rules satisfied, not just shapes.** Sums, differences, products of two
-  cells, sign rules, `isnull`, `in` and `match` are repaired; on EBA DPM 4.3
-  COREP_OF, 999 of the 1,051 rules that apply pass. See
+- **Rules satisfied, not just shapes.** Linear rules are solved jointly;
+  products of two cells, `isnull`, `in`, `match` and the rest are repaired;
+  on EBA DPM 4.3 COREP_OF, 1,050 of the 1,051 rules that apply pass. See
   [the evaluate-and-repair loop](concepts/repair-loop.md) and
   [its limits](concepts/limits.md).
 - **Valid packages.** Packages are written by dpm-xbrl and read back without
