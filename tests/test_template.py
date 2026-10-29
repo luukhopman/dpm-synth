@@ -67,7 +67,7 @@ def test_optional_fields_and_unknown_fields() -> None:
     raw["tables"][0]["open_keys"].append({"code": "qID", "data_type": "i"})
     raw["tables"][0]["cells"][0].update(row="0010", column="0010", sheet="*")
     raw["tables"][0]["cells"].append(
-        {"id": "b", "datapoint": "dp2", "data_type": "e", "items": []}
+        {"id": "b", "datapoint": "dp2", "data_type": "s", "items": []}
     )
     raw["rules"][0].update(precondition="{v_T_01}", source="own")
     snapshot = copy.deepcopy(raw)
@@ -172,6 +172,17 @@ _DELETE = object()
         (
             _set(["rules", 0, "precondition"], "{v_T_01.00} and"),
             "rules[0].precondition: syntax error:",
+        ),
+        (
+            _set(["tables", 0, "cells", 0, "data_type"], "e"),
+            "tables[0].cells[0].items: required for an enumerated cell (data type 'e')",
+        ),
+        (
+            _set(
+                ["tables", 0, "cells", 0],
+                {"id": "a", "datapoint": "dp1", "data_type": "es", "items": []},
+            ),
+            "tables[0].cells[0].items: required for an enumerated cell (data type 'es')",
         ),
         (_set(["tables"], _DELETE), "tables: required"),
         (_set(["tables"], {}), "tables: expected an array, got an object"),

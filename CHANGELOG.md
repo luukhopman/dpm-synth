@@ -9,6 +9,10 @@ All notable changes to this project are documented here. The project follows
   the template does not have, instead of reporting it as not evaluated.
 - Typed open keys take an optional `data_type`: `i` keys get integers and
   `d` keys get dates instead of LEI-shaped identifiers.
+- Enumeration-set (`es`) cells get an allowed item instead of an
+  LEI-shaped identifier.
+- `load_template` rejects an enumerated cell without `items`, which used to
+  get the invalid value `eba_qx:qx0`.
 
 ## 1.0.0 - 2026-10-24
 

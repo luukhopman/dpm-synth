@@ -94,7 +94,7 @@ class PackageProvider:
         if data_type in _DECIMALS:
             decimals = self.report.decimals_parameters.get(_DECIMALS[data_type])
             return Number.of(Decimal(text), decimals)
-        if data_type == "e":
+        if data_type in ("e", "es"):
             return Item.parse(text)
         if data_type == "b":
             return text == "true"

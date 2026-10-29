@@ -451,17 +451,20 @@ def test_huge_corrections_are_not_written() -> None:
 
 
 def test_initial_values_by_data_type() -> None:
-    kinds = ["m", "p", "i", "r", "e", "b", "d", "s", None]
+    kinds = ["m", "p", "i", "r", "e", "b", "d", "s", None, "es"]
     cells = [
-        cell(f"00{index}0", "0010", index, kind) for index, kind in enumerate(kinds, 1)
+        cell(f"00{index}0", "0010", index, kind, items=["eba_AB:x1", "eba_AB:x2"])
+        if kind in ("e", "es")
+        else cell(f"00{index}0", "0010", index, kind)
+        for index, kind in enumerate(kinds, 1)
     ]
     result = run(cells, [], seed=11)
-    m, p, i, r, e, b, d, s, text = (value(result, n) for n in range(1, 10))
+    m, p, i, r, e, b, d, s, text, es = (value(result, n) for n in range(1, 11))
     assert m.value % 1000 == 0 and 1000 <= m.value <= 1_000_000
     assert 0 < p.value < 1
     assert 1 <= i.value <= 50 and i.value == i.value.to_integral_value()
     assert 1 <= r.value < 10
-    assert e == Item("qx", "qx0")
+    assert e == es == Item("AB", "x1")
     assert b is True
     assert d == date(2026, 12, 31)
     assert isinstance(s, str) and len(s) == 20 and s.startswith("SYNTH")
@@ -573,6 +576,26 @@ def test_enumerated_keys_stop_at_their_cycle() -> None:
     )
     # Row i takes item i of each key: the rows repeat after lcm(3, 2) = 6.
     assert len(result.data.key_rows["T"]) == 6
+
+
+def test_enumeration_sets_take_an_allowed_item() -> None:
+    items = ["eba_AB:x1", "eba_AB:x2"]
+    result = run(
+        [cell("0010", "0010", 1, "es", items=items)],
+        ["{tT, r0010, c0010} in {[eba_AB:x2]}"],
+    )
+    assert result.passed == 1
+    assert [fact.value for fact in result.report.facts] == ["eba_AB:x2"]
+
+
+def test_enumerated_cells_without_items_get_no_value() -> None:
+    template = load_template(document([cell("0010", "0010", 1, "m")], []))
+    table = template.tables[0]
+    bare = replace(table.cells[0], data_type="e")
+    template = replace(template, tables=(replace(table, cells=(bare,)),))
+    result = generate(template)
+    assert result.data.values["dp1", ()] is None
+    assert result.report.facts == ()
 
 
 def test_typed_keys_get_values_of_their_data_type() -> None:

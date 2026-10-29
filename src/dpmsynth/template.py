@@ -29,8 +29,9 @@ https://luukhopman.github.io/dpm-synth/reference/template-format/; in short:
     }
 
 Data types follow DPM codes: ``m`` monetary, ``p`` percentage, ``i`` integer,
-``r`` decimal, ``e`` enumerated item, ``b`` boolean, ``d`` date, anything else
-text. ``items`` lists the allowed item qnames of enumerated cells and keys.
+``r`` decimal, ``e`` enumerated item, ``es`` enumeration set, ``b`` boolean,
+``d`` date, anything else text. ``items`` lists the allowed item qnames of
+enumerated cells and keys.
 """
 
 from __future__ import annotations
@@ -54,6 +55,7 @@ _TABLE_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _RESERVED_TABLES = {"parameters", "filingindicators"}
 _RESERVED_COLUMNS = {"datapoint", "factvalue"}
 _MAX_DECIMALS = 20
+_ENUMERATED_TYPES = frozenset({"e", "es"})
 
 
 class TemplateError(ValueError):
@@ -103,7 +105,8 @@ class TemplateCell:
             rows, ``*`` for every row of an open table.
         column: The column code.
         sheet: The sheet code, ``*`` for every sheet, or ``None``.
-        items: Allowed item qnames of an enumerated cell.
+        items: Allowed item qnames of an enumerated (``e`` or ``es``) cell;
+            required for those.
     """
 
     id: str
@@ -359,14 +362,21 @@ class _Loader:
 
     def cell(self, value: object, path: str) -> TemplateCell:
         cell = self.mapping(value, path)
+        data_type = self.optional_text(cell, "data_type", path)
+        items = self.items(cell, path)
+        if data_type in _ENUMERATED_TYPES and not items:
+            raise TemplateError(
+                f"{path}.items: required for an enumerated cell "
+                f"(data type {data_type!r})"
+            )
         return TemplateCell(
             id=self.text(cell, "id", path),
             datapoint=self.text(cell, "datapoint", path),
-            data_type=self.optional_text(cell, "data_type", path),
+            data_type=data_type,
             row=self.optional_text(cell, "row", path),
             column=self.optional_text(cell, "column", path),
             sheet=self.optional_text(cell, "sheet", path),
-            items=self.items(cell, path),
+            items=items,
         )
 
     def rule(self, value: object, path: str) -> TemplateRule:

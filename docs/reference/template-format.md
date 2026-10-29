@@ -88,7 +88,7 @@ with fewer items than rows gives fewer distinct rows.
 | `row` | string or null | no | The row code, such as `"0010"`, without the `r`. Null for a table without rows; `"*"` for a cell of every row of an open table, which only a selection without rows, or with `r*`, selects. |
 | `column` | string or null | no | The column code, such as `"0010"`. |
 | `sheet` | string or null | no | The sheet code; `"*"` for a cell on every sheet, as in open tables. |
-| `items` | array of strings or null | no | The allowed item qnames of an enumerated cell. The first is its starting value. |
+| `items` | array of strings or null | no | The allowed item qnames of an enumerated (`e` or `es`) cell; required for those. The first is its starting value. |
 
 Rules select cells by table, row, column and sheet, as in
 `{tC_07.00.a, r0010, c0010}`; the generator answers such a selection with
@@ -105,7 +105,8 @@ repairs apply, how the value is rounded and how it is written.
 | `p` | percentage | 0.01 to 0.99 | a decimal with `decimals.p` places |
 | `i` | integer | 1 to 50 | a decimal with `decimals.i` places |
 | `r` | decimal | 1.00 to 9.99 | a decimal with `decimals.r` places |
-| `e` | enumerated | the first of `items`, else `eba_qx:qx0` | the item qname as the template writes it |
+| `e` | enumerated | the first of `items` | the item qname as the template writes it |
+| `es` | enumeration set | the first of `items`, as a set of one item | the item qname as the template writes it |
 | `b` | boolean | `true` | `true` or `false` |
 | `d` | date | the reference date | `YYYY-MM-DD` |
 | anything else, or null | text | a random LEI-shaped identifier starting with `SYNTH` | the text |

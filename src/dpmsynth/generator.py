@@ -64,7 +64,13 @@ from dpmxl.ast import (
     walk,
 )
 
-from .template import ModuleTemplate, OpenKey, TemplateCell, TemplateTable
+from .template import (
+    _ENUMERATED_TYPES,
+    ModuleTemplate,
+    OpenKey,
+    TemplateCell,
+    TemplateTable,
+)
 
 DEFAULT_ENTITY = "SYNTHETICDPMXL000002"
 """The fictional LEI that reports are generated for unless told otherwise."""
@@ -237,8 +243,9 @@ class SyntheticData:
             return self._number(cell, Decimal(self.rng.randint(1, 50)))
         if kind == "r":
             return self._number(cell, Decimal(self.rng.randint(100, 999)) / 100)
-        if kind == "e":
-            return Item.parse(cell.items[0]) if cell.items else Item("qx", "qx0")
+        if kind in _ENUMERATED_TYPES:
+            # An enumeration set (es) is written as a set of one item.
+            return Item.parse(cell.items[0]) if cell.items else None
         if kind == "b":
             return True
         if kind == "d":
