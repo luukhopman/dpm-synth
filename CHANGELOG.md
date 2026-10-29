@@ -27,6 +27,9 @@ All notable changes to this project are documented here. The project follows
   decimals can change.
 - `load_template` rejects decimals below the minimums of EBA filing rule
   2.18: `p` below 4, `i` other than 0 and `m` below -6.
+- Reports with a reference date before 2022-12-31, or for a module whose
+  code has `_con` or `_ind`, identify the entity by its bare LEI in the LEI
+  scheme, as EBA filing rule 3.6 requires.
 
 ## 1.0.0 - 2026-10-24
 

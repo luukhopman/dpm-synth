@@ -99,7 +99,7 @@ wrote sample.zip (20 facts)
 | `--max-rounds N` | Most evaluate-and-repair rounds, 0 or more; 0 writes the starting values. |
 | `--scale-rows N` | Write every open table with `N` key rows, from 1 to 9,999,999,999, by repeating the solved rows under new keys; see [load-test with scaled packages](../guides/load-testing.md). The summary and the exit status are those of the unscaled report. |
 | `--reference-date YYYY-MM-DD` | Overrides the template's reference date; exactly `YYYY-MM-DD`, as in the template. |
-| `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme. |
+| `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme, or the bare LEI in the LEI scheme before the reference date 2022-12-31 and for a module whose code has `_con` or `_ind` (EBA filing rule 3.6). |
 | `--level CON\|IND` | The reporting level, consolidated or individual. |
 | `--currency CODE` | The reporting currency, an ISO 4217 code such as `SEK`, written as `baseCurrency` when a monetary fact is reported. |
 | `--json` | Print the summary as JSON instead; see [JSON output](json-output.md). |

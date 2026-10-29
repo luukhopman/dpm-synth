@@ -103,6 +103,11 @@ _STORED = Decimal("1e-8")
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _CURRENCY = re.compile(r"[A-Z]{3}")
 _RSCHEME = "https://eurofiling.info/eu/rs"
+_LEI_SCHEME = "http://standards.iso.org/iso/17442"
+# Reporting subjects carry a suffix from this reference date, except in
+# modules whose code has _con or _ind (EBA filing rule 3.6).
+_SUFFIX_FROM = date(2022, 12, 31)
+_LEVEL_MODULE = re.compile(r"_(con|ind)(_|$)", re.IGNORECASE)
 
 Slot = tuple[str, tuple[tuple[str, Any], ...]]
 
@@ -833,7 +838,9 @@ def generate(
             initial values only.
         entity: LEI of the reporting entity.
         reporting_level: Suffix of the entity identifier, such as ``CON`` or
-            ``IND``; also the ``ReportingLevel`` parameter, in lower case.
+            ``IND``, from the reference date 2022-12-31 and for a module
+            without ``_con`` or ``_ind`` in its code; also the
+            ``ReportingLevel`` parameter, in lower case.
         reference_date: Overrides the template's reference date.
         currency: Overrides the template's reporting currency, an ISO 4217
             code such as ``SEK``.
@@ -1095,11 +1102,14 @@ def build_report(data: SyntheticData) -> Report:
     ``factValue`` per cell, with the open keys of the row, and a ``unit``
     for a cell in its currency of denomination: the currency of a ``CUS``
     or ``CUA`` key, else the template's currency. The entity is
-    ``<entity>.<reporting level>`` in the reporting-subject scheme. Every
-    table's filing indicator is reported as ``true`` and the template's other
-    ``filing_indicators`` as ``false``. ``baseCurrency`` is the template's
-    currency when a monetary fact is reported, and a ``decimals*`` parameter
-    is set for each numeric data type the template uses.
+    ``<entity>.<reporting level>`` in the reporting-subject scheme; before
+    the reference date 2022-12-31, or for a module whose code has ``_con``
+    or ``_ind``, it is the bare LEI in the LEI scheme (EBA filing rule 3.6).
+    Every table's filing indicator is reported as ``true`` and the
+    template's other ``filing_indicators`` as ``false``. ``baseCurrency``
+    is the template's currency when a monetary fact is reported, and a
+    ``decimals*`` parameter is set for each numeric data type the template
+    uses.
     [`generate`][dpmsynth.generate] calls it; call it yourself after changing
     ``data.values``.
 
@@ -1147,14 +1157,20 @@ def build_report(data: SyntheticData) -> Report:
                     )
                 )
     used_types = {cell.data_type for table in template.tables for cell in table.cells}
+    reference_date = template.reference_date or DEFAULT_REFERENCE_DATE
+    # A subject with a suffix uses the reporting-subject scheme, a bare LEI
+    # the LEI scheme (EBA filing rule 3.6).
+    if reference_date < _SUFFIX_FROM or _LEVEL_MODULE.search(template.module):
+        prefix, scheme, entity_id = "lei", _LEI_SCHEME, data.entity
+    else:
+        prefix, scheme = "rs", _RSCHEME
+        entity_id = f"{data.entity}.{data.reporting_level}"
     return Report(
         format="xbrl-csv",
         entry_point=template.entry_point,
-        # A subject with a suffix uses the reporting-subject scheme (EBA
-        # filing rule 3.6).
-        entity_scheme=_RSCHEME,
-        entity_id=f"{data.entity}.{data.reporting_level}",
-        reference_date=template.reference_date or DEFAULT_REFERENCE_DATE,
+        entity_scheme=scheme,
+        entity_id=entity_id,
+        reference_date=reference_date,
         # baseCurrency is written only when a fact refers to it (EBA filing
         # rules, the xBRL-CSV parameters file).
         base_currency=f"iso4217:{template.currency or 'EUR'}"
@@ -1169,7 +1185,7 @@ def build_report(data: SyntheticData) -> Report:
         filing_indicators=_filing_indicators(template),
         facts=tuple(facts),
         namespaces={
-            "rs": _RSCHEME,
+            prefix: scheme,
             "iso4217": "http://www.xbrl.org/2003/iso4217",
         },
     )

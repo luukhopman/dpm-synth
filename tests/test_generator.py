@@ -191,6 +191,35 @@ def test_base_currency_is_left_out_when_every_amount_has_a_unit() -> None:
     assert [dict(fact.keys) for fact in report.facts] == [{"unit": "iso4217:EUR"}]
 
 
+@pytest.mark.parametrize(
+    ("module", "reference", "scheme", "entity"),
+    [
+        ("TEST", date(2022, 12, 31), "https://eurofiling.info/eu/rs", "X.CON"),
+        ("TEST", date(2022, 9, 30), "http://standards.iso.org/iso/17442", "X"),
+        ("COREP_LR_CON", date(2026, 12, 31), "http://standards.iso.org/iso/17442", "X"),
+        ("FINREP_IND_X", date(2026, 12, 31), "http://standards.iso.org/iso/17442", "X"),
+        ("INDEX_CONTROL", date(2026, 12, 31), "https://eurofiling.info/eu/rs", "X.CON"),
+    ],
+)
+def test_reporting_subject_follows_filing_rule_3_6(
+    tmp_path, module, reference, scheme, entity
+) -> None:
+    from dpmxbrl import read_report, write_xbrl_csv
+
+    lei = "SYNTHETICDPMXL000002"
+    raw = document([cell("0010", "0010", 1)], [])
+    raw["module"] = module
+    result = generate(load_template(raw), reference_date=reference, entity=lei)
+    report = result.report
+    assert (report.entity_scheme, report.entity_id) == (
+        scheme,
+        entity.replace("X", lei, 1),
+    )
+    write_xbrl_csv(report, tmp_path / "r.zip")
+    read = read_report(tmp_path / "r.zip")
+    assert (read.entity_scheme, read.entity_id) == (scheme, report.entity_id)
+
+
 def test_reporting_level_is_a_parameter_for_rules() -> None:
     rules = ['if {vReportingLevel} = "ind" then {tT, r0010, c0010} = 5 endif']
     individual = run([cell("0010", "0010", 1)], rules, reporting_level="IND")
