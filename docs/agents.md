@@ -38,10 +38,10 @@ except TemplateError as error:  # the only exception for a bad template
     raise SystemExit(f"bad template: {error}")
 
 result = generate(template, seed=7)  # same inputs and versions, same report
-result.passed  # 8: rules that pass on the rounded values
+result.statuses  # {"rows": "passed", ..., "history": "unsupported"}: by rule code
+result.summary  # {"rules": 9, "passed": 8, "failed": 0, ...}: counts by status
 result.failed  # []: codes of rules that still fail
-result.not_evaluated  # {"history": "...time_shift..."}: dpm-xl could not evaluate
-result.not_applicable  # []: precondition false, or no cell selected
+result.messages  # {"history": "...time_shift..."}: why error or unsupported
 result.report  # dpmxbrl.Report, ready to write
 result.data  # SyntheticData: a dpm-xl provider over the values
 
@@ -67,15 +67,16 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
   unreadable, non-JSON or invalid template, naming the field by its path,
   such as `tables[2].cells[0].datapoint`. Unknown fields are ignored.
 - `generate` raises `ValueError` only for invalid options. Rules that cannot
-  be evaluated never raise: they are in `not_evaluated`. `load_template`
+  be evaluated never raise: they are `error` or `unsupported`. `load_template`
   rejects rules that do not parse or select a table outside the template.
-- `passed + len(failed) + len(not_evaluated) + len(not_applicable) == rules`.
+- `statuses` has every rule once, with one of `STATUSES`: dpm-xl's
+  `passed`, `failed`, `not_applicable`, `error` and `unsupported`.
 - The same template, seed, options, output file name and versions give the
   same bytes.
 - `ModuleTemplate` and its parts are frozen dataclasses; `GenerationResult`
   is frozen too, but `result.data.values` is a mutable dict.
-- `--json` output carries `schema_version` (1); it changes only with a
-  major version.
+- `--json` output starts with `schema_version` (2), `tool` and `version`;
+  `schema_version` changes when the layout does.
 - Every generated LEI-shaped identifier starts with `SYNTH`
   (`LEI_PREFIX`) and has valid check digits; the default entity is the
   fictional `SYNTHETICDPMXL000002`. None can be a real entity's LEI.
@@ -87,7 +88,7 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
   `result.failed`, never assume it is empty. See
   [limits of the loop](concepts/limits.md).
 - **Exit status 1 is not a crash.** The package is written; compare the
-  JSON `failed` list with what you expect.
+  failed rules in the JSON `results` with what you expect.
 - **Scaled rows are not evaluated.** Rules that sum an open table fail on a
   scaled package; use the unscaled one to test validation results.
 - **The entity and reporting level live in the data.** Pass `entity`,

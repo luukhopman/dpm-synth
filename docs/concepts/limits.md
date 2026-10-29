@@ -1,5 +1,5 @@
 ---
-description: What the repair loop achieves on real EBA modules, which rules stay failing, which are not evaluated or do not apply, and why.
+description: What the repair loop achieves on real EBA modules, which rules stay failing, which cannot be evaluated or do not apply, and why.
 ---
 
 # Limits of the loop
@@ -17,7 +17,7 @@ options, dpm-synth 1.0.0 with dpm-xl and dpm-xbrl 1.0.0. Times are wall
 clock on a laptop (AMD Ryzen 7 4700U) and only indicate the scale; the
 other columns do not depend on the machine:
 
-| Module | Tables | Cells | Rules | Apply | Pass | Fail | Not applicable | Not evaluated | Rounds | Time |
+| Module | Tables | Cells | Rules | Apply | Pass | Fail | Not applicable | Unsupported | Rounds | Time |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | COREP_OF | 81 | 21,339 | 1,205 | 1,051 | 999 | 52 | 154 | 0 | 15 | 13 s |
 | FINREP9 | 124 | 13,834 | 2,260 | 2,258 | 1,929 | 329 | 0 | 2 | 14 | 10 s |
@@ -52,13 +52,13 @@ dpm-xbrl and evaluated with dpm-xl, as in
 [Build a template from a DPM release](../guides/from-a-dpm-release.md#read-the-results) shows
 how to explain each failing rule with dpm-xl.
 
-## Rules that are not evaluated
+## Rules that cannot be evaluated
 
-`not_evaluated` holds the rules dpm-xl reports as an error or as
-unsupported, with the reason:
+dpm-xl reports some rules as `unsupported` or `error`, and the result's
+`messages` give the reason:
 
 - `time_shift` compares with an earlier period, and a single report has
-  none;
+  none (`unsupported`);
 - a rule that uses a construct dpm-xl does not support.
 
 A rule that does not parse, or that selects a table the template does not
@@ -68,7 +68,7 @@ They do not count towards the exit status.
 
 ## Rules that do not apply
 
-`not_applicable` holds the rules that the generated report gives nothing to
+`not_applicable` rules are those the generated report gives nothing to
 check: the precondition is false, or the rule selects no generated cell.
 On COREP_OF these are mostly rules that filter an open table on key values,
 such as `[where CEG = [eba_GA:qx2014]]`, when the generated key rows use

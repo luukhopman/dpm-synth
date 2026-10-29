@@ -26,9 +26,10 @@ def test_generate_writes_the_package(tmp_path: Path, sample: Path, capsys) -> No
     assert main(["generate", str(sample), "-o", str(output), "--seed", "5"]) == 0
     lines = capsys.readouterr().out.splitlines()
     assert lines[0] == (
-        "rules: 9, passed: 8, failed: 0, not evaluated: 1, not applicable: 0"
+        "rules: 9, passed: 8, failed: 0, not applicable: 0, error: 0, unsupported: 1"
     )
     assert lines[1].startswith("rounds: ")
+    assert lines[2].startswith("history: unsupported: The rule compares")
     assert lines[-1] == f"wrote {output} (20 facts)"
     report = read_report(output)
     assert len(report.facts) == 20
@@ -60,25 +61,36 @@ def test_json_summary(tmp_path: Path, sample: Path, capsys) -> None:
     summary = json.loads(capsys.readouterr().out)
     assert list(summary) == [
         "schema_version",
+        "tool",
+        "version",
+        "summary",
         "output",
         "release",
         "module",
         "seed",
-        "rules",
-        "passed",
-        "failed",
-        "not_evaluated",
-        "not_applicable",
         "rounds",
         "history",
         "repairs",
-        "facts",
+        "results",
     ]
-    assert summary["schema_version"] == 1
+    assert summary["schema_version"] == 2
+    assert summary["tool"] == "dpm-synth"
+    assert summary["version"] == __version__
+    assert summary["summary"] == {
+        "rules": 9,
+        "passed": 8,
+        "failed": 0,
+        "not_applicable": 0,
+        "error": 0,
+        "unsupported": 1,
+        "facts": 20,
+    }
     assert summary["module"] == "SAMPLE"
-    assert summary["failed"] == []
-    assert list(summary["not_evaluated"]) == ["history"]
-    assert summary["facts"] == 20
+    results = {result["rule"]: result for result in summary["results"]}
+    assert len(results) == 9
+    assert results["rows"] == {"rule": "rows", "status": "passed", "message": None}
+    assert results["history"]["status"] == "unsupported"
+    assert "time_shift" in results["history"]["message"]
 
 
 def test_failing_rules_exit_with_status_1(tmp_path: Path, capsys) -> None:

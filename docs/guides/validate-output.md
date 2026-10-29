@@ -164,7 +164,7 @@ True
 ```
 
 The package passes the same eight rules. The ninth, a `time_shift`, is
-`unsupported` here, as it is "not evaluated" in the generator: a single
+`unsupported` here, as it is in the generator: a single
 report has no previous period. To evaluate it, give the provider an
 `earlier_report(period, count)` method that returns a provider over last
 year's package.

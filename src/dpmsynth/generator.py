@@ -112,26 +112,30 @@ _LEVEL_MODULE = re.compile(r"_(con|ind)(_|$)", re.IGNORECASE)
 Slot = tuple[str, tuple[tuple[str, Any], ...]]
 
 
+STATUSES = ("passed", "failed", "not_applicable", "error", "unsupported")
+"""The statuses a rule can end with, in the order summaries list them.
+
+They are dpm-xl's: ``not_applicable`` when the precondition is false or the
+rule selects no cell, ``error`` when the rule cannot be evaluated, such as a
+selection of a table the template does not have, and ``unsupported`` for a
+construct dpm-xl does not evaluate on one report, such as ``time_shift``.
+"""
+
+
 @dataclass(frozen=True)
 class GenerationResult:
     """The generated report and how far the repair loop got.
-
-    ``passed``, ``failed``, ``not_evaluated`` and ``not_applicable`` together
-    count every rule of the template once.
 
     Attributes:
         report: The report, ready for ``dpmxbrl.write_xbrl_csv``.
         data: The generated values, a dpm-xl data provider; pass it to
             [`write_scaled_package`][dpmsynth.write_scaled_package] or
             evaluate rules on it.
-        rules: Rules in the template.
-        passed: Rules that pass on the final, rounded values.
-        failed: Codes of the rules that still fail.
-        not_evaluated: Rules dpm-xl could not evaluate, such as
-            ``time_shift`` without a previous report, with the reason, by
-            rule code.
-        not_applicable: Codes of the rules whose precondition is false or
-            that select no cell of the template.
+        statuses: The status of every rule on the final, rounded values, by
+            rule code, in template order: one of
+            [`STATUSES`][dpmsynth.STATUSES].
+        messages: Why a rule is ``error`` or ``unsupported``, by rule code,
+            in template order.
         rounds: Evaluate-and-repair rounds run.
         repairs: Failing records repaired over all rounds.
         history: Failing rules at the start of each round.
@@ -139,14 +143,40 @@ class GenerationResult:
 
     report: Report
     data: SyntheticData
-    rules: int
-    passed: int
-    failed: list[str]
-    not_evaluated: dict[str, str]
-    not_applicable: list[str]
-    rounds: int
-    repairs: int
+    statuses: dict[str, str]
+    messages: dict[str, str] = field(default_factory=dict)
+    rounds: int = 0
+    repairs: int = 0
     history: list[int] = field(default_factory=list)
+
+    @property
+    def failed(self) -> list[str]:
+        """Codes of the rules that still fail, in template order.
+
+        Returns:
+            list[str]: Rule codes; empty when every evaluated rule passes.
+        """
+        return [code for code, status in self.statuses.items() if status == "failed"]
+
+    @property
+    def summary(self) -> dict[str, int]:
+        """Count the rules by status.
+
+        Returns:
+            dict[str, int]: ``rules``, the number of rules, then a count for
+            each of [`STATUSES`][dpmsynth.STATUSES]; the counts add up to
+            ``rules``.
+
+        Examples:
+            >>> from dpmsynth import load_template
+            >>> summary = generate(load_template("minimal.json"), seed=7).summary
+            >>> summary["rules"], summary["passed"], summary["failed"]
+            (2, 2, 0)
+        """
+        counts = dict.fromkeys(STATUSES, 0)
+        for status in self.statuses.values():
+            counts[status] += 1
+        return {"rules": len(self.statuses), **counts}
 
 
 class SyntheticData:
@@ -856,7 +886,7 @@ def generate(
     Examples:
         >>> from dpmsynth import load_template
         >>> result = generate(load_template("minimal.json"), seed=7)
-        >>> result.passed, result.failed
+        >>> result.summary["passed"], result.failed
         (2, [])
         >>> result.report.entity_id
         'SYNTHETICDPMXL000002.CON'
@@ -896,14 +926,14 @@ def generate(
         template, rng, open_rows, entity=entity, reporting_level=reporting_level
     )
     parsed = []
-    not_evaluated: dict[str, str] = {}
+    messages: dict[str, str] = {}
     for rule in template.rules:
         try:
             parsed.append((rule, parse(rule.expression), rule.precondition))
         except DpmXlSyntaxError as error:
-            not_evaluated[rule.code] = f"syntax error: {error}"
+            messages[rule.code] = f"syntax error: {error}"
         except RecursionError:
-            not_evaluated[rule.code] = "expression too deeply nested"
+            messages[rule.code] = "expression too deeply nested"
     owners = _definitions(parsed, data)
     data._apply_bounds()
     history: list[int] = []
@@ -936,31 +966,21 @@ def generate(
         if not failing or not changed or _stalled(history):
             break
     data._round_all()
-    passed = 0
-    failed: list[str] = []
-    not_applicable: list[str] = []
+    found: dict[str, str] = dict.fromkeys(messages, "error")
     for rule, node, precondition in parsed:
         result = evaluate_rule(node, data, precondition=precondition, trace=False)
-        if result.status == "passed":
-            passed += 1
-        elif result.status == "failed":
-            failed.append(rule.code)
-        elif result.status == "not_applicable":
-            not_applicable.append(rule.code)
-        else:
-            not_evaluated[rule.code] = result.message or result.status
+        found[rule.code] = result.status
+        if result.status in {"error", "unsupported"}:
+            messages[rule.code] = result.message or result.status
     return GenerationResult(
         report=build_report(data),
         data=data,
-        rules=len(template.rules),
-        passed=passed,
-        failed=failed,
-        not_evaluated={
-            rule.code: not_evaluated[rule.code]
+        statuses={rule.code: found[rule.code] for rule in template.rules},
+        messages={
+            rule.code: messages[rule.code]
             for rule in template.rules
-            if rule.code in not_evaluated
+            if rule.code in messages
         },
-        not_applicable=not_applicable,
         rounds=rounds,
         repairs=repairs,
         history=history,
@@ -1228,6 +1248,7 @@ __all__ = [
     "DEFAULT_REFERENCE_DATE",
     "LEI_PREFIX",
     "MAX_OPEN_ROWS",
+    "STATUSES",
     "GenerationResult",
     "SyntheticData",
     "build_report",

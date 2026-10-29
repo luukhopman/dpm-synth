@@ -19,7 +19,13 @@ from typing import Any
 from dpmxbrl import write_xbrl_csv
 
 from ._version import __version__
-from .generator import DEFAULT_ENTITY, MAX_OPEN_ROWS, GenerationResult, generate
+from .generator import (
+    DEFAULT_ENTITY,
+    MAX_OPEN_ROWS,
+    STATUSES,
+    GenerationResult,
+    generate,
+)
 from .scale import _MAX_ROWS, write_scaled_package
 from .template import TemplateError, load_template
 
@@ -30,8 +36,8 @@ INVALID_INPUT = 3
 """Exit status when the template is unreadable or invalid, or the package
 cannot be written."""
 
-JSON_SCHEMA_VERSION = 1
-"""Version of the ``generate --json`` layout; it changes only with a new major."""
+JSON_SCHEMA_VERSION = 2
+"""Version of the ``generate --json`` layout; it changes when the layout does."""
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
@@ -264,34 +270,41 @@ def _summary(
     template = result.data.template
     return {
         "schema_version": JSON_SCHEMA_VERSION,
+        "tool": "dpm-synth",
+        "version": __version__,
+        "summary": {**result.summary, "facts": facts},
         "output": str(arguments.output),
         "release": template.release,
         "module": template.module,
         "seed": arguments.seed,
-        "rules": result.rules,
-        "passed": result.passed,
-        "failed": result.failed,
-        "not_evaluated": result.not_evaluated,
-        "not_applicable": result.not_applicable,
         "rounds": result.rounds,
         "history": result.history,
         "repairs": result.repairs,
-        "facts": facts,
+        "results": [
+            {
+                "rule": code,
+                "status": status,
+                "message": result.messages.get(code),
+            }
+            for code, status in result.statuses.items()
+        ],
     }
 
 
 def _lines(result: GenerationResult) -> Iterator[str]:
-    yield (
-        f"rules: {result.rules}, passed: {result.passed}, "
-        f"failed: {len(result.failed)}, not evaluated: {len(result.not_evaluated)}, "
-        f"not applicable: {len(result.not_applicable)}"
+    summary = result.summary
+    yield f"rules: {summary['rules']}, " + ", ".join(
+        f"{status.replace('_', ' ')}: {summary[status]}" for status in STATUSES
     )
     history = ", ".join(str(count) for count in result.history) or "-"
     yield f"rounds: {result.rounds} (failing rules per round: {history})"
-    if result.failed:
-        shown = ", ".join(result.failed[:20])
-        more = len(result.failed) - 20
+    failed = result.failed
+    if failed:
+        shown = ", ".join(failed[:20])
+        more = len(failed) - 20
         yield f"still failing: {shown}" + (f" and {more} more" if more > 0 else "")
+    for code, message in result.messages.items():
+        yield f"{code}: {result.statuses[code].replace('_', ' ')}: {message}"
 
 
 if __name__ == "__main__":  # pragma: no cover

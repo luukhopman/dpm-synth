@@ -36,8 +36,8 @@ not in `dpmsynth.__all__`; import public names from `dpmsynth`.
   or dpm-xbrl, can change the values and which rules pass. The changelog
   notes it. Pin all three packages if a fixture must stay byte for byte the
   same; see [reproduce a report](../guides/reproducible-seeds.md).
-- The wording of the text summary, error messages and `not_evaluated`
-  reasons.
+- The wording of the text summary, error messages and the `messages` of
+  rules that are `error` or `unsupported`.
 - Performance characteristics.
 
 ## Python versions

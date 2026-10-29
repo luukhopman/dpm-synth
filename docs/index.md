@@ -36,7 +36,8 @@ from dpmsynth import generate, load_template
 
 template = load_template("minimal.json")  # a module's tables, cells and rules
 result = generate(template, seed=7)
-print(result.passed, "of", result.rules, "rules pass; failing:", result.failed)
+summary = result.summary  # rules counted by status
+print(summary["passed"], "of", summary["rules"], "rules pass; failing:", result.failed)
 write_xbrl_csv(result.report, "report.zip")
 for fact in result.report.facts:
     print(fact.template, fact.datapoint, fact.value)
@@ -55,7 +56,7 @@ and both components are not negative. The same from the command line:
 
 ```console
 $ dpm-synth generate minimal.json -o report.zip --seed 7
-rules: 2, passed: 2, failed: 0, not evaluated: 0, not applicable: 0
+rules: 2, passed: 2, failed: 0, not applicable: 0, error: 0, unsupported: 0
 rounds: 2 (failing rules per round: 1, 0)
 wrote report.zip (3 facts)
 ```

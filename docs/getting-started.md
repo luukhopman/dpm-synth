@@ -43,7 +43,7 @@ To write your own, see [write a template by hand](guides/write-a-template.md).
 
 ```console
 $ dpm-synth generate minimal.json -o report.zip --seed 7
-rules: 2, passed: 2, failed: 0, not evaluated: 0, not applicable: 0
+rules: 2, passed: 2, failed: 0, not applicable: 0, error: 0, unsupported: 0
 rounds: 2 (failing rules per round: 1, 0)
 wrote report.zip (3 facts)
 $ echo $?
@@ -93,7 +93,7 @@ from dpmsynth import generate, load_template
 
 template = load_template("minimal.json")
 result = generate(template, seed=7)
-print(f"{result.passed} passed, failed: {result.failed}")
+print(f"{result.summary['passed']} passed, failed: {result.failed}")
 print(f"rounds: {result.rounds}, failing per round: {result.history}")
 write_xbrl_csv(result.report, "report.zip")
 ```
@@ -126,13 +126,14 @@ that needs last year's report:
 
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7
-rules: 9, passed: 8, failed: 0, not evaluated: 1, not applicable: 0
+rules: 9, passed: 8, failed: 0, not applicable: 0, error: 0, unsupported: 1
 rounds: 5 (failing rules per round: 5, 3, 1, 1, 0)
+history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 ```
 
-The `time_shift` rule is "not evaluated": a single report has no previous
-period. [The evaluate-and-repair loop](concepts/repair-loop.md) explains the
+The `time_shift` rule is `unsupported`: a single report has no previous
+period, and the summary says so. [The evaluate-and-repair loop](concepts/repair-loop.md) explains the
 rounds.
 
 ## Next steps

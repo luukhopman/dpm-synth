@@ -36,13 +36,7 @@ def test_written_package_satisfies_the_rules(
         ).status
         for rule in template.rules
     }
-    assert [code for code, status in statuses.items() if status == "failed"] == (
-        result.failed
-    )
-    assert sum(status == "passed" for status in statuses.values()) == result.passed
-    assert sorted(
-        code for code, status in statuses.items() if status == "not_applicable"
-    ) == sorted(result.not_applicable)
+    assert statuses == result.statuses
 
 
 def test_every_sample_template_passes(tmp_path: Path) -> None:

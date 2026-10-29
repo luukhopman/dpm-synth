@@ -45,11 +45,17 @@ def test_sample_satisfies_every_evaluable_rule() -> None:
     result = generate(template, seed=3)
 
     assert result.failed == []
-    assert result.passed == 8
-    assert set(result.not_evaluated) == {"history"}
-    assert "time_shift" in result.not_evaluated["history"]
-    assert result.not_applicable == []
-    assert result.rules == 9
+    assert result.summary == {
+        "rules": 9,
+        "passed": 8,
+        "failed": 0,
+        "not_applicable": 0,
+        "error": 0,
+        "unsupported": 1,
+    }
+    assert result.statuses["history"] == "unsupported"
+    assert list(result.messages) == ["history"]
+    assert "time_shift" in result.messages["history"]
     for rule in template.rules[:-1]:
         status = evaluate_rule(
             rule.expression, result.data, precondition=rule.precondition
@@ -223,7 +229,7 @@ def test_reporting_subject_follows_filing_rule_3_6(
 def test_reporting_level_is_a_parameter_for_rules() -> None:
     rules = ['if {vReportingLevel} = "ind" then {tT, r0010, c0010} = 5 endif']
     individual = run([cell("0010", "0010", 1)], rules, reporting_level="IND")
-    assert individual.passed == 1
+    assert individual.summary["passed"] == 1
     assert value(individual, 1) == Number(Decimal(5))
     consolidated = run([cell("0010", "0010", 1)], rules)
     assert value(consolidated, 1) != Number(Decimal(5))
@@ -252,7 +258,7 @@ def test_zero_rounds_evaluates_the_initial_values() -> None:
     assert result.rounds == 0
     assert result.history == []
     assert result.repairs == 0
-    assert result.passed + len(result.failed) == 2
+    assert result.summary["passed"] + len(result.failed) == 2
 
 
 # Rule accounting ----------------------------------------------------------------
@@ -281,20 +287,20 @@ def test_every_rule_is_counted_once() -> None:
     rules[1] = replace(rules[1], expression="{tT, r0010, c0010} >")
     rules[5] = replace(rules[5], expression="{tX_99.00, r0010, c0010} = 1")
     result = generate(replace(template, rules=tuple(rules)))
-    assert result.rules == 6
-    assert result.passed == 1
-    assert result.failed == []
-    assert list(result.not_evaluated) == ["r2", "r3", "r6"]
-    assert result.not_evaluated["r2"].startswith("syntax error:")
-    assert "X_99.00" in result.not_evaluated["r6"]
-    assert result.not_applicable == ["never", "r5"]
-    assert (
-        result.passed
-        + len(result.failed)
-        + len(result.not_evaluated)
-        + len(result.not_applicable)
-        == result.rules
-    )
+    assert result.statuses == {
+        "r1": "passed",
+        "r2": "error",
+        "r3": "unsupported",
+        "never": "not_applicable",
+        "r5": "not_applicable",
+        "r6": "error",
+    }
+    assert list(result.messages) == ["r2", "r3", "r6"]
+    assert result.messages["r2"].startswith("syntax error:")
+    assert "X_99.00" in result.messages["r6"]
+    summary = result.summary
+    assert summary["rules"] == 6
+    assert sum(summary.values()) == 2 * summary["rules"]
 
 
 def test_unsatisfiable_rules_are_reported_as_failed() -> None:
@@ -303,7 +309,7 @@ def test_unsatisfiable_rules_are_reported_as_failed() -> None:
         ["{tT, r0010, c0010} > 10", "{tT, r0010, c0010} < 5"],
     )
     assert len(result.failed) == 1
-    assert result.passed == 1
+    assert result.summary["passed"] == 1
 
 
 def test_oscillation_stops_the_loop() -> None:
@@ -668,7 +674,7 @@ def test_templates_outside_the_template_are_indicated_as_not_reported() -> None:
     raw["filing_indicators"] = ["U_01.00", "T"]
     result = generate(load_template(raw))
     assert result.report.filing_indicators == {"U_01.00": False, "T": True}
-    assert result.not_applicable == ["absent"]
+    assert result.statuses == {"absent": "not_applicable"}
     assert {fact.template for fact in result.report.facts} == {"t"}
 
 
@@ -678,7 +684,7 @@ def test_enumeration_sets_take_an_allowed_item() -> None:
         [cell("0010", "0010", 1, "es", items=items)],
         ["{tT, r0010, c0010} in {[eba_AB:x2]}"],
     )
-    assert result.passed == 1
+    assert result.summary["passed"] == 1
     assert [fact.value for fact in result.report.facts] == ["eba_AB:x2"]
 
 
@@ -715,7 +721,7 @@ def test_typed_keys_get_values_of_their_data_type() -> None:
         date(2026, 12, 29),
     ]
     assert all(row["qLE"].startswith("SYNTH") for row in rows)
-    assert result.passed == 3
+    assert result.summary["passed"] == 3
     keys = {tuple(fact.keys.values()) for fact in result.report.facts}
     assert ("2", "2026-12-30") in {key[:2] for key in keys}
 
@@ -737,7 +743,7 @@ X = "{tT, r0010, c0010}"
 def test_long_chains_are_repaired_without_recursion(rule) -> None:
     result = run([cell("0010", "0010", 1), cell("0020", "0010", 2)], [rule])
     assert result.failed == []
-    assert result.passed == 1
+    assert result.summary["passed"] == 1
 
 
 def test_too_deeply_nested_rules_are_reported_not_raised() -> None:
@@ -747,7 +753,7 @@ def test_too_deeply_nested_rules_are_reported_not_raised() -> None:
         load_template(document([cell("0010", "0010", 1)], [nested]))
     rules = (replace(template.rules[0], expression=nested), template.rules[1])
     result = generate(replace(template, rules=rules))
-    assert result.passed + len(result.failed) + len(result.not_evaluated) == 2
+    assert len(result.statuses) == 2
     assert "r2" not in result.failed
 
 

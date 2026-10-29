@@ -142,7 +142,7 @@ from dpmsynth import generate, load_template
 Path("loans.json").write_text(json.dumps(template, indent=2), encoding="utf-8")
 loaded = load_template("loans.json")
 result = generate(loaded, seed=1)
-print(result.passed, "passed; failed:", result.failed)
+print(result.summary["passed"], "passed; failed:", result.failed)
 for fact in result.report.facts:
     print(fact.template, fact.datapoint, fact.value, dict(fact.keys))
 ```
@@ -171,7 +171,7 @@ The same file works from the command line:
 
 ```console
 $ dpm-synth generate loans.json -o loans.zip --seed 1
-rules: 7, passed: 7, failed: 0, not evaluated: 0, not applicable: 0
+rules: 7, passed: 7, failed: 0, not applicable: 0, error: 0, unsupported: 0
 rounds: 2 (failing rules per round: 4, 0)
 wrote loans.zip (9 facts)
 ```

@@ -8,7 +8,7 @@ Typical use::
 
     result = generate(load_template("template.json"), seed=7)
     write_xbrl_csv(result.report, "report.zip")
-    print(result.passed, result.failed)
+    print(result.summary, result.failed)
 
 Everything in ``__all__`` is the public API; import it from ``dpmsynth``.
 """
@@ -19,6 +19,7 @@ from .generator import (
     DEFAULT_REFERENCE_DATE,
     LEI_PREFIX,
     MAX_OPEN_ROWS,
+    STATUSES,
     GenerationResult,
     SyntheticData,
     build_report,
@@ -41,6 +42,7 @@ __all__ = [
     "DEFAULT_REFERENCE_DATE",
     "LEI_PREFIX",
     "MAX_OPEN_ROWS",
+    "STATUSES",
     "TEMPLATE_FORMAT",
     "GenerationResult",
     "ModuleTemplate",

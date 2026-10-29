@@ -1,28 +1,35 @@
 ---
-description: The JSON layout printed by dpm-synth generate --json, field by field, with schema_version and its compatibility promise.
+description: The JSON layout printed by dpm-synth generate --json, field by field, with the rule statuses and schema_version.
 ---
 
 # JSON output
 
 `dpm-synth generate --json` prints one JSON object (UTF-8, two-space
 indentation) instead of the text summary. The package is written and the
-[exit status](exit-statuses.md) is the same as without `--json`.
+[exit status](exit-statuses.md) is the same as without `--json`. The layout
+follows the conventions of the sibling tools, [dpm-xl] and [dpm-xbrl]: it
+starts with `schema_version`, `tool` and `version`, and counts go under
+`summary`.
 
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7 --json
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "tool": "dpm-synth",
+  "version": "1.0.0",
+  "summary": {
+    "rules": 9,
+    "passed": 8,
+    "failed": 0,
+    "not_applicable": 0,
+    "error": 0,
+    "unsupported": 1,
+    "facts": 20
+  },
   "output": "sample.zip",
   "release": "1.0",
   "module": "SAMPLE",
   "seed": 7,
-  "rules": 9,
-  "passed": 8,
-  "failed": [],
-  "not_evaluated": {
-    "history": "The rule compares with the previous reporting period (time_shift), which a single report does not include"
-  },
-  "not_applicable": [],
   "rounds": 5,
   "history": [
     5,
@@ -32,7 +39,53 @@ $ dpm-synth generate sample.json -o sample.zip --seed 7 --json
     0
   ],
   "repairs": 16,
-  "facts": 20
+  "results": [
+    {
+      "rule": "rows",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "columns",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "sign",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "ratio",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "item",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "open",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "open-total",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "lei",
+      "status": "passed",
+      "message": null
+    },
+    {
+      "rule": "history",
+      "status": "unsupported",
+      "message": "The rule compares with the previous reporting period (time_shift), which a single report does not include"
+    }
+  ]
 }
 ```
 
@@ -40,29 +93,40 @@ $ dpm-synth generate sample.json -o sample.zip --seed 7 --json
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `schema_version` | integer | Version of this layout, currently `1`. |
+| `schema_version` | integer | Version of this layout, currently `2`. |
+| `tool` | string | Always `"dpm-synth"`. |
+| `version` | string | The dpm-synth version. |
+| `summary` | object | `rules`, the rules in the template; the number of rules with each [status](#rule-statuses), which add up to `rules`; and `facts`, the facts written (with `--scale-rows`, those of the scaled package). |
 | `output` | string | The package written, as given to `--output`. |
 | `release` | string | The template's `release`. |
 | `module` | string | The template's `module`. |
 | `seed` | integer | The random seed. |
-| `rules` | integer | Rules in the template. |
-| `passed` | integer | Rules that pass on the written values. |
-| `failed` | array of strings | Codes of the rules that still fail, in the order they were last evaluated. |
-| `not_evaluated` | object | Rule code to the reason dpm-xl could not evaluate the rule, in template order. |
-| `not_applicable` | array of strings | Codes of the rules whose precondition is false or that select no cell. |
 | `rounds` | integer | Evaluate-and-repair rounds run. |
 | `history` | array of integers | Failing rules at the start of each round. |
 | `repairs` | integer | Failing records repaired over all rounds. |
-| `facts` | integer | Facts written; with `--scale-rows`, those of the scaled package. |
+| `results` | array of objects | Every rule, in template order: `rule`, its code; `status`; and `message`, why it is `error` or `unsupported`, else null. |
 
-`passed`, the lengths of `failed`, `not_evaluated` and `not_applicable` add
-up to `rules`. The fields are those of
-[`GenerationResult`][dpmsynth.GenerationResult].
+The fields are those of [`GenerationResult`][dpmsynth.GenerationResult]:
+`summary` is its `summary`, and `results` its `statuses` and `messages`.
+
+## Rule statuses
+
+A rule's status is dpm-xl's, on the written values:
+
+| Status | Meaning |
+| --- | --- |
+| `passed` | The rule holds. |
+| `failed` | The rule still fails. |
+| `not_applicable` | The precondition is false, or the rule selects no cell. |
+| `error` | dpm-xl cannot evaluate the rule. |
+| `unsupported` | The rule uses something one report does not have, such as `time_shift`, which compares with the previous period. |
+
+The text summary prints the same words, with a space for the underscore.
 
 ## Compatibility
 
-`schema_version` changes only with a new major version of dpm-synth. Within
-a major version, fields are not removed or renamed and their types do not
-change; new fields may be added, so ignore fields you do not know. The
-`not_evaluated` reasons come from dpm-xl and may be reworded. See
-[stability and versioning](../project/stability.md).
+`schema_version` changes whenever the layout does: version 2 added `tool`,
+`version`, `summary` and `results`, and replaced the lists of failing, not
+evaluated and not applicable rules. New fields may be added without a
+change, so ignore fields you do not know. The messages come from dpm-xl and
+may be reworded. See [stability and versioning](../project/stability.md).

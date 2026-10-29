@@ -78,17 +78,17 @@ options:
 
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7
-rules: 9, passed: 8, failed: 0, not evaluated: 1, not applicable: 0
+rules: 9, passed: 8, failed: 0, not applicable: 0, error: 0, unsupported: 1
 rounds: 5 (failing rules per round: 5, 3, 1, 1, 0)
+history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 ```
 
-- `rules` counts the template's rules; `passed`, `failed`, `not evaluated`
-  (dpm-xl could not evaluate the rule, such as a `time_shift`) and
-  `not applicable` (its precondition is false, or it selects no cell) add
-  up to it.
+- `rules` counts the template's rules; the counts by dpm-xl's
+  [status](../reference/json-output.md#rule-statuses) add up to it.
 - `rounds` lists the failing rules at the start of each round.
 - When rules still fail, a line `still failing: ...` names up to 20 of them.
+- Each rule that is `error` or `unsupported` gets a line with the reason.
 - `wrote` names the package and the facts in it.
 
 | Option | Effect |

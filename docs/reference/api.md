@@ -18,7 +18,7 @@ from dpmsynth import generate, load_template, write_scaled_package
 result = generate(load_template("sample.json"), seed=7)
 write_xbrl_csv(result.report, "report.zip")
 written = write_scaled_package(result.data, "big.zip", rows=10_000)
-print(result.passed, result.failed, written)
+print(result.summary["passed"], result.failed, written)
 ```
 
 ```text
@@ -56,6 +56,8 @@ immutable.
 ::: dpmsynth.generate
 
 ::: dpmsynth.GenerationResult
+
+::: dpmsynth.STATUSES
 
 ::: dpmsynth.SyntheticData
 

@@ -30,6 +30,11 @@ All notable changes to this project are documented here. The project follows
 - Reports with a reference date before 2022-12-31, or for a module whose
   code has `_con` or `_ind`, identify the entity by its bare LEI in the LEI
   scheme, as EBA filing rule 3.6 requires.
+- Breaking: rules end with dpm-xl's statuses; `GenerationResult.statuses`,
+  `messages` and `summary` replace `passed`, `rules`, `not_evaluated` and
+  `not_applicable`, and the text summary uses the same words.
+- Breaking: `generate --json` has `schema_version` 2, with `tool`,
+  `version`, counts under `summary` and a `results` entry per rule.
 
 ## 1.0.0 - 2026-10-24
 

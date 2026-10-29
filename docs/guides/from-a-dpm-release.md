@@ -121,7 +121,7 @@ from dpmsynth import generate, load_template
 module = load_template("x.json")
 print([table.code for table in module.tables], len(module.rules))
 result = generate(module, seed=1)
-print(result.passed, result.failed)
+print(result.summary["passed"], result.failed)
 ```
 
 ```text
@@ -151,7 +151,7 @@ print(len(own.rules))
 
 ```console
 $ dpm-synth generate x.json -o x.zip --seed 1
-rules: 3, passed: 3, failed: 0, not evaluated: 0, not applicable: 0
+rules: 3, passed: 3, failed: 0, not applicable: 0, error: 0, unsupported: 0
 rounds: 2 (failing rules per round: 3, 0)
 wrote x.zip (5 facts)
 ```
@@ -189,9 +189,9 @@ for code in result.failed:
 ```
 
 ```text
+rows 1,135,000 should equal -180,000 (717,000 + 75,000 − 972,000): difference 1,315,000, at least 1,314,998 given the reported precision
 open 39,000 should not exceed -600,000: difference 639,000, at least 638,999 given the reported precision
 open-total 332,000 should equal 1,135,000: difference 803,000
-rows 1,135,000 should equal -180,000 (717,000 + 75,000 − 972,000): difference 1,315,000, at least 1,314,998 given the reported precision
 ```
 
 Here the loop was stopped after one round, so rules that more rounds would
