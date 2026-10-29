@@ -169,6 +169,10 @@ class ModuleTemplate:
             ``None``.
         decimals: Reporting decimals by data type code; ``m`` 0, ``p`` 4,
             ``i`` 0 and ``r`` 2 unless given.
+        filing_indicators: The filing indicators of every template of the
+            module; those of the template's tables are reported as ``true``
+            and the others as ``false``. Empty when not given: only the
+            tables' filing indicators are reported.
     """
 
     release: str
@@ -178,6 +182,7 @@ class ModuleTemplate:
     rules: tuple[TemplateRule, ...]
     reference_date: date | None = None
     decimals: Mapping[str, int] = field(default_factory=dict)
+    filing_indicators: tuple[str, ...] = ()
 
     def table(self, code: str) -> TemplateTable | None:
         """Return a table by code, ignoring case.
@@ -295,6 +300,7 @@ class _Loader:
                     f"rules[{codes[rule.code]}].code"
                 )
             codes[rule.code] = index
+        filing_indicators = self.filing_indicators(root, tables)
         known = {table.code.casefold() for table in tables}
         for index, rule in enumerate(rules):
             self.rule_tables(rule.expression, f"rules[{index}].expression", known)
@@ -310,7 +316,33 @@ class _Loader:
             rules=rules,
             reference_date=reference_date,
             decimals=decimals,
+            filing_indicators=filing_indicators,
         )
+
+    def filing_indicators(
+        self, root: Mapping[str, Any], tables: tuple[TemplateTable, ...]
+    ) -> tuple[str, ...]:
+        codes: dict[str, int] = {}
+        for index, code in enumerate(self.array(root, "filing_indicators", "")):
+            where = f"filing_indicators[{index}]"
+            if not isinstance(code, str) or not code.strip():
+                raise TemplateError(
+                    f"{where}: expected a filing indicator such as 'C_07.00', "
+                    f"got {_kind(code)}"
+                )
+            if code in codes:
+                raise TemplateError(
+                    f"{where}: {code!r} repeats filing_indicators[{codes[code]}]"
+                )
+            codes[_encodable(code, where)] = index
+        if codes:
+            for index, table in enumerate(tables):
+                if table.filing_indicator not in codes:
+                    raise TemplateError(
+                        f"tables[{index}].filing_indicator: "
+                        f"{table.filing_indicator!r} is not in filing_indicators"
+                    )
+        return tuple(codes)
 
     def table(self, value: object, path: str) -> TemplateTable:
         table = self.mapping(value, path)

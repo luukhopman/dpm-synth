@@ -1083,8 +1083,9 @@ def build_report(data: SyntheticData) -> Report:
     Facts follow the EBA xBRL-CSV convention: a ``datapoint`` and
     ``factValue`` per cell, with the open keys of the row. The entity is
     ``<entity>.<reporting level>`` in the reporting-subject scheme, every
-    table's filing indicator is reported, and a ``decimals*`` parameter is
-    set for each numeric data type the template uses.
+    table's filing indicator is reported as ``true`` and the template's other
+    ``filing_indicators`` as ``false``, and a ``decimals*`` parameter is set
+    for each numeric data type the template uses.
     [`generate`][dpmsynth.generate] calls it; call it yourself after changing
     ``data.values``.
 
@@ -1138,15 +1139,20 @@ def build_report(data: SyntheticData) -> Report:
             for kind, parameter in _DECIMALS_PARAMETERS.items()
             if kind in used_types
         },
-        filing_indicators=dict.fromkeys(
-            dict.fromkeys(table.filing_indicator for table in template.tables), True
-        ),
+        filing_indicators=_filing_indicators(template),
         facts=tuple(facts),
         namespaces={
             "rs": _RSCHEME,
             "iso4217": "http://www.xbrl.org/2003/iso4217",
         },
     )
+
+
+def _filing_indicators(template: ModuleTemplate) -> dict[str, bool]:
+    reported = dict.fromkeys(table.filing_indicator for table in template.tables)
+    if not template.filing_indicators:
+        return dict.fromkeys(reported, True)
+    return {code: code in reported for code in template.filing_indicators}
 
 
 def _column(table: TemplateTable, code: str) -> str:

@@ -55,6 +55,7 @@ def test_defaults() -> None:
     assert template.reference_date is None
     assert template.entry_point is None
     assert template.decimals == {}
+    assert template.filing_indicators == ()
 
 
 def test_optional_fields_and_unknown_fields() -> None:
@@ -70,6 +71,7 @@ def test_optional_fields_and_unknown_fields() -> None:
         {"id": "b", "datapoint": "dp2", "data_type": "s", "items": []}
     )
     raw["rules"][0].update(precondition="{v_T_01}", source="own")
+    raw["filing_indicators"] = ["T_01", "T_02"]
     snapshot = copy.deepcopy(raw)
     template = load_template(raw)
     assert raw == snapshot  # the document is not changed
@@ -83,6 +85,7 @@ def test_optional_fields_and_unknown_fields() -> None:
     assert table.cells[1].items is None  # an empty list allows anything
     assert template.rules[0].precondition == "{v_T_01}"
     assert template.rules[0].source == "own"
+    assert template.filing_indicators == ("T_01", "T_02")
 
 
 def test_table_lookup_ignores_case() -> None:
@@ -183,6 +186,23 @@ _DELETE = object()
                 {"id": "a", "datapoint": "dp1", "data_type": "es", "items": []},
             ),
             "tables[0].cells[0].items: required for an enumerated cell (data type 'es')",
+        ),
+        (
+            _set(["filing_indicators"], "T_01.00"),
+            "filing_indicators: expected an array, got the string 'T_01.00'",
+        ),
+        (
+            _set(["filing_indicators"], ["T_01.00", 1]),
+            "filing_indicators[1]: expected a filing indicator such as 'C_07.00', "
+            "got the number 1",
+        ),
+        (
+            _set(["filing_indicators"], ["T_01.00", "T_01.00"]),
+            "filing_indicators[1]: 'T_01.00' repeats filing_indicators[0]",
+        ),
+        (
+            _set(["filing_indicators"], ["T_02.00"]),
+            "tables[0].filing_indicator: 'T_01.00' is not in filing_indicators",
         ),
         (_set(["tables"], _DELETE), "tables: required"),
         (_set(["tables"], {}), "tables: expected an array, got an object"),

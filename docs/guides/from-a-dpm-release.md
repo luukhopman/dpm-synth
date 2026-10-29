@@ -22,6 +22,7 @@ For one module of one release, the exporter writes:
 | `entry_point` | The module's xBRL-CSV entry point (its `.json` URL in the taxonomy), if the consumer of the package needs it. |
 | `tables[].code` | Every non-abstract table version of the module, such as `C_07.00.a`. |
 | `tables[].filing_indicator` | The table's template code: the table code without single-letter parts, such as `C_07.00` for `C_07.00.a`. |
+| `filing_indicators` | The filing indicators of every template of the module, so that templates without tables in the template are reported as `false`. |
 | `tables[].open_keys` | The table's open-axis properties: their codes, the CSV column of each, and for an enumerated property the item qnames of its domain or subdomain. |
 | `tables[].cells` | Every reportable cell: its row, column and sheet codes, the datapoint (variable) code that carries its value, the variable's data type code and, for enumerated variables, the allowed item qnames. |
 | `rules` | The module's validation rules: code, DPM-XL expression and precondition, with a `source` such as `eba`. |

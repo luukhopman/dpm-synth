@@ -50,6 +50,7 @@ and [write a template by hand](../guides/write-a-template.md).
 | `entry_point` | string or null | no | The module's xBRL-CSV entry point, written to `reports/report.json` as `extends`. |
 | `reference_date` | string or null | no | The reference date, `YYYY-MM-DD`; it is the `refPeriod` parameter, the value of `d` cells and the rules' `{refPeriod}`. Default `2026-12-31`; the `--reference-date` option overrides it. |
 | `decimals` | object | no | Reporting decimals by data type code, such as `{"m": -3}`; whole numbers from -20 to 20. Unlisted types keep the defaults `m` 0, `p` 4, `i` 0, `r` 2. |
+| `filing_indicators` | array of strings | no | The filing indicators of every template of the module, such as `["C_07.00", "C_08.01"]`, which EBA filing rule 1.6 asks a report to declare. Those of the template's tables are reported as `true`, the others as `false`. Unique, and must include every table's `filing_indicator`. |
 | `tables` | array | yes | At least one [table](#tables). |
 | `rules` | array | no | The [rules](#rules); none means every value is simply generated. |
 
@@ -58,7 +59,7 @@ and [write a template by hand](../guides/write-a-template.md).
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
 | `code` | string | yes | The table code, such as `"C_07.00.a"`, as rules name it. Lower-cased, it names the table's file, `reports/c_07.00.a.csv`, so it is letters, digits, `_`, `.` and `-`, starting with a letter or digit, and not `parameters` or `FilingIndicators`. Unique within the template, ignoring case. |
-| `filing_indicator` | string or null | no | The filing indicator the table is reported under, such as `"C_07.00"`. Default: the code. Every filing indicator of the template is reported as `true`. |
+| `filing_indicator` | string or null | no | The filing indicator the table is reported under, such as `"C_07.00"`. Default: the code. It is reported as `true`. |
 | `open_keys` | array | no | The table's [open keys](#open-keys); none for a closed table. |
 | `cells` | array | yes | At least one [cell](#cells). |
 
@@ -125,7 +126,8 @@ monetary value is written as a multiple of 1,000.
 | `source` | string or null | no | Who defines the rule, such as `"eba"`. Default `"eba"`. Informative: filter the rules before generating if you want only some sources. |
 
 Every table of the template counts as reported, so a precondition such as
-`{v_C_07.00}` holds when the template has that table or filing indicator.
+`{v_C_07.00}` holds when the template has that table or filing indicator,
+and is false otherwise.
 `{vReportingLevel}` is `con` or `ind` and `{refPeriod}` is the reference
 date. A rule or precondition that does not parse, or that selects a table
 the template does not have, is an error of the template.

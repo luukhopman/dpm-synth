@@ -13,6 +13,9 @@ All notable changes to this project are documented here. The project follows
   LEI-shaped identifier.
 - `load_template` rejects an enumerated cell without `items`, which used to
   get the invalid value `eba_qx:qx0`.
+- A template's optional `filing_indicators` lists every template of the
+  module; those without tables are reported with a negative filing
+  indicator.
 
 ## 1.0.0 - 2026-10-24
 

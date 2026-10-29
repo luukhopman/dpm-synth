@@ -105,6 +105,7 @@ def test_report_layout() -> None:
         "S_01.00": True,
         "S_02.00": True,
         "S_03.00": True,
+        "S_04.00": False,  # in the module, not in the template
     }
     # Only the numeric types the template uses get a decimals parameter.
     assert report.decimals_parameters == {
@@ -576,6 +577,24 @@ def test_enumerated_keys_stop_at_their_cycle() -> None:
     )
     # Row i takes item i of each key: the rows repeat after lcm(3, 2) = 6.
     assert len(result.data.key_rows["T"]) == 6
+
+
+def test_templates_outside_the_template_are_indicated_as_not_reported() -> None:
+    raw = document(
+        [cell("0010", "0010", 1)],
+        [
+            {
+                "code": "absent",
+                "expression": "{tT, r0010, c0010} = 1",
+                "precondition": "{v_U_01.00}",
+            }
+        ],
+    )
+    raw["filing_indicators"] = ["U_01.00", "T"]
+    result = generate(load_template(raw))
+    assert result.report.filing_indicators == {"U_01.00": False, "T": True}
+    assert result.not_applicable == ["absent"]
+    assert {fact.template for fact in result.report.facts} == {"t"}
 
 
 def test_enumeration_sets_take_an_allowed_item() -> None:

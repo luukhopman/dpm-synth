@@ -5,6 +5,7 @@
   "entry_point": "https://example.com/taxonomy/sample/1.0/mod/sample.json",
   "reference_date": "2026-12-31",
   "decimals": {"m": 0, "p": 4},
+  "filing_indicators": ["S_01.00", "S_02.00", "S_03.00", "S_04.00"],
   "tables": [
     {
       "code": "S_01.00",
