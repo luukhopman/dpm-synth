@@ -108,6 +108,8 @@ class TemplateCell:
         sheet: The sheet code, ``*`` for every sheet, or ``None``.
         items: Allowed item qnames of an enumerated (``e`` or ``es``) cell;
             required for those.
+        unit: Whether the monetary value is reported in its currency of
+            denomination, in the table's ``unit`` column.
     """
 
     id: str
@@ -117,6 +119,7 @@ class TemplateCell:
     column: str | None = None
     sheet: str | None = None
     items: tuple[str, ...] | None = None
+    unit: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -385,6 +388,13 @@ class _Loader:
         )
         if not cells:
             raise TemplateError(f"{path}.cells: at least one cell is required")
+        if any(cell.unit for cell in cells):
+            for index, key in enumerate(keys):
+                if key.column.casefold() == "unit":
+                    raise TemplateError(
+                        f"{path}.open_keys[{index}].column: 'unit' is the unit "
+                        "column of the table"
+                    )
         return TemplateTable(
             code=code,
             filing_indicator=self.optional_text(table, "filing_indicator", path)
@@ -412,6 +422,17 @@ class _Loader:
                 f"{path}.items: required for an enumerated cell "
                 f"(data type {data_type!r})"
             )
+        unit = cell.get("unit", False)
+        if unit is None:
+            unit = False
+        if not isinstance(unit, bool):
+            raise TemplateError(
+                f"{path}.unit: expected a boolean or null, got {_kind(unit)}"
+            )
+        if unit and data_type != "m":
+            raise TemplateError(
+                f"{path}.unit: only a monetary cell (data type 'm') has a unit"
+            )
         return TemplateCell(
             id=self.text(cell, "id", path),
             datapoint=self.text(cell, "datapoint", path),
@@ -420,6 +441,7 @@ class _Loader:
             column=self.optional_text(cell, "column", path),
             sheet=self.optional_text(cell, "sheet", path),
             items=items,
+            unit=unit,
         )
 
     def rule(self, value: object, path: str) -> TemplateRule:

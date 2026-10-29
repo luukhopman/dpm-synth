@@ -161,6 +161,36 @@ def test_base_currency_is_written_only_for_monetary_facts() -> None:
     assert generate(ratios).report.base_currency is None
 
 
+def test_currency_of_denomination_facts_have_a_unit() -> None:
+    result = generate(load_template(SAMPLES / "currencies.json"), open_rows=3)
+    units = {
+        (fact.datapoint, fact.keys["CUS"]): fact.keys["unit"]
+        for fact in result.report.facts
+        if fact.template == "k_01.00"
+    }
+    assert units == {
+        ("dp1", "eba_CU:x1"): "iso4217:SEK",  # all currencies: the reporting one
+        ("dp2", "eba_CU:x1"): "iso4217:SEK",
+        ("dp3", "eba_CU:x1"): "",  # a percentage has no unit
+        ("dp1", "eba_CU:USD"): "iso4217:USD",
+        ("dp2", "eba_CU:USD"): "iso4217:USD",
+        ("dp3", "eba_CU:USD"): "",
+        ("dp1", "eba_CU:GBP"): "iso4217:GBP",
+        ("dp2", "eba_CU:GBP"): "iso4217:GBP",
+        ("dp3", "eba_CU:GBP"): "",
+    }
+    assert result.report.base_currency == "iso4217:SEK"  # for dp4
+    closed = [fact for fact in result.report.facts if fact.template == "k_02.00"]
+    assert [dict(fact.keys) for fact in closed] == [{}]
+
+
+def test_base_currency_is_left_out_when_every_amount_has_a_unit() -> None:
+    raw = document([dict(cell("0010", "0010", 1), unit=True)], [])
+    report = generate(load_template(raw)).report
+    assert report.base_currency is None
+    assert [dict(fact.keys) for fact in report.facts] == [{"unit": "iso4217:EUR"}]
+
+
 def test_reporting_level_is_a_parameter_for_rules() -> None:
     rules = ['if {vReportingLevel} = "ind" then {tT, r0010, c0010} = 5 endif']
     individual = run([cell("0010", "0010", 1)], rules, reporting_level="IND")

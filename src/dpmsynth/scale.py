@@ -33,6 +33,7 @@ from .generator import (
     SyntheticData,
     _key_dates,
     _typed_key,
+    _unit,
     _with_check_digits,
     build_report,
 )
@@ -183,23 +184,32 @@ def _write_table(
 ) -> int:
     stream = io.TextIOWrapper(raw, encoding="utf-8", newline="")
     writer = csv.writer(stream, lineterminator="\r\n")
+    units = any(cell.unit for cell in table.cells)
     writer.writerow(
-        ["datapoint", "factValue", *(key.column for key in table.open_keys)]
+        [
+            "datapoint",
+            "factValue",
+            *(key.column for key in table.open_keys),
+            *(["unit"] if units else []),
+        ]
     )
     written = 0
-    if not table.open_keys:
+    closed: list[tuple[tuple[tuple[str, Any], ...], list[str]]] = [((), [])]
+    rows = _scaled_rows(table, count, data) if table.open_keys else closed
+    for source, key_text in rows:
+        unit = [_unit(data, source)] if units else []
         for cell in table.cells:
-            value = data.values.get((cell.datapoint, ()))
+            value = data.values.get((cell.datapoint, source))
             if value is not None:
-                writer.writerow([cell.datapoint, data._text(value)])
+                writer.writerow(
+                    [
+                        cell.datapoint,
+                        data._text(value),
+                        *key_text,
+                        *(unit if cell.unit else [""] * len(unit)),
+                    ]
+                )
                 written += 1
-    else:
-        for source, key_text in _scaled_rows(table, count, data):
-            for cell in table.cells:
-                value = data.values.get((cell.datapoint, source))
-                if value is not None:
-                    writer.writerow([cell.datapoint, data._text(value), *key_text])
-                    written += 1
     stream.flush()
     stream.detach()
     return written

@@ -61,6 +61,20 @@ def test_scaled_typed_keys_keep_their_data_type(tmp_path: Path) -> None:
     assert dates[0] == "1900-01-10" and dates[-1] == "1900-01-01"
 
 
+def test_scaled_units_match_the_unscaled_writer(tmp_path: Path) -> None:
+    from dpmxbrl import write_xbrl_csv
+
+    result = generate(load_template(SAMPLES / "currencies.json"), open_rows=3)
+    scaled, plain = tmp_path / "scaled.zip", tmp_path / "plain.zip"
+    write_scaled_package(result.data, scaled, rows=100)  # enumerated keys only
+    write_xbrl_csv(result.report, plain)
+    with zipfile.ZipFile(scaled) as first, zipfile.ZipFile(plain) as second:
+        for name in ("k_01.00.csv", "k_02.00.csv", "parameters.csv"):
+            assert first.read(f"scaled/reports/{name}") == second.read(
+                f"plain/reports/{name}"
+            ), name
+
+
 def test_scaled_package_is_written_as_dpm_xbrl_writes_it(
     tmp_path: Path, result
 ) -> None:

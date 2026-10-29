@@ -19,6 +19,9 @@ All notable changes to this project are documented here. The project follows
 - The reporting currency is the template's `currency`, or `--currency`
   (`currency=` in `generate`), instead of always EUR, and `baseCurrency`
   is left out when no monetary fact is reported.
+- Cells with `"unit": true` are reported in their currency of
+  denomination, in a `unit` column that follows the row's `CUS` or `CUA`
+  key.
 
 ## 1.0.0 - 2026-10-24
 

@@ -1092,7 +1092,9 @@ def build_report(data: SyntheticData) -> Report:
     """Turn generated values into a report that dpm-xbrl can write.
 
     Facts follow the EBA xBRL-CSV convention: a ``datapoint`` and
-    ``factValue`` per cell, with the open keys of the row. The entity is
+    ``factValue`` per cell, with the open keys of the row, and a ``unit``
+    for a cell in its currency of denomination: the currency of a ``CUS``
+    or ``CUA`` key, else the template's currency. The entity is
     ``<entity>.<reporting level>`` in the reporting-subject scheme. Every
     table's filing indicator is reported as ``true`` and the template's other
     ``filing_indicators`` as ``false``. ``baseCurrency`` is the template's
@@ -1117,9 +1119,13 @@ def build_report(data: SyntheticData) -> Report:
     template = data.template
     facts: list[Fact] = []
     emitted: set[tuple[str, Slot]] = set()
-    # Monetary facts are in the base currency (EBA filing rule 3.1).
+    # Monetary facts are in the base currency, unless they are in their
+    # currency of denomination (EBA filing rule 3.1).
     base_currency = False
     for table in template.tables:
+        # A table with a unit column has it in every row (EBA xBRL-CSV
+        # header rule), empty for facts without a unit.
+        units = any(cell.unit for cell in table.cells)
         for keys in data.key_rows[table.code]:
             for cell in table.cells:
                 slot = (cell.datapoint, keys)
@@ -1127,15 +1133,17 @@ def build_report(data: SyntheticData) -> Report:
                 if value is None or (table.code, slot) in emitted:
                     continue
                 emitted.add((table.code, slot))
-                base_currency = base_currency or cell.data_type == "m"
+                columns = {_column(table, name): data._text(key) for name, key in keys}
+                if units:
+                    columns["unit"] = _unit(data, keys) if cell.unit else ""
+                if not cell.unit:
+                    base_currency = base_currency or cell.data_type == "m"
                 facts.append(
                     Fact(
                         data._text(value),
                         datapoint=cell.datapoint,
                         template=table.code.lower(),
-                        keys={
-                            _column(table, name): data._text(key) for name, key in keys
-                        },
+                        keys=columns,
                     )
                 )
     used_types = {cell.data_type for table in template.tables for cell in table.cells}
@@ -1165,6 +1173,27 @@ def build_report(data: SyntheticData) -> Report:
             "iso4217": "http://www.xbrl.org/2003/iso4217",
         },
     )
+
+
+_CURRENCY_KEYS = {"CUS", "CUA"}
+
+
+def _unit(data: SyntheticData, keys: tuple[tuple[str, Any], ...]) -> str:
+    """Return the unit of a fact in its currency of denomination.
+
+    The currency of a ``CUS`` or ``CUA`` key, such as ``eba_CU:USD``, when
+    it is a currency code (EBA filing rule 3.1(c)); otherwise the reporting
+    currency.
+
+    Returns:
+        str: An ``iso4217:`` unit.
+    """
+    for name, value in keys:
+        if name in _CURRENCY_KEYS:
+            code = data._text(value).rpartition(":")[2]
+            if _CURRENCY.fullmatch(code):
+                return f"iso4217:{code}"
+    return f"iso4217:{data.template.currency or 'EUR'}"
 
 
 def _filing_indicators(template: ModuleTemplate) -> dict[str, bool]:

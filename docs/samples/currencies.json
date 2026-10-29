@@ -1,0 +1,31 @@
+{
+  "format": "dpm-synth-template/1",
+  "release": "1.0",
+  "module": "CURRENCIES",
+  "entry_point": "https://example.com/taxonomy/currencies/1.0/mod/currencies.json",
+  "reference_date": "2026-12-31",
+  "currency": "SEK",
+  "tables": [
+    {
+      "code": "K_01.00",
+      "open_keys": [
+        {"code": "CUS", "column": "CUS", "items": ["eba_CU:x1", "eba_CU:USD", "eba_CU:GBP"]}
+      ],
+      "cells": [
+        {"id": "K_01.00/dp1", "row": "0010", "column": "0010", "datapoint": "dp1", "data_type": "m", "unit": true},
+        {"id": "K_01.00/dp2", "row": "0020", "column": "0010", "datapoint": "dp2", "data_type": "m", "unit": true},
+        {"id": "K_01.00/dp3", "row": "0030", "column": "0010", "datapoint": "dp3", "data_type": "p"}
+      ]
+    },
+    {
+      "code": "K_02.00",
+      "cells": [
+        {"id": "K_02.00/dp4", "row": "0010", "column": "0010", "datapoint": "dp4", "data_type": "m"}
+      ]
+    }
+  ],
+  "rules": [
+    {"code": "parts", "expression": "with {tK_01.00, c0010, default: 0}: {r0020} <= {r0010}"},
+    {"code": "total", "expression": "{tK_02.00, r0010, c0010} >= 0"}
+  ]
+}

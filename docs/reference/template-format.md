@@ -91,6 +91,7 @@ with fewer items than rows gives fewer distinct rows.
 | `column` | string or null | no | The column code, such as `"0010"`. |
 | `sheet` | string or null | no | The sheet code; `"*"` for a cell on every sheet, as in open tables. |
 | `items` | array of strings or null | no | The allowed item qnames of an enumerated (`e` or `es`) cell; required for those. The first is its starting value. |
+| `unit` | boolean or null | no | `true` for a monetary cell reported in its currency of denomination, whose datapoint has a `unit` in the module's metadata (EBA filing rule 3.1). Its table's file then has a `unit` column: the currency of the row's `CUS` or `CUA` key, such as `iso4217:USD` for `eba_CU:USD`, and otherwise the reporting currency. Default `false`. |
 
 Rules select cells by table, row, column and sheet, as in
 `{tC_07.00.a, r0010, c0010}`; the generator answers such a selection with

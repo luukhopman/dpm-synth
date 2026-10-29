@@ -83,6 +83,7 @@ class PackageProvider:
             keys = tuple(
                 (columns[column].code, _key(columns[column], text))
                 for column, text in fact.keys.items()
+                if column != "unit"
             )
             self.rows.setdefault(table.code, {}).setdefault(keys, {})[
                 fact.datapoint or ""

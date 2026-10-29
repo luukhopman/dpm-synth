@@ -67,7 +67,7 @@ def test_optional_fields_and_unknown_fields() -> None:
     raw["tables"][0]["filing_indicator"] = "T_01"
     raw["tables"][0]["open_keys"][0]["column"] = "c0010"
     raw["tables"][0]["open_keys"].append({"code": "qID", "data_type": "i"})
-    raw["tables"][0]["cells"][0].update(row="0010", column="0010", sheet="*")
+    raw["tables"][0]["cells"][0].update(row="0010", column="0010", sheet="*", unit=True)
     raw["tables"][0]["cells"].append(
         {"id": "b", "datapoint": "dp2", "data_type": "s", "items": []}
     )
@@ -84,6 +84,8 @@ def test_optional_fields_and_unknown_fields() -> None:
     assert table.open_keys[0].column == "c0010"
     assert table.open_keys[1] == OpenKey("qID", "qID", None, "i")
     assert table.cells[0].sheet == "*"
+    assert table.cells[0].unit is True
+    assert table.cells[1].unit is False
     assert table.cells[1].items is None  # an empty list allows anything
     assert template.rules[0].precondition == "{v_T_01}"
     assert template.rules[0].source == "own"
@@ -210,6 +212,30 @@ _DELETE = object()
         (
             _set(["currency"], "euro"),
             "currency: expected an ISO 4217 code such as 'EUR', got 'euro'",
+        ),
+        (
+            _set(["tables", 0, "cells", 0, "unit"], "USD"),
+            "tables[0].cells[0].unit: expected a boolean or null, got the string 'USD'",
+        ),
+        (
+            _set(
+                ["tables", 0, "cells", 0],
+                {"id": "a", "datapoint": "dp1", "data_type": "p", "unit": True},
+            ),
+            "tables[0].cells[0].unit: only a monetary cell (data type 'm') has a unit",
+        ),
+        (
+            _set(
+                ["tables", 0],
+                {
+                    "code": "T",
+                    "open_keys": [{"code": "unit"}],
+                    "cells": [
+                        {"id": "a", "datapoint": "dp1", "data_type": "m", "unit": True}
+                    ],
+                },
+            ),
+            "tables[0].open_keys[0].column: 'unit' is the unit column of the table",
         ),
         (_set(["tables"], _DELETE), "tables: required"),
         (_set(["tables"], {}), "tables: expected an array, got an object"),
