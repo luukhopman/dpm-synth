@@ -59,7 +59,7 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
 | Rebuild the report after changing values | `build_report(result.data) -> dpmxbrl.Report` |
 | Evaluate a rule on the values | `dpmxl.evaluate_rule(expression, result.data, precondition=...)` |
 | Keep only some rules | `dataclasses.replace(template, rules=tuple(...))` |
-| Command line | `dpm-synth generate TEMPLATE -o OUT.zip [--seed N] [--json]`; exit 0 all pass, 1 some fail, 2 usage, 3 bad input |
+| Command line | `dpm-synth generate TEMPLATE -o OUT.zip [--seed N] [--fail-on error\|warning] [--json]`; exit 0 all pass, 1 some fail at or above `--fail-on`, 2 usage, 3 bad input |
 
 ## Contracts
 
@@ -70,7 +70,9 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
   be evaluated never raise: they are `error` or `unsupported`. `load_template`
   rejects rules that do not parse or select a table outside the template.
 - `statuses` has every rule once, with one of `STATUSES`: dpm-xl's
-  `passed`, `failed`, `not_applicable`, `error` and `unsupported`.
+  `passed`, `failed`, `not_applicable`, `error` and `unsupported`, or
+  `skipped` for an inactive rule (`TemplateRule.active`). Rules of either
+  `severity` are repaired.
 - The same template, seed, options, output file name and versions give the
   same bytes.
 - `ModuleTemplate` and its parts are frozen dataclasses; `GenerationResult`

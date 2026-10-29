@@ -30,6 +30,11 @@ All notable changes to this project are documented here. The project follows
 - Reports with a reference date before 2022-12-31, or for a module whose
   code has `_con` or `_ind`, identify the entity by its bare LEI in the LEI
   scheme, as EBA filing rule 3.6 requires.
+- Rules take an optional `severity`, `error` (the default) or `warning`,
+  shown in the output; `--fail-on warning` makes failing warnings exit
+  with status 1.
+- Rules with `"active": false` are neither repaired nor evaluated, and are
+  reported as `skipped`.
 - Breaking: rules end with dpm-xl's statuses; `GenerationResult.statuses`,
   `messages` and `summary` replace `passed`, `rules`, `not_evaluated` and
   `not_applicable`, and the text summary uses the same words.

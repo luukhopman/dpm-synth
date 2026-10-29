@@ -60,6 +60,7 @@ _MAX_DECIMALS = 20
 _MIN_DECIMALS = {"m": -6, "p": 4, "i": 0}
 _CURRENCY = re.compile(r"[A-Z]{3}")
 _ENUMERATED_TYPES = frozenset({"e", "es"})
+_SEVERITIES = ("error", "warning")
 
 
 class TemplateError(ValueError):
@@ -152,12 +153,18 @@ class TemplateRule:
         precondition: An optional DPM-XL precondition, such as
             ``{v_C_01.00}``.
         source: Who defined the rule, such as ``eba``.
+        severity: ``error`` for a blocking rule, ``warning`` for a rule
+            whose failure is only reported.
+        active: Whether the rule applies; an inactive rule, such as one the
+            EBA deactivated, is neither repaired nor evaluated.
     """
 
     code: str
     expression: str
     precondition: str | None = None
     source: str = "eba"
+    severity: str = "error"
+    active: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -319,6 +326,8 @@ class _Loader:
         filing_indicators = self.filing_indicators(root, tables)
         known = {table.code.casefold() for table in tables}
         for index, rule in enumerate(rules):
+            if not rule.active:
+                continue
             self.rule_tables(rule.expression, f"rules[{index}].expression", known)
             if rule.precondition is not None:
                 self.rule_tables(
@@ -449,11 +458,24 @@ class _Loader:
 
     def rule(self, value: object, path: str) -> TemplateRule:
         rule = self.mapping(value, path)
+        severity = rule.get("severity")
+        if severity is not None and severity not in _SEVERITIES:
+            raise TemplateError(
+                f"{path}.severity: expected 'error', 'warning' or null, "
+                f"got {_kind(severity)}"
+            )
+        active = rule.get("active")
+        if active is not None and not isinstance(active, bool):
+            raise TemplateError(
+                f"{path}.active: expected a boolean or null, got {_kind(active)}"
+            )
         return TemplateRule(
             code=self.text(rule, "code", path),
             expression=self.text(rule, "expression", path),
             precondition=self.optional_text(rule, "precondition", path),
             source=self.optional_text(rule, "source", path) or "eba",
+            severity=severity or "error",
+            active=active is not False,
         )
 
     @staticmethod

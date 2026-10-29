@@ -6,8 +6,8 @@ description: The exit statuses of dpm-synth generate - 0 all evaluable rules pas
 
 | Status | Meaning | Package written |
 | --- | --- | --- |
-| 0 | Every rule that could be evaluated passes. Rules that are `unsupported` (such as `time_shift`), `error` or `not_applicable` do not count. | yes |
-| 1 | Some rules still fail; the summary names them. | yes |
+| 0 | Every rule that could be evaluated passes, or only rules below `--fail-on` fail. Rules that are `unsupported` (such as `time_shift`), `error`, `not_applicable` or `skipped` do not count. | yes |
+| 1 | Some rules at or above `--fail-on` still fail; the summary names them. By default only rules of severity `error` count; `--fail-on warning` counts warnings too. | yes |
 | 2 | Usage error: an unknown option, a missing argument, or a bad option value, such as `--open-rows 0`, `--open-rows 5000`, a reference date not written as `YYYY-MM-DD` or an output not ending in `.zip`. argparse prints the usage and the error. | no |
 | 3 | The template cannot be read, is not JSON or is not a valid [template](template-format.md); or the package cannot be written. One line `error: ...` on standard error. | no |
 
@@ -23,7 +23,7 @@ the package is still useful for testing:
 
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7 --max-rounds 1
-rules: 9, passed: 5, failed: 3, not applicable: 0, error: 0, unsupported: 1
+rules: 9, passed: 5, failed: 3, unsupported: 1
 rounds: 1 (failing rules per round: 5)
 still failing: rows, open, open-total
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include

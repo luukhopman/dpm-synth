@@ -26,11 +26,12 @@ examples:
   dpm-synth generate template.json -o report.zip
   dpm-synth generate template.json -o report.zip --seed 7 --open-rows 3
   dpm-synth generate template.json -o report.zip --json
+  dpm-synth generate template.json -o report.zip --fail-on warning
   dpm-synth generate template.json -o big.zip --scale-rows 1000000
 
-exit statuses: 0 every evaluable rule passes, 1 some rules still fail (the
-package is written), 2 usage error, 3 unreadable or invalid template, or the
-package cannot be written.
+exit statuses: 0 every evaluable rule passes, 1 some rules at or above
+--fail-on still fail (the package is written), 2 usage error, 3 unreadable or
+invalid template, or the package cannot be written.
 
 The template format: https://luukhopman.github.io/dpm-synth/reference/template-format/
 ```
@@ -42,7 +43,8 @@ $ dpm-synth generate --help
 usage: dpm-synth generate [-h] -o ZIP [--seed N] [--open-rows N]
                           [--max-rounds N] [--scale-rows N]
                           [--reference-date YYYY-MM-DD] [--entity LEI]
-                          [--level {CON,IND}] [--currency CODE] [--json]
+                          [--level {CON,IND}] [--currency CODE]
+                          [--fail-on {error,warning}] [--json]
                           template
 
 Generate values for every cell of a template, repair them until the rules
@@ -67,6 +69,9 @@ options:
   --level {CON,IND}     reporting level, the entity suffix (default CON)
   --currency CODE       reporting currency, an ISO 4217 code (default: the
                         template's, else EUR)
+  --fail-on {error,warning}
+                        exit with status 1 when a rule of this severity or
+                        worse still fails (default: error)
   --json                print a JSON summary
 ```
 
@@ -78,16 +83,18 @@ options:
 
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7
-rules: 9, passed: 8, failed: 0, not applicable: 0, error: 0, unsupported: 1
+rules: 9, passed: 8, failed: 0, unsupported: 1
 rounds: 5 (failing rules per round: 5, 3, 1, 1, 0)
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 ```
 
-- `rules` counts the template's rules; the counts by dpm-xl's
+- `rules` counts the template's rules; the counts by
   [status](../reference/json-output.md#rule-statuses) add up to it.
+  `passed` and `failed` are always shown, the others when a rule has them.
 - `rounds` lists the failing rules at the start of each round.
-- When rules still fail, a line `still failing: ...` names up to 20 of them.
+- When rules still fail, a line `still failing: ...` names up to 20 of
+  them, with `(warning)` after a rule of severity `warning`.
 - Each rule that is `error` or `unsupported` gets a line with the reason.
 - `wrote` names the package and the facts in it.
 
@@ -102,6 +109,7 @@ wrote sample.zip (20 facts)
 | `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme, or the bare LEI in the LEI scheme before the reference date 2022-12-31 and for a module whose code has `_con` or `_ind` (EBA filing rule 3.6). |
 | `--level CON\|IND` | The reporting level, consolidated or individual. |
 | `--currency CODE` | The reporting currency, an ISO 4217 code such as `SEK`, written as `baseCurrency` when a monetary fact is reported. |
+| `--fail-on error\|warning` | The least [severity](template-format.md#rules) of a failing rule that makes [exit status](exit-statuses.md) 1. Default `error`: failing warnings are reported but do not fail the run. |
 | `--json` | Print the summary as JSON instead; see [JSON output](json-output.md). |
 | `--version` | Print the version and exit. |
 
@@ -119,7 +127,8 @@ $ dpm-synth generate minimal.json -o report.csv
 usage: dpm-synth generate [-h] -o ZIP [--seed N] [--open-rows N]
                           [--max-rounds N] [--scale-rows N]
                           [--reference-date YYYY-MM-DD] [--entity LEI]
-                          [--level {CON,IND}] [--currency CODE] [--json]
+                          [--level {CON,IND}] [--currency CODE]
+                          [--fail-on {error,warning}] [--json]
                           template
 dpm-synth generate: error: argument -o/--output: expected a .zip file, got 'report.csv'
 $ echo $?

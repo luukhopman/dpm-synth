@@ -1,8 +1,9 @@
 """Command-line interface: ``dpm-synth generate``.
 
 Exit statuses: 0 when every evaluable rule passes, 1 when some still fail
-(the package is written either way), 2 for a usage error, and 3 when the
-template cannot be read or is invalid, or the package cannot be written.
+at or above ``--fail-on`` (the package is written either way), 2 for a usage
+error, and 3 when the template cannot be read or is invalid, or the package
+cannot be written.
 """
 
 from __future__ import annotations
@@ -30,7 +31,8 @@ from .scale import _MAX_ROWS, write_scaled_package
 from .template import TemplateError, load_template
 
 RULES_FAILED = 1
-"""Exit status when the package is written but some rules still fail."""
+"""Exit status when the package is written but some rules still fail at or
+above ``--fail-on``."""
 
 INVALID_INPUT = 3
 """Exit status when the template is unreadable or invalid, or the package
@@ -45,11 +47,12 @@ _EPILOG = """examples:
   dpm-synth generate template.json -o report.zip
   dpm-synth generate template.json -o report.zip --seed 7 --open-rows 3
   dpm-synth generate template.json -o report.zip --json
+  dpm-synth generate template.json -o report.zip --fail-on warning
   dpm-synth generate template.json -o big.zip --scale-rows 1000000
 
-exit statuses: 0 every evaluable rule passes, 1 some rules still fail (the
-package is written), 2 usage error, 3 unreadable or invalid template, or the
-package cannot be written.
+exit statuses: 0 every evaluable rule passes, 1 some rules at or above
+--fail-on still fail (the package is written), 2 usage error, 3 unreadable or
+invalid template, or the package cannot be written.
 
 The template format: https://luukhopman.github.io/dpm-synth/reference/template-format/"""
 
@@ -202,6 +205,13 @@ def _parser() -> argparse.ArgumentParser:
         metavar="CODE",
         help="reporting currency, an ISO 4217 code (default: the template's, else EUR)",
     )
+    run.add_argument(
+        "--fail-on",
+        choices=("error", "warning"),
+        default="error",
+        help="exit with status 1 when a rule of this severity or worse still "
+        "fails (default: error)",
+    )
     run.add_argument("--json", action="store_true", help="print a JSON summary")
     return parser
 
@@ -250,7 +260,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         for line in _lines(result):
             print(line)
         print(f"wrote {arguments.output} ({facts} facts)")
-    return RULES_FAILED if result.failed else 0
+    failing = {"error"} if arguments.fail_on == "error" else {"error", "warning"}
+    severity = _severities(result)
+    return (
+        RULES_FAILED if any(severity[code] in failing for code in result.failed) else 0
+    )
 
 
 def _fail(error: object) -> int:
@@ -268,6 +282,7 @@ def _summary(
     result: GenerationResult, arguments: argparse.Namespace, facts: int
 ) -> dict[str, Any]:
     template = result.data.template
+    severity = _severities(result)
     return {
         "schema_version": JSON_SCHEMA_VERSION,
         "tool": "dpm-synth",
@@ -283,6 +298,7 @@ def _summary(
         "results": [
             {
                 "rule": code,
+                "severity": severity[code],
                 "status": status,
                 "message": result.messages.get(code),
             }
@@ -291,16 +307,27 @@ def _summary(
     }
 
 
+def _severities(result: GenerationResult) -> dict[str, str]:
+    return {rule.code: rule.severity for rule in result.data.template.rules}
+
+
 def _lines(result: GenerationResult) -> Iterator[str]:
     summary = result.summary
+    # Passed and failed always, the other statuses when a rule has them.
     yield f"rules: {summary['rules']}, " + ", ".join(
-        f"{status.replace('_', ' ')}: {summary[status]}" for status in STATUSES
+        f"{status.replace('_', ' ')}: {summary[status]}"
+        for status in STATUSES
+        if summary[status] or status in {"passed", "failed"}
     )
     history = ", ".join(str(count) for count in result.history) or "-"
     yield f"rounds: {result.rounds} (failing rules per round: {history})"
     failed = result.failed
     if failed:
-        shown = ", ".join(failed[:20])
+        severity = _severities(result)
+        shown = ", ".join(
+            code + (" (warning)" if severity[code] == "warning" else "")
+            for code in failed[:20]
+        )
         more = len(failed) - 20
         yield f"still failing: {shown}" + (f" and {more} more" if more > 0 else "")
     for code, message in result.messages.items():

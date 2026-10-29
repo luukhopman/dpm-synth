@@ -112,13 +112,14 @@ _LEVEL_MODULE = re.compile(r"_(con|ind)(_|$)", re.IGNORECASE)
 Slot = tuple[str, tuple[tuple[str, Any], ...]]
 
 
-STATUSES = ("passed", "failed", "not_applicable", "error", "unsupported")
+STATUSES = ("passed", "failed", "not_applicable", "error", "unsupported", "skipped")
 """The statuses a rule can end with, in the order summaries list them.
 
-They are dpm-xl's: ``not_applicable`` when the precondition is false or the
-rule selects no cell, ``error`` when the rule cannot be evaluated, such as a
-selection of a table the template does not have, and ``unsupported`` for a
-construct dpm-xl does not evaluate on one report, such as ``time_shift``.
+The first five are dpm-xl's: ``not_applicable`` when the precondition is
+false or the rule selects no cell, ``error`` when the rule cannot be
+evaluated, such as a selection of a table the template does not have, and
+``unsupported`` for a construct dpm-xl does not evaluate on one report, such
+as ``time_shift``. ``skipped`` is an inactive rule, which is not evaluated.
 """
 
 
@@ -928,6 +929,8 @@ def generate(
     parsed = []
     messages: dict[str, str] = {}
     for rule in template.rules:
+        if not rule.active:
+            continue
         try:
             parsed.append((rule, parse(rule.expression), rule.precondition))
         except DpmXlSyntaxError as error:
@@ -967,6 +970,7 @@ def generate(
             break
     data._round_all()
     found: dict[str, str] = dict.fromkeys(messages, "error")
+    found.update((rule.code, "skipped") for rule in template.rules if not rule.active)
     for rule, node, precondition in parsed:
         result = evaluate_rule(node, data, precondition=precondition, trace=False)
         found[rule.code] = result.status

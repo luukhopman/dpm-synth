@@ -126,6 +126,8 @@ monetary value is written as a multiple of 1,000.
 | `expression` | string | yes | The DPM-XL expression, as [dpm-xl] parses it. |
 | `precondition` | string or null | no | A DPM-XL precondition, such as `"{v_C_07.00}"`; the rule applies only when it holds. |
 | `source` | string or null | no | Who defines the rule, such as `"eba"`. Default `"eba"`. Informative: filter the rules before generating if you want only some sources. |
+| `severity` | string or null | no | `"error"` for a blocking rule or `"warning"`. Default `"error"`. Both are repaired alike; the severity is shown in the output and decides, with `--fail-on`, the [exit status](exit-statuses.md). |
+| `active` | boolean or null | no | `false` for a rule that does not apply, such as one the EBA deactivated: it is neither repaired nor evaluated, and is reported as `skipped`. It is not parsed, so it may select a table the template does not have. Default `true`. |
 
 Every table of the template counts as reported, so a precondition such as
 `{v_C_07.00}` holds when the template has that table or filing indicator,

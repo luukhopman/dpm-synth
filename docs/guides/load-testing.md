@@ -15,7 +15,7 @@ rows you write.
 
 ```console
 $ dpm-synth generate sample.json -o big.zip --seed 7 --scale-rows 100000
-rules: 9, passed: 8, failed: 0, not applicable: 0, error: 0, unsupported: 1
+rules: 9, passed: 8, failed: 0, unsupported: 1
 rounds: 5 (failing rules per round: 5, 3, 1, 1, 0)
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote big.zip (100018 facts)

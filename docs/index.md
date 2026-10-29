@@ -56,7 +56,7 @@ and both components are not negative. The same from the command line:
 
 ```console
 $ dpm-synth generate minimal.json -o report.zip --seed 7
-rules: 2, passed: 2, failed: 0, not applicable: 0, error: 0, unsupported: 0
+rules: 2, passed: 2, failed: 0
 rounds: 2 (failing rules per round: 1, 0)
 wrote report.zip (3 facts)
 ```

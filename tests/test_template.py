@@ -50,7 +50,7 @@ def test_defaults() -> None:
     assert table.open_keys == (OpenKey("qAB", "qAB", ("eba_AB:x1",)),)
     assert table.cells == (TemplateCell("a", "dp1", "m"),)
     assert template.rules == (
-        TemplateRule("v1", "{tT_01.00, c0010} >= 0", None, "eba"),
+        TemplateRule("v1", "{tT_01.00, c0010} >= 0", None, "eba", "error", True),
     )
     assert template.reference_date is None
     assert template.entry_point is None
@@ -71,7 +71,11 @@ def test_optional_fields_and_unknown_fields() -> None:
     raw["tables"][0]["cells"].append(
         {"id": "b", "datapoint": "dp2", "data_type": "s", "items": []}
     )
-    raw["rules"][0].update(precondition="{v_T_01}", source="own")
+    raw["rules"][0].update(precondition="{v_T_01}", source="own", severity="warning")
+    raw["rules"].append(
+        # An inactive rule is not checked: it may select a table now gone.
+        {"code": "v2", "expression": "{tX_99.00, c0010} >", "active": False}
+    )
     raw["filing_indicators"] = ["T_01", "T_02"]
     raw["currency"] = "SEK"
     snapshot = copy.deepcopy(raw)
@@ -89,6 +93,10 @@ def test_optional_fields_and_unknown_fields() -> None:
     assert table.cells[1].items is None  # an empty list allows anything
     assert template.rules[0].precondition == "{v_T_01}"
     assert template.rules[0].source == "own"
+    assert template.rules[0].severity == "warning"
+    assert template.rules[0].active is True
+    assert template.rules[1].active is False
+    assert template.rules[1].severity == "error"
     assert template.filing_indicators == ("T_01", "T_02")
     assert template.currency == "SEK"
 
@@ -307,6 +315,15 @@ _DELETE = object()
         (
             _set(["rules", 0, "precondition"], False),
             "rules[0].precondition: expected a string or null, got a boolean",
+        ),
+        (
+            _set(["rules", 0, "severity"], "blocking"),
+            "rules[0].severity: expected 'error', 'warning' or null, "
+            "got the string 'blocking'",
+        ),
+        (
+            _set(["rules", 0, "active"], "yes"),
+            "rules[0].active: expected a boolean or null, got the string 'yes'",
         ),
     ],
 )

@@ -25,9 +25,7 @@ def test_generate_writes_the_package(tmp_path: Path, sample: Path, capsys) -> No
     output = tmp_path / "report.zip"
     assert main(["generate", str(sample), "-o", str(output), "--seed", "5"]) == 0
     lines = capsys.readouterr().out.splitlines()
-    assert lines[0] == (
-        "rules: 9, passed: 8, failed: 0, not applicable: 0, error: 0, unsupported: 1"
-    )
+    assert lines[0] == ("rules: 9, passed: 8, failed: 0, unsupported: 1")
     assert lines[1].startswith("rounds: ")
     assert lines[2].startswith("history: unsupported: The rule compares")
     assert lines[-1] == f"wrote {output} (20 facts)"
@@ -83,12 +81,18 @@ def test_json_summary(tmp_path: Path, sample: Path, capsys) -> None:
         "not_applicable": 0,
         "error": 0,
         "unsupported": 1,
+        "skipped": 0,
         "facts": 20,
     }
     assert summary["module"] == "SAMPLE"
     results = {result["rule"]: result for result in summary["results"]}
     assert len(results) == 9
-    assert results["rows"] == {"rule": "rows", "status": "passed", "message": None}
+    assert results["rows"] == {
+        "rule": "rows",
+        "severity": "error",
+        "status": "passed",
+        "message": None,
+    }
     assert results["history"]["status"] == "unsupported"
     assert "time_shift" in results["history"]["message"]
 
@@ -209,3 +213,37 @@ def test_any_write_failure_exits_with_status_3(
     error = capsys.readouterr().err
     assert error.startswith(f"error: {output}: cannot write: ")
     assert "Traceback" not in error
+
+
+def test_severity_and_inactive_rules(tmp_path: Path, capsys) -> None:
+    rules = [
+        {"code": "low", "expression": "{tT, r0010, c0010} > 10", "severity": "warning"},
+        {"code": "high", "expression": "{tT, r0010, c0010} < 5", "severity": "warning"},
+        {"code": "off", "expression": "{tT, r0010, c0010} = 7", "active": False},
+    ]
+    template = write(tmp_path, document([cell("0010", "0010", 1)], rules))
+    arguments = ["generate", str(template), "-o", str(tmp_path / "report.zip")]
+    # Failing warnings fail the run only with --fail-on warning.
+    assert main(arguments) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0].endswith("skipped: 1")
+    assert lines[2] in {"still failing: low (warning)", "still failing: high (warning)"}
+    assert main([*arguments, "--fail-on", "warning"]) == 1
+    capsys.readouterr()
+    assert main([*arguments, "--json"]) == 0
+    results = json.loads(capsys.readouterr().out)["results"]
+    assert results[2] == {
+        "rule": "off",
+        "severity": "error",
+        "status": "skipped",
+        "message": None,
+    }
+    assert {result["severity"] for result in results[:2]} == {"warning"}
+
+
+def test_failing_errors_fail_with_either_threshold(tmp_path: Path) -> None:
+    rules = ["{tT, r0010, c0010} > 10", "{tT, r0010, c0010} < 5"]
+    template = write(tmp_path, document([cell("0010", "0010", 1)], rules))
+    arguments = ["generate", str(template), "-o", str(tmp_path / "report.zip")]
+    assert main([*arguments, "--fail-on", "error"]) == 1
+    assert main([*arguments, "--fail-on", "warning"]) == 1

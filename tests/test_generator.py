@@ -52,6 +52,7 @@ def test_sample_satisfies_every_evaluable_rule() -> None:
         "not_applicable": 0,
         "error": 0,
         "unsupported": 1,
+        "skipped": 0,
     }
     assert result.statuses["history"] == "unsupported"
     assert list(result.messages) == ["history"]
@@ -772,3 +773,26 @@ def test_and_repairs_are_not_applied_twice(rule, seed) -> None:
     result = run(cells, [rule], seed=seed)
     assert result.failed == [], rule
     assert result.rounds <= 2
+
+
+def test_inactive_rules_are_skipped() -> None:
+    result = run(
+        [cell("0010", "0010", 1)],
+        [
+            "{tT, r0010, c0010} = 5",
+            {"code": "off", "expression": "{tT, r0010, c0010} = 7", "active": False},
+            {"code": "gone", "expression": "{tX, r0010, c0010} = 1", "active": False},
+        ],
+    )
+    assert result.statuses == {"r1": "passed", "off": "skipped", "gone": "skipped"}
+    assert result.summary["skipped"] == 2
+    assert result.messages == {}
+    assert value(result, 1) == Number(Decimal(5))
+
+
+def test_warnings_are_repaired_like_errors() -> None:
+    result = run(
+        [cell("0010", "0010", 1)],
+        [{"code": "w", "expression": "{tT, r0010, c0010} = 5", "severity": "warning"}],
+    )
+    assert result.statuses == {"w": "passed"}

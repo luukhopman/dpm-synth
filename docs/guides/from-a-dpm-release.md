@@ -151,7 +151,7 @@ print(len(own.rules))
 
 ```console
 $ dpm-synth generate x.json -o x.zip --seed 1
-rules: 3, passed: 3, failed: 0, not applicable: 0, error: 0, unsupported: 0
+rules: 3, passed: 3, failed: 0
 rounds: 2 (failing rules per round: 3, 0)
 wrote x.zip (5 facts)
 ```

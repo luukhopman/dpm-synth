@@ -171,7 +171,7 @@ The same file works from the command line:
 
 ```console
 $ dpm-synth generate loans.json -o loans.zip --seed 1
-rules: 7, passed: 7, failed: 0, not applicable: 0, error: 0, unsupported: 0
+rules: 7, passed: 7, failed: 0
 rounds: 2 (failing rules per round: 4, 0)
 wrote loans.zip (9 facts)
 ```
