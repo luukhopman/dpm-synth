@@ -11,10 +11,11 @@ description: The exit statuses of dpm-synth generate - 0 all evaluable rules pas
 | 2 | Usage error: an unknown option, a missing argument, or a bad option value, such as `--open-rows 0`, `--open-rows 5000`, a reference date not written as `YYYY-MM-DD` or an output not ending in `.zip`. argparse prints the usage and the error. | no |
 | 3 | The template cannot be read, is not JSON or is not a valid [template](template-format.md); or the package cannot be written. One line `error: ...` on standard error. | no |
 
-The statuses match the sibling commands: 2 is always a usage error, and
-neither tool prints a traceback for bad input. With `--scale-rows`, the
-status is that of the unscaled report, since the scaled rows are not
-evaluated.
+As in the sibling commands, 2 is a usage error. The other statuses are not
+shared: `dpm-xl eval` also exits with 1 for a failing rule and 3 for
+unreadable input, but `dpm-xbrl` exits with 1 when it cannot read a report
+and with 3 when `inspect --fail-on` finds a filing rule broken. With `--scale-rows`, the status is that of the
+unscaled report, since the scaled rows are not evaluated.
 
 A rule that cannot be satisfied makes status 1, not a failure of the run:
 the package is still useful for testing. To accept a known set of failing
