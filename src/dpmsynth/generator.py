@@ -101,6 +101,7 @@ _MIRRORED = {"=": "=", "!=": "!=", "<": ">", "<=": ">=", ">": "<", ">=": "<="}
 _LIMIT = Decimal(10) ** 15
 _STORED = Decimal("1e-8")
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+_CURRENCY = re.compile(r"[A-Z]{3}")
 _RSCHEME = "https://eurofiling.info/eu/rs"
 
 Slot = tuple[str, tuple[tuple[str, Any], ...]]
@@ -816,6 +817,7 @@ def generate(
     entity: str = DEFAULT_ENTITY,
     reporting_level: str = "CON",
     reference_date: date | None = None,
+    currency: str | None = None,
 ) -> GenerationResult:
     """Generate a report for ``template`` that satisfies as many rules as it can.
 
@@ -833,13 +835,16 @@ def generate(
         reporting_level: Suffix of the entity identifier, such as ``CON`` or
             ``IND``; also the ``ReportingLevel`` parameter, in lower case.
         reference_date: Overrides the template's reference date.
+        currency: Overrides the template's reporting currency, an ISO 4217
+            code such as ``SEK``.
 
     Returns:
         GenerationResult: The report and the final rule status.
 
     Raises:
-        ValueError: If ``open_rows`` or ``max_rounds`` is out of range, or
-            ``entity`` or ``reporting_level`` is not an identifier.
+        ValueError: If ``open_rows`` or ``max_rounds`` is out of range,
+            ``entity`` or ``reporting_level`` is not an identifier, or
+            ``currency`` is not an ISO 4217 code.
 
     Examples:
         >>> from dpmsynth import load_template
@@ -871,6 +876,12 @@ def generate(
                 f"{name} must be letters and digits, optionally with '.', '_' "
                 f"and '-': {value!r}"
             )
+    if currency is not None:
+        if not isinstance(currency, str) or not _CURRENCY.fullmatch(currency):
+            raise ValueError(
+                f"currency must be an ISO 4217 code such as 'EUR': {currency!r}"
+            )
+        template = replace(template, currency=currency)
     if reference_date is not None:
         template = replace(template, reference_date=reference_date)
     rng = random.Random(seed)  # ruff: ignore[suspicious-non-cryptographic-random-usage] - reproducible test data, not secrets
@@ -1082,10 +1093,11 @@ def build_report(data: SyntheticData) -> Report:
 
     Facts follow the EBA xBRL-CSV convention: a ``datapoint`` and
     ``factValue`` per cell, with the open keys of the row. The entity is
-    ``<entity>.<reporting level>`` in the reporting-subject scheme, every
+    ``<entity>.<reporting level>`` in the reporting-subject scheme. Every
     table's filing indicator is reported as ``true`` and the template's other
-    ``filing_indicators`` as ``false``, and a ``decimals*`` parameter is set
-    for each numeric data type the template uses.
+    ``filing_indicators`` as ``false``. ``baseCurrency`` is the template's
+    currency when a monetary fact is reported, and a ``decimals*`` parameter
+    is set for each numeric data type the template uses.
     [`generate`][dpmsynth.generate] calls it; call it yourself after changing
     ``data.values``.
 
@@ -1105,6 +1117,8 @@ def build_report(data: SyntheticData) -> Report:
     template = data.template
     facts: list[Fact] = []
     emitted: set[tuple[str, Slot]] = set()
+    # Monetary facts are in the base currency (EBA filing rule 3.1).
+    base_currency = False
     for table in template.tables:
         for keys in data.key_rows[table.code]:
             for cell in table.cells:
@@ -1113,6 +1127,7 @@ def build_report(data: SyntheticData) -> Report:
                 if value is None or (table.code, slot) in emitted:
                     continue
                 emitted.add((table.code, slot))
+                base_currency = base_currency or cell.data_type == "m"
                 facts.append(
                     Fact(
                         data._text(value),
@@ -1132,7 +1147,11 @@ def build_report(data: SyntheticData) -> Report:
         entity_scheme=_RSCHEME,
         entity_id=f"{data.entity}.{data.reporting_level}",
         reference_date=template.reference_date or DEFAULT_REFERENCE_DATE,
-        base_currency="iso4217:EUR",
+        # baseCurrency is written only when a fact refers to it (EBA filing
+        # rules, the xBRL-CSV parameters file).
+        base_currency=f"iso4217:{template.currency or 'EUR'}"
+        if base_currency
+        else None,
         parameters={},
         decimals_parameters={
             parameter: data.decimals[kind]

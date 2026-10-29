@@ -111,6 +111,14 @@ def _entity(text: str) -> str:
     return text
 
 
+def _currency(text: str) -> str:
+    if not re.fullmatch(r"[A-Z]{3}", text):
+        raise argparse.ArgumentTypeError(
+            f"expected an ISO 4217 code such as EUR, got {text!r}"
+        )
+    return text
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dpm-synth",
@@ -182,6 +190,12 @@ def _parser() -> argparse.ArgumentParser:
         default="CON",
         help="reporting level, the entity suffix (default CON)",
     )
+    run.add_argument(
+        "--currency",
+        type=_currency,
+        metavar="CODE",
+        help="reporting currency, an ISO 4217 code (default: the template's, else EUR)",
+    )
     run.add_argument("--json", action="store_true", help="print a JSON summary")
     return parser
 
@@ -211,6 +225,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         entity=arguments.entity,
         reporting_level=arguments.level,
         reference_date=arguments.reference_date,
+        currency=arguments.currency,
     )
     try:
         if arguments.scale_rows is None:

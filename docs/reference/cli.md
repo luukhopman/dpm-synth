@@ -42,7 +42,7 @@ $ dpm-synth generate --help
 usage: dpm-synth generate [-h] -o ZIP [--seed N] [--open-rows N]
                           [--max-rounds N] [--scale-rows N]
                           [--reference-date YYYY-MM-DD] [--entity LEI]
-                          [--level {CON,IND}] [--json]
+                          [--level {CON,IND}] [--currency CODE] [--json]
                           template
 
 Generate values for every cell of a template, repair them until the rules
@@ -65,6 +65,8 @@ options:
   --entity LEI          LEI of the reporting entity (default
                         SYNTHETICDPMXL000002)
   --level {CON,IND}     reporting level, the entity suffix (default CON)
+  --currency CODE       reporting currency, an ISO 4217 code (default: the
+                        template's, else EUR)
   --json                print a JSON summary
 ```
 
@@ -99,6 +101,7 @@ wrote sample.zip (20 facts)
 | `--reference-date YYYY-MM-DD` | Overrides the template's reference date; exactly `YYYY-MM-DD`, as in the template. |
 | `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme. |
 | `--level CON\|IND` | The reporting level, consolidated or individual. |
+| `--currency CODE` | The reporting currency, an ISO 4217 code such as `SEK`, written as `baseCurrency` when a monetary fact is reported. |
 | `--json` | Print the summary as JSON instead; see [JSON output](json-output.md). |
 | `--version` | Print the version and exit. |
 
@@ -116,7 +119,7 @@ $ dpm-synth generate minimal.json -o report.csv
 usage: dpm-synth generate [-h] -o ZIP [--seed N] [--open-rows N]
                           [--max-rounds N] [--scale-rows N]
                           [--reference-date YYYY-MM-DD] [--entity LEI]
-                          [--level {CON,IND}] [--json]
+                          [--level {CON,IND}] [--currency CODE] [--json]
                           template
 dpm-synth generate: error: argument -o/--output: expected a .zip file, got 'report.csv'
 $ echo $?

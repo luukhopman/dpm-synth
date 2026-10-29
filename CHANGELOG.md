@@ -16,6 +16,9 @@ All notable changes to this project are documented here. The project follows
 - A template's optional `filing_indicators` lists every template of the
   module; those without tables are reported with a negative filing
   indicator.
+- The reporting currency is the template's `currency`, or `--currency`
+  (`currency=` in `generate`), instead of always EUR, and `baseCurrency`
+  is left out when no monetary fact is reported.
 
 ## 1.0.0 - 2026-10-24
 

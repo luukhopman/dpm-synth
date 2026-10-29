@@ -150,6 +150,17 @@ def test_options_reach_the_report() -> None:
     assert len(result.data.key_rows["S_02.00.a"]) == 1
 
 
+def test_base_currency_is_written_only_for_monetary_facts() -> None:
+    raw = document([cell("0010", "0010", 1)], [])
+    assert generate(load_template(raw)).report.base_currency == "iso4217:EUR"
+    raw["currency"] = "SEK"
+    template = load_template(raw)
+    assert generate(template).report.base_currency == "iso4217:SEK"
+    assert generate(template, currency="PLN").report.base_currency == "iso4217:PLN"
+    ratios = load_template(document([cell("0010", "0010", 1, "p")], []))
+    assert generate(ratios).report.base_currency is None
+
+
 def test_reporting_level_is_a_parameter_for_rules() -> None:
     rules = ['if {vReportingLevel} = "ind" then {tT, r0010, c0010} = 5 endif']
     individual = run([cell("0010", "0010", 1)], rules, reporting_level="IND")
@@ -169,6 +180,7 @@ def test_reporting_level_is_a_parameter_for_rules() -> None:
         ({"entity": ""}, "entity"),
         ({"entity": "A B"}, "entity"),
         ({"reporting_level": "../x"}, "reporting_level"),
+        ({"currency": "eur"}, "currency must be an ISO 4217 code"),
     ],
 )
 def test_invalid_options(option, message) -> None:

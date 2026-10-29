@@ -53,7 +53,7 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
 | Task | Call |
 | --- | --- |
 | Load a template | `load_template(path_or_mapping) -> ModuleTemplate`; raises `TemplateError` |
-| Generate | `generate(template, *, seed=0, open_rows=2, max_rounds=40, entity="SYNTHETICDPMXL000002", reporting_level="CON", reference_date=None) -> GenerationResult` |
+| Generate | `generate(template, *, seed=0, open_rows=2, max_rounds=40, entity="SYNTHETICDPMXL000002", reporting_level="CON", reference_date=None, currency=None) -> GenerationResult` |
 | Write the package | `dpmxbrl.write_xbrl_csv(result.report, "report.zip")` |
 | Millions of rows | `write_scaled_package(result.data, "big.zip", rows=N or {table: N}) -> dict[str, int]` |
 | Rebuild the report after changing values | `build_report(result.data) -> dpmxbrl.Report` |

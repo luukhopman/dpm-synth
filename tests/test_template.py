@@ -56,6 +56,7 @@ def test_defaults() -> None:
     assert template.entry_point is None
     assert template.decimals == {}
     assert template.filing_indicators == ()
+    assert template.currency is None
 
 
 def test_optional_fields_and_unknown_fields() -> None:
@@ -72,6 +73,7 @@ def test_optional_fields_and_unknown_fields() -> None:
     )
     raw["rules"][0].update(precondition="{v_T_01}", source="own")
     raw["filing_indicators"] = ["T_01", "T_02"]
+    raw["currency"] = "SEK"
     snapshot = copy.deepcopy(raw)
     template = load_template(raw)
     assert raw == snapshot  # the document is not changed
@@ -86,6 +88,7 @@ def test_optional_fields_and_unknown_fields() -> None:
     assert template.rules[0].precondition == "{v_T_01}"
     assert template.rules[0].source == "own"
     assert template.filing_indicators == ("T_01", "T_02")
+    assert template.currency == "SEK"
 
 
 def test_table_lookup_ignores_case() -> None:
@@ -203,6 +206,10 @@ _DELETE = object()
         (
             _set(["filing_indicators"], ["T_02.00"]),
             "tables[0].filing_indicator: 'T_01.00' is not in filing_indicators",
+        ),
+        (
+            _set(["currency"], "euro"),
+            "currency: expected an ISO 4217 code such as 'EUR', got 'euro'",
         ),
         (_set(["tables"], _DELETE), "tables: required"),
         (_set(["tables"], {}), "tables: expected an array, got an object"),

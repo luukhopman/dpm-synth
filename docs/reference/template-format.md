@@ -49,6 +49,7 @@ and [write a template by hand](../guides/write-a-template.md).
 | `module` | string | yes | The module code, such as `"COREP_OF"`. Named in error messages and the JSON output. |
 | `entry_point` | string or null | no | The module's xBRL-CSV entry point, written to `reports/report.json` as `extends`. |
 | `reference_date` | string or null | no | The reference date, `YYYY-MM-DD`; it is the `refPeriod` parameter, the value of `d` cells and the rules' `{refPeriod}`. Default `2026-12-31`; the `--reference-date` option overrides it. |
+| `currency` | string or null | no | The reporting currency, an ISO 4217 code such as `"SEK"`; the report's `baseCurrency`, written only when a monetary fact is reported. Default `"EUR"`; the `--currency` option overrides it. |
 | `decimals` | object | no | Reporting decimals by data type code, such as `{"m": -3}`; whole numbers from -20 to 20. Unlisted types keep the defaults `m` 0, `p` 4, `i` 0, `r` 2. |
 | `filing_indicators` | array of strings | no | The filing indicators of every template of the module, such as `["C_07.00", "C_08.01"]`, which EBA filing rule 1.6 asks a report to declare. Those of the template's tables are reported as `true`, the others as `false`. Unique, and must include every table's `filing_indicator`. |
 | `tables` | array | yes | At least one [table](#tables). |

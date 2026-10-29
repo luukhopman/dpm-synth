@@ -55,6 +55,7 @@ _TABLE_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _RESERVED_TABLES = {"parameters", "filingindicators"}
 _RESERVED_COLUMNS = {"datapoint", "factvalue"}
 _MAX_DECIMALS = 20
+_CURRENCY = re.compile(r"[A-Z]{3}")
 _ENUMERATED_TYPES = frozenset({"e", "es"})
 
 
@@ -173,6 +174,9 @@ class ModuleTemplate:
             module; those of the template's tables are reported as ``true``
             and the others as ``false``. Empty when not given: only the
             tables' filing indicators are reported.
+        currency: The ISO 4217 code of the reporting currency, such as
+            ``EUR``, the ``baseCurrency`` of the report; ``EUR`` when
+            ``None``.
     """
 
     release: str
@@ -183,6 +187,7 @@ class ModuleTemplate:
     reference_date: date | None = None
     decimals: Mapping[str, int] = field(default_factory=dict)
     filing_indicators: tuple[str, ...] = ()
+    currency: str | None = None
 
     def table(self, code: str) -> TemplateTable | None:
         """Return a table by code, ignoring case.
@@ -263,6 +268,11 @@ class _Loader:
         module = self.text(root, "module", "")
         entry_point = self.optional_text(root, "entry_point", "")
         reference_date = self.date_value(root, "reference_date")
+        currency = self.optional_text(root, "currency", "")
+        if currency is not None and not _CURRENCY.fullmatch(currency):
+            raise TemplateError(
+                f"currency: expected an ISO 4217 code such as 'EUR', got {currency!r}"
+            )
         decimals = self.decimals(root)
         tables = tuple(
             self.table(item, f"tables[{index}]")
@@ -317,6 +327,7 @@ class _Loader:
             reference_date=reference_date,
             decimals=decimals,
             filing_indicators=filing_indicators,
+            currency=currency,
         )
 
     def filing_indicators(

@@ -44,11 +44,13 @@ def test_options(tmp_path: Path, sample: Path) -> None:
         "--reference-date", "2025-06-30",
         "--open-rows", "1",
         "--max-rounds", "10",
+        "--currency", "SEK",
     ]  # fmt: skip
     assert main([*arguments, *options]) == 0
     report = read_report(output)
     assert report.entity_id == "SYNTHETICDPMXL000002.IND"
     assert str(report.reference_date) == "2025-06-30"
+    assert report.base_currency == "iso4217:SEK"
     assert len([fact for fact in report.facts if fact.template == "s_03.00"]) == 1
 
 
@@ -158,6 +160,7 @@ def test_unwritable_output_exits_with_status_3(
         ["generate", "t.json", "-o", "r.zip", "--reference-date", "31/12/2026"],
         ["generate", "t.json", "-o", "r.zip", "--entity", "not an lei"],
         ["generate", "t.json", "-o", "r.zip", "--level", "SUB"],
+        ["generate", "t.json", "-o", "r.zip", "--currency", "eur"],
         ["generate", "t.json", "-o", "r.zip", "--seed", "x"],
         ["inspect"],
     ],
