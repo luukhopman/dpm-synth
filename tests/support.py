@@ -12,7 +12,7 @@ from typing import Any
 from dpmxbrl import Report
 from dpmxl import CellQuery, DataPoint, Item, Number, Value, axis_matches
 
-from dpmsynth import TEMPLATE_FORMAT, ModuleTemplate
+from dpmsynth import TEMPLATE_FORMAT, ModuleTemplate, OpenKey
 
 SAMPLES = Path(__file__).parent.parent / "docs" / "samples"
 
@@ -81,10 +81,7 @@ class PackageProvider:
             cell = next(c for c in table.cells if c.datapoint == fact.datapoint)
             columns = {key.column: key for key in table.open_keys}
             keys = tuple(
-                (
-                    columns[column].code,
-                    Item.parse(text) if columns[column].items else text,
-                )
+                (columns[column].code, _key(columns[column], text))
                 for column, text in fact.keys.items()
             )
             self.rows.setdefault(table.code, {}).setdefault(keys, {})[
@@ -153,6 +150,16 @@ class PackageProvider:
     def open_keys(self, table: str) -> tuple[str, ...]:
         found = self.template.table(table)
         return tuple(key.code for key in found.open_keys) if found else ()
+
+
+def _key(key: OpenKey, text: str) -> Value:
+    if key.items:
+        return Item.parse(text)
+    if key.data_type == "i":
+        return Number(Decimal(text))
+    if key.data_type == "d":
+        return date.fromisoformat(text)
+    return text
 
 
 def _selected(code: str | None, selector: Any) -> bool:

@@ -29,7 +29,7 @@ import re
 import string
 from collections.abc import Hashable, Sequence
 from dataclasses import dataclass, field, replace
-from datetime import date
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any, cast
 
@@ -64,7 +64,7 @@ from dpmxl.ast import (
     walk,
 )
 
-from .template import ModuleTemplate, TemplateCell, TemplateTable
+from .template import ModuleTemplate, OpenKey, TemplateCell, TemplateTable
 
 DEFAULT_ENTITY = "SYNTHETICDPMXL000002"
 """The fictional LEI that reports are generated for unless told otherwise."""
@@ -213,6 +213,7 @@ class SyntheticData:
             count = min(
                 count, math.lcm(*(len(key.items or ()) for key in table.open_keys))
             )
+        reference = self.template.reference_date or DEFAULT_REFERENCE_DATE
         rows = []
         for index in range(count):
             row = []
@@ -220,7 +221,7 @@ class SyntheticData:
                 if key.items:
                     value: Any = Item.parse(key.items[index % len(key.items)])
                 else:
-                    value = _lei(self.rng)
+                    value = _typed_key(key, index, reference) or _lei(self.rng)
                 row.append((key.code, value))
             rows.append(tuple(row))
         return list(dict.fromkeys(rows))
@@ -429,6 +430,30 @@ class SyntheticData:
         """
         found = self.template.table(table)
         return tuple(key.code for key in found.open_keys) if found else ()
+
+
+_FIRST_KEY_DATE = date(1900, 1, 1)
+
+
+def _typed_key(key: OpenKey, number: int, reference: date) -> Value:
+    """Return the value of row ``number`` of an integer or date typed key.
+
+    Integers count from 1; dates count back from the reference date, day by
+    day, and start again at it after 1900-01-01.
+
+    Returns:
+        Value: A number or a date; ``None`` for a key of any other type.
+    """
+    if key.data_type == "i":
+        return Number(Decimal(number + 1))
+    if key.data_type == "d":
+        return reference - timedelta(days=number % _key_dates(reference))
+    return None
+
+
+def _key_dates(reference: date) -> int:
+    """Return how many distinct dates a date typed key takes."""
+    return max((reference - _FIRST_KEY_DATE).days + 1, 1)
 
 
 def _selected(code: str | None, selector: Any) -> bool:

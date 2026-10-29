@@ -73,8 +73,9 @@ template["tables"].append(
 
 An open table has one row per key value. Each `open_keys` entry becomes a
 column of the table's file. A key with `items` is enumerated and takes its
-items in order; a key without is typed, and gets generated LEI-shaped
-identifiers. Cells of an open table usually have row `*`, for every row:
+items in order; a key without is typed, and gets generated values: integers
+for `"data_type": "i"`, dates for `"d"`, and LEI-shaped identifiers
+otherwise. Cells of an open table usually have row `*`, for every row:
 
 ```python
 template["tables"].append(

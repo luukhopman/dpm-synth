@@ -1,4 +1,6 @@
 import zipfile
+from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -30,6 +32,33 @@ def test_scaled_package_repeats_solved_rows_under_unique_keys(
         assert fact.keys["c0010"].startswith("SYNTHERI")
         digits = int("".join(str(int(c, 36)) for c in fact.keys["c0010"]))
         assert digits % 97 == 1
+
+
+def test_scaled_typed_keys_keep_their_data_type(tmp_path: Path) -> None:
+    template = load_template(
+        document(
+            [cell("*", "0010", 1)],
+            [],
+            open_keys=[{"code": "qID", "data_type": "i"}],
+            more_tables=[
+                {
+                    "code": "U",
+                    "open_keys": [{"code": "qDT", "data_type": "d"}],
+                    "cells": [cell("*", "0010", 2)],
+                }
+            ],
+        )
+    )
+    template = replace(template, reference_date=date(1900, 1, 10))
+    path = tmp_path / "typed.zip"
+    written = write_scaled_package(generate(template).data, path, rows=20)
+    # Date keys run back to 1900-01-01: ten distinct dates.
+    assert written == {"T": 20, "U": 10}
+    report = read_report(path)
+    integers = [fact.keys["qID"] for fact in report.facts if fact.template == "t"]
+    assert integers == [str(n) for n in range(1, 21)]
+    dates = [fact.keys["qDT"] for fact in report.facts if fact.template == "u"]
+    assert dates[0] == "1900-01-10" and dates[-1] == "1900-01-01"
 
 
 def test_scaled_package_is_written_as_dpm_xbrl_writes_it(

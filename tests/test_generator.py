@@ -575,6 +575,34 @@ def test_enumerated_keys_stop_at_their_cycle() -> None:
     assert len(result.data.key_rows["T"]) == 6
 
 
+def test_typed_keys_get_values_of_their_data_type() -> None:
+    result = run(
+        [cell("*", "0010", 1)],
+        [
+            "with {tT, c0010}: {r*}[where qID = 2] >= 0",
+            "with {tT, c0010}: {r*}[where qDT = #2026-12-30#] >= 0",
+            'match({tT, c0010}[get qLE], "^[A-Z0-9]{18}[0-9]{2}$")',
+        ],
+        open_keys=[
+            {"code": "qID", "data_type": "i"},
+            {"code": "qDT", "data_type": "d"},
+            {"code": "qLE", "data_type": "s"},
+        ],
+        open_rows=3,
+    )
+    rows = [dict(keys) for keys in result.data.key_rows["T"]]
+    assert [row["qID"] for row in rows] == [Number(Decimal(n)) for n in (1, 2, 3)]
+    assert [row["qDT"] for row in rows] == [
+        date(2026, 12, 31),
+        date(2026, 12, 30),
+        date(2026, 12, 29),
+    ]
+    assert all(row["qLE"].startswith("SYNTH") for row in rows)
+    assert result.passed == 3
+    keys = {tuple(fact.keys.values()) for fact in result.report.facts}
+    assert ("2", "2026-12-30") in {key[:2] for key in keys}
+
+
 X = "{tT, r0010, c0010}"
 
 

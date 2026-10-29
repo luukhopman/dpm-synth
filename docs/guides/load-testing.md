@@ -66,6 +66,9 @@ print(len(report.facts), report.facts[-1].keys)
   10-digit row number and two ISO 17442 check digits, so they are unique,
   pass LEI validation and are visibly fictional. A table can have up to
   9,999,999,999 rows.
+- An integer key counts the rows from 1; a date key counts back from the
+  reference date, so a table whose typed keys are all dates has at most one
+  row per day back to 1900-01-01.
 - An enumerated key keeps the value of the solved row that the scaled row
   repeats, so the scaled rows have the same mix of items as the solved
   ones. When every key of a table is enumerated, the table keeps its solved

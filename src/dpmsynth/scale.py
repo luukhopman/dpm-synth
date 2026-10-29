@@ -21,13 +21,22 @@ import re
 import zipfile
 from collections.abc import Iterator, Mapping
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 from typing import IO, Any
 
 from dpmxbrl import write_xbrl_csv
 
-from .generator import LEI_PREFIX, SyntheticData, _with_check_digits, build_report
-from .template import TemplateTable
+from .generator import (
+    DEFAULT_REFERENCE_DATE,
+    LEI_PREFIX,
+    SyntheticData,
+    _key_dates,
+    _typed_key,
+    _with_check_digits,
+    build_report,
+)
+from .template import OpenKey, TemplateTable
 
 _ZIP_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 _PREFIX = re.compile(r"[^A-Z0-9]")
@@ -42,10 +51,13 @@ def _scaled_rows(
 
     Row ``i`` repeats solved row ``i`` modulo the solved rows, with that
     row's enumerated key values, so a rule that filters on an enumerated key
-    sees the values solved for it. Typed keys (no item list) get unique,
-    checksum-valid, visibly fictional LEI-shaped identifiers (``SYNTH``,
-    three characters of the key code, a row number and check digits). A
-    table whose keys are all enumerated has only its solved rows.
+    sees the values solved for it. Typed keys (no item list) get unique
+    values: integer keys count from 1, date keys count back from the
+    reference date, and other keys get checksum-valid, visibly fictional
+    LEI-shaped identifiers (``SYNTH``, three characters of the key code, a
+    row number and check digits). A table whose keys are all enumerated has
+    only its solved rows, and one whose typed keys are all dates has at most
+    one row per date.
 
     Yields:
         tuple: The solved row's keys, and the key values to write in column
@@ -53,8 +65,11 @@ def _scaled_rows(
     """
     solved = data.key_rows[table.code]
     typed = [key for key in table.open_keys if not key.items]
+    reference = data.template.reference_date or DEFAULT_REFERENCE_DATE
     if not typed:
         count = min(count, len(solved))
+    elif all(key.data_type == "d" for key in typed):
+        count = min(count, _key_dates(reference))
     prefixes = {
         key.code: LEI_PREFIX + (_PREFIX.sub("", key.code.upper()) + "XXX")[:3]
         for key in typed
@@ -67,10 +82,23 @@ def _scaled_rows(
             [
                 data._text(values[key.code])
                 if key.items
-                else _with_check_digits(f"{prefixes[key.code]}{number:010d}")
+                else _typed_text(key, number, reference, prefixes, data)
                 for key in table.open_keys
             ],
         )
+
+
+def _typed_text(
+    key: OpenKey,
+    number: int,
+    reference: date,
+    prefixes: Mapping[str, str],
+    data: SyntheticData,
+) -> str:
+    value = _typed_key(key, number, reference)
+    if value is not None:
+        return data._text(value)
+    return _with_check_digits(f"{prefixes[key.code]}{number:010d}")
 
 
 def write_scaled_package(
@@ -83,7 +111,7 @@ def write_scaled_package(
 
     Closed tables are written as generated. Each open table gets ``rows``
     key rows, whose values repeat the generated rows in turn. Typed keys get
-    new identifiers; enumerated keys keep the values of the generated row
+    new values; enumerated keys keep the values of the generated row
     that is repeated, so rules that filter on them still hold, and a table
     with only enumerated keys keeps its generated rows. The package is laid
     out, named and described exactly as ``dpmxbrl.write_xbrl_csv`` writes the

@@ -17,8 +17,8 @@ Every cell gets a value for its [data type](../reference/template-format.md#data
 monetary amounts in thousands, ratios between 0 and 1, small integers, the
 first allowed item of an enumerated cell, the reference date for dates and
 an LEI-shaped identifier for text. Every open table gets `open_rows` key
-rows: allowed items for enumerated keys, LEI-shaped identifiers for typed
-keys.
+rows: allowed items for enumerated keys; integers, dates or LEI-shaped
+identifiers for typed keys, by their data type.
 
 Every generated LEI-shaped identifier starts with `SYNTH`
 ([`LEI_PREFIX`][dpmsynth.LEI_PREFIX]), followed by 13 random letters and

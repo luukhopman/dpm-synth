@@ -79,11 +79,15 @@ class OpenKey:
         column: The column of the key in the table's CSV file.
         items: Allowed item qnames for an enumerated key; ``None`` for a
             typed key, which gets generated identifiers.
+        data_type: The DPM data type code of a typed key: ``i`` for
+            integers, ``d`` for dates; ``None`` or any other code gives
+            LEI-shaped identifiers.
     """
 
     code: str
     column: str
     items: tuple[str, ...] | None = None
+    data_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -350,6 +354,7 @@ class _Loader:
             code=code,
             column=self.optional_text(key, "column", path) or code,
             items=self.items(key, path),
+            data_type=self.optional_text(key, "data_type", path),
         )
 
     def cell(self, value: object, path: str) -> TemplateCell:
