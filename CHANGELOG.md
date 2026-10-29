@@ -25,6 +25,8 @@ All notable changes to this project are documented here. The project follows
 - Values are rounded half to even, as EBA filing rule 2.18 requires,
   instead of half up; a value that ends in exactly 5 past the reporting
   decimals can change.
+- `load_template` rejects decimals below the minimums of EBA filing rule
+  2.18: `p` below 4, `i` other than 0 and `m` below -6.
 
 ## 1.0.0 - 2026-10-24
 

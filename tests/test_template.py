@@ -237,6 +237,18 @@ _DELETE = object()
             ),
             "tables[0].open_keys[0].column: 'unit' is the unit column of the table",
         ),
+        (
+            _set(["decimals"], {"m": -7}),
+            "decimals.m: expected -6 or more, as EBA filing rule 2.18 requires, got -7",
+        ),
+        (
+            _set(["decimals"], {"p": 2}),
+            "decimals.p: expected 4 or more, as EBA filing rule 2.18 requires, got 2",
+        ),
+        (
+            _set(["decimals"], {"i": 2}),
+            "decimals.i: expected 0, as EBA filing rule 2.18 requires, got 2",
+        ),
         (_set(["tables"], _DELETE), "tables: required"),
         (_set(["tables"], {}), "tables: expected an array, got an object"),
         (_set(["tables"], []), "tables: at least one table is required"),

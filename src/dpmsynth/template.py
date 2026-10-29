@@ -55,6 +55,9 @@ _TABLE_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _RESERVED_TABLES = {"parameters", "filingindicators"}
 _RESERVED_COLUMNS = {"datapoint", "factvalue"}
 _MAX_DECIMALS = 20
+# The least accuracy EBA filing rule 2.18 accepts, by data type: monetary
+# -4 (-6 for some modules), percentages 4, integers exactly 0.
+_MIN_DECIMALS = {"m": -6, "p": 4, "i": 0}
 _CURRENCY = re.compile(r"[A-Z]{3}")
 _ENUMERATED_TYPES = frozenset({"e", "es"})
 
@@ -563,6 +566,17 @@ class _Loader:
                 raise TemplateError(
                     f"decimals.{kind}: expected a whole number from "
                     f"-{_MAX_DECIMALS} to {_MAX_DECIMALS}, got {number!r}"
+                )
+            least = _MIN_DECIMALS.get(kind)
+            if kind == "i" and number != 0:
+                raise TemplateError(
+                    f"decimals.i: expected 0, as EBA filing rule 2.18 requires, "
+                    f"got {number}"
+                )
+            if least is not None and number < least:
+                raise TemplateError(
+                    f"decimals.{kind}: expected {least} or more, as EBA filing "
+                    f"rule 2.18 requires, got {number}"
                 )
             result[kind] = number
         return result
