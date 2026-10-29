@@ -192,6 +192,5 @@ except TemplateError as error:
 tables[1].open_keys[0].column: 'datapoint' is a fact column of the table
 ```
 
-The loader does not check the rules: a rule that does not parse is reported
-as not evaluated when you generate, with the syntax error, so one bad rule
-does not stop a module of thousands.
+The loader also parses every rule: a rule that does not parse, or that
+selects a table the template does not have, is an error of the template.

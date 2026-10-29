@@ -44,6 +44,8 @@ from datetime import date
 from pathlib import Path
 from typing import Any
 
+from dpmxl import DpmXlSyntaxError, parse, tables
+
 TEMPLATE_FORMAT = "dpm-synth-template/1"
 """The ``format`` value of the templates this version reads."""
 
@@ -286,6 +288,13 @@ class _Loader:
                     f"rules[{codes[rule.code]}].code"
                 )
             codes[rule.code] = index
+        known = {table.code.casefold() for table in tables}
+        for index, rule in enumerate(rules):
+            self.rule_tables(rule.expression, f"rules[{index}].expression", known)
+            if rule.precondition is not None:
+                self.rule_tables(
+                    rule.precondition, f"rules[{index}].precondition", known
+                )
         return ModuleTemplate(
             release=release,
             module=module,
@@ -363,6 +372,22 @@ class _Loader:
             precondition=self.optional_text(rule, "precondition", path),
             source=self.optional_text(rule, "source", path) or "eba",
         )
+
+    @staticmethod
+    def rule_tables(expression: str, where: str, known: set[str]) -> None:
+        # A rule that does not parse, or selects a table the template does
+        # not have, could never be evaluated.
+        try:
+            node = parse(expression)
+        except DpmXlSyntaxError as error:
+            raise TemplateError(f"{where}: syntax error: {error}") from None
+        except RecursionError:
+            raise TemplateError(f"{where}: expression too deeply nested") from None
+        for code in tables(node):
+            if code.casefold() not in known:
+                raise TemplateError(
+                    f"{where}: selects table {code}, which is not in the template"
+                )
 
     # Fields ------------------------------------------------------------------
 

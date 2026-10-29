@@ -1,6 +1,7 @@
 import random
 import subprocess
 import sys
+from dataclasses import replace
 from datetime import date
 from decimal import Decimal
 
@@ -11,6 +12,7 @@ from dpmsynth import (
     DEFAULT_ENTITY,
     GenerationResult,
     SyntheticData,
+    TemplateError,
     build_report,
     generate,
     load_template,
@@ -185,21 +187,28 @@ def test_zero_rounds_evaluates_the_initial_values() -> None:
 
 
 def test_every_rule_is_counted_once() -> None:
-    result = run(
-        [cell("0010", "0010", 1)],
-        [
-            "{tT, r0010, c0010} >= 0",
-            "{tT, r0010, c0010} >",  # a syntax error
-            "{tT, r0010, c0010} = time_shift({tT, r0010, c0010}, A, 1, refPeriod)",
-            {
-                "code": "never",
-                "expression": "{tT, r0010, c0010} = 1",
-                "precondition": "{v_X_99.00}",
-            },
-            "{tT, r0990, c0010} = 1",  # selects no cell
-            "{tX_99.00, r0010, c0010} = 1",  # a table outside the module
-        ],
+    template = load_template(
+        document(
+            [cell("0010", "0010", 1)],
+            [
+                "{tT, r0010, c0010} >= 0",
+                "{tT, r0010, c0010} = 0",
+                "{tT, r0010, c0010} = time_shift({tT, r0010, c0010}, A, 1, refPeriod)",
+                {
+                    "code": "never",
+                    "expression": "{tT, r0010, c0010} = 1",
+                    "precondition": "{v_X_99.00}",
+                },
+                "{tT, r0990, c0010} = 1",  # selects no cell
+                "{tT, r0010, c0010} = 0",
+            ],
+        )
     )
+    # load_template rejects these two; a template built in code may have them.
+    rules = list(template.rules)
+    rules[1] = replace(rules[1], expression="{tT, r0010, c0010} >")
+    rules[5] = replace(rules[5], expression="{tX_99.00, r0010, c0010} = 1")
+    result = generate(replace(template, rules=tuple(rules)))
     assert result.rules == 6
     assert result.passed == 1
     assert result.failed == []
@@ -588,7 +597,11 @@ def test_long_chains_are_repaired_without_recursion(rule) -> None:
 
 def test_too_deeply_nested_rules_are_reported_not_raised() -> None:
     nested = "not (" * 3000 + f"{X} = 5" + ")" * 3000
-    result = run([cell("0010", "0010", 1)], [nested, f"{X} >= 0"])
+    template = load_template(document([cell("0010", "0010", 1)], [X, f"{X} >= 0"]))
+    with pytest.raises(TemplateError, match="too deeply nested"):
+        load_template(document([cell("0010", "0010", 1)], [nested]))
+    rules = (replace(template.rules[0], expression=nested), template.rules[1])
+    result = generate(replace(template, rules=rules))
     assert result.passed + len(result.failed) + len(result.not_evaluated) == 2
     assert "r2" not in result.failed
 

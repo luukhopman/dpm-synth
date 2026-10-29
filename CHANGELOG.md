@@ -3,6 +3,11 @@
 All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org).
 
+## Unreleased
+
+- `load_template` rejects a rule that does not parse or selects a table
+  the template does not have, instead of reporting it as not evaluated.
+
 ## 1.0.0 - 2026-10-24
 
 The first public release.

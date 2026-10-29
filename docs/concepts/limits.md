@@ -59,8 +59,10 @@ unsupported, with the reason:
 
 - `time_shift` compares with an earlier period, and a single report has
   none;
-- a rule on a table that is not in the module's template;
-- a rule that does not parse, or uses a construct dpm-xl does not support.
+- a rule that uses a construct dpm-xl does not support.
+
+A rule that does not parse, or that selects a table the template does not
+have, is an error of the template.
 
 They do not count towards the exit status.
 

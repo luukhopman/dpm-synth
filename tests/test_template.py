@@ -153,6 +153,24 @@ _DELETE = object()
             _set(["decimals"], {"m": 99}),
             "decimals.m: expected a whole number from -20 to 20, got 99",
         ),
+        (
+            _set(["rules", 0, "expression"], "{tT_01.00, c0010} >"),
+            "rules[0].expression: syntax error: expression ends where an operand "
+            "is expected at position 19",
+        ),
+        (
+            _set(["rules", 0, "expression"], "{tT_01.00} = {tX_99.00}"),
+            "rules[0].expression: selects table X_99.00, which is not in the template",
+        ),
+        (
+            _set(["rules", 0, "precondition"], "{tX_99.00, c0010} > 0"),
+            "rules[0].precondition: selects table X_99.00, which is not in the "
+            "template",
+        ),
+        (
+            _set(["rules", 0, "precondition"], "{v_T_01.00} and"),
+            "rules[0].precondition: syntax error:",
+        ),
         (_set(["tables"], _DELETE), "tables: required"),
         (_set(["tables"], {}), "tables: expected an array, got an object"),
         (_set(["tables"], []), "tables: at least one table is required"),

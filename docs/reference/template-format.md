@@ -125,8 +125,8 @@ monetary value is written as a multiple of 1,000.
 Every table of the template counts as reported, so a precondition such as
 `{v_C_07.00}` holds when the template has that table or filing indicator.
 `{vReportingLevel}` is `con` or `ind` and `{refPeriod}` is the reference
-date. A rule that does not parse is not an error of the template: it is
-reported as not evaluated, with the syntax error.
+date. A rule or precondition that does not parse, or that selects a table
+the template does not have, is an error of the template.
 
 ## Validation
 

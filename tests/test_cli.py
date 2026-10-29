@@ -107,6 +107,9 @@ def test_scale_rows(tmp_path: Path, sample: Path, capsys) -> None:
         '{"format": "other"}',
         "not json",
         '{"format": "dpm-synth-template/1", "release": "1", "module": "M", "tables": []}',
+        '{"format": "dpm-synth-template/1", "release": "1", "module": "M", '
+        '"tables": [{"code": "T", "cells": [{"id": "a", "datapoint": "dp1"}]}], '
+        '"rules": [{"code": "v1", "expression": "{tT, c0010} >"}]}',
     ],
 )
 def test_invalid_templates_exit_with_status_3(tmp_path: Path, capsys, text) -> None:

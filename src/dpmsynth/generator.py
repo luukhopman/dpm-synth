@@ -116,8 +116,8 @@ class GenerationResult:
         passed: Rules that pass on the final, rounded values.
         failed: Codes of the rules that still fail.
         not_evaluated: Rules dpm-xl could not evaluate, such as
-            ``time_shift`` without a previous report or a syntax error, with
-            the reason, by rule code.
+            ``time_shift`` without a previous report, with the reason, by
+            rule code.
         not_applicable: Codes of the rules whose precondition is false or
             that select no cell of the template.
         rounds: Evaluate-and-repair rounds run.

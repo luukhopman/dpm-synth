@@ -66,8 +66,9 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
 - `load_template` raises `TemplateError` (a `ValueError`) for every
   unreadable, non-JSON or invalid template, naming the field by its path,
   such as `tables[2].cells[0].datapoint`. Unknown fields are ignored.
-- `generate` raises `ValueError` only for invalid options. Rules that do not
-  parse or cannot be evaluated never raise: they are in `not_evaluated`.
+- `generate` raises `ValueError` only for invalid options. Rules that cannot
+  be evaluated never raise: they are in `not_evaluated`. `load_template`
+  rejects rules that do not parse or select a table outside the template.
 - `passed + len(failed) + len(not_evaluated) + len(not_applicable) == rules`.
 - The same template, seed, options, output file name and versions give the
   same bytes.
