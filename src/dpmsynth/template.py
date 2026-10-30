@@ -56,8 +56,8 @@ _RESERVED_TABLES = {"parameters", "filingindicators"}
 _RESERVED_COLUMNS = {"datapoint", "factvalue"}
 _MAX_DECIMALS = 20
 # The least accuracy EBA filing rule 2.18 accepts, by data type: monetary
-# -4 (-6 for some modules), percentages 4, integers exactly 0.
-_MIN_DECIMALS = {"m": -6, "p": 4, "i": 0}
+# -4 (-6 for some modules), percentages 4; integers take exactly 0.
+_MIN_DECIMALS = {"m": -6, "p": 4}
 _CURRENCY = re.compile(r"[A-Z]{3}")
 _ENUMERATED_TYPES = frozenset({"e", "es"})
 _SEVERITIES = ("error", "warning")

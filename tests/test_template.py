@@ -274,6 +274,10 @@ _DELETE = object()
             _set(["decimals"], {"i": 2}),
             "decimals.i: expected 0, as EBA filing rule 2.18 requires, got 2",
         ),
+        (
+            _set(["decimals"], {"i": -1}),
+            "decimals.i: expected 0, as EBA filing rule 2.18 requires, got -1",
+        ),
         (_set(["tables"], _DELETE), "tables: required"),
         (_set(["tables"], {}), "tables: expected an array, got an object"),
         (_set(["tables"], []), "tables: at least one table is required"),
