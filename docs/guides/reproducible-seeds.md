@@ -7,7 +7,10 @@ description: Reproduce a synthetic report byte for byte with seeds - what the ou
 Every random choice dpm-synth makes, starting values and generated
 identifiers alike, comes from one random generator seeded with `--seed`
 (default 0). The written package has fixed ZIP timestamps and a fixed order
-of files and facts. So the same inputs give the same bytes:
+of files and facts, so:
+
+--8<-- "docs/.snippets/reproducible.md"
+
 
 ```python
 import hashlib
@@ -38,7 +41,7 @@ False
 
 ## What the output depends on
 
-The package is a function of:
+In detail, the package is a function of:
 
 - the template, including the order of its tables, cells and rules;
 - the seed and the other options: `--open-rows`, `--max-rounds`,

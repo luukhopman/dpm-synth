@@ -37,7 +37,7 @@ try:
 except TemplateError as error:  # the only exception for a bad template
     raise SystemExit(f"bad template: {error}")
 
-result = generate(template, seed=7)  # same inputs and versions, same report
+result = generate(template, seed=7)  # the seed reproduces the report
 result.statuses  # {"rows": "passed", ..., "prior-period": "unsupported"}: by rule code
 result.summary  # {"rules": 9, "passed": 8, "failed": 0, ...}: counts by status
 result.failed  # []: codes of rules that still fail
@@ -75,8 +75,7 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
   `passed`, `failed`, `not_applicable`, `error` and `unsupported`, or
   `skipped` for an inactive rule (`TemplateRule.active`). Rules of either
   `severity` are repaired.
-- The same template, seed, options, output file name and versions give the
-  same bytes.
+
 - `ModuleTemplate` and its parts are frozen dataclasses; `GenerationResult`
   is frozen too, but `result.data.values` is a mutable dict.
 - `--json` output is `{"schema_version": 2, "tool": "dpm-synth",
@@ -92,6 +91,8 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
   (`LEI_PREFIX`) and has valid check digits; the default entity is the
   fictional `SYNTHETICDPMXL000002`. None can be a real entity's LEI.
 - Nothing is fetched over the network.
+
+--8<-- "docs/.snippets/reproducible.md"
 
 ## Pitfalls
 

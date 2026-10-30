@@ -1,16 +1,15 @@
 ---
-description: Check a generated package independently - read it with dpm-xbrl, check the EBA filing rules, bind its facts to a dpm-xl provider through the template, and evaluate the module's rules.
+description: Check a generated package independently - read it with dpm-xbrl, check it against its template file with dpm-xl check-report or dpmxl.xbrl.ReportProvider, and explain the rules that still fail.
 ---
 
 # Validate the output with dpm-xbrl and dpm-xl
 
-dpm-synth evaluates the rules on its own values while it generates. To be
-sure the package says the same, check it as a downstream consumer would:
-read the written ZIP file with [dpm-xbrl], and evaluate the template's rules
-on what was read with [dpm-xl]. The test suite does exactly this for every
-sample template.
+dpm-synth evaluates the rules on its own values while it generates. To
+check the package as a consumer of the report would, read the written ZIP
+with [dpm-xbrl] and evaluate the template file's rules on what was read
+with [dpm-xl]. The test suite does this for every sample template file.
 
-## Generate and read back
+## Read the package
 
 ```python
 from dpmxbrl import read_report, write_xbrl_csv
@@ -36,139 +35,110 @@ dpm-xbrl records every [EBA filing rule][dpm-xbrl-filing] the file breaks.
 The only one is the file name, which for a real submission encodes the
 entity, module and creation time.
 
-## A provider over the package
+## Check the package in one command
 
-dpm-xl evaluates rules against a data provider: an object that answers a
-selection such as `{tS_01.00, r0010, c0010}` with data points. The facts of
-an EBA xBRL-CSV package carry a datapoint, not row and column codes, so the
-template's cells place them. This provider knows nothing of dpm-synth's own
-values; everything comes from the package
-(see [writing a provider][dpm-xl-provider] for the protocol):
+`dpm-xl check-report` reads the package with dpm-xbrl, reports the broken
+filing rules, places the facts in the template file's tables and
+evaluates its rules. It needs dpm-xl's `xbrl` extra:
 
-```python
-from datetime import date
-from decimal import Decimal
-
-from dpmxl import DataPoint, Item, Number, axis_matches
-
-DECIMALS = {
-    "m": "decimalsMonetary",
-    "p": "decimalsPercentage",
-    "i": "decimalsInteger",
-    "r": "decimalsDecimal",
-}
-
-
-def selected(code, selector):
-    if selector is None or selector.wildcard:
-        return True
-    return code not in (None, "*") and axis_matches(code, selector)
-
-
-class PackageProvider:
-    """Facts of a report read with dpm-xbrl, placed by a template's cells."""
-
-    def __init__(self, template, report):
-        self.template, self.report = template, report
-        self.rows = {}  # table code -> key row -> datapoint -> value
-        for fact in report.facts:
-            table = template.table(fact.template)
-            cell = next(c for c in table.cells if c.datapoint == fact.datapoint)
-            columns = {key.column: key for key in table.open_keys}
-            keys = tuple(
-                (columns[name].code, Item.parse(text) if columns[name].items else text)
-                for name, text in fact.keys.items()
-            )
-            row = self.rows.setdefault(table.code, {}).setdefault(keys, {})
-            row[fact.datapoint] = self.value(cell.data_type, fact.value)
-
-    def value(self, data_type, text):
-        if text is None:
-            return None
-        if data_type in DECIMALS:  # reported decimals become the tolerance
-            decimals = self.report.decimals_parameters.get(DECIMALS[data_type])
-            return Number.of(Decimal(text), decimals)
-        if data_type == "e":
-            return Item.parse(text)
-        if data_type == "b":
-            return text == "true"
-        if data_type == "d":
-            return date.fromisoformat(text)
-        return text
-
-    def select(self, query):
-        table = self.template.table(query.table)
-        if table is None:
-            raise LookupError(f"table {query.table} is not in the template")
-        return [
-            DataPoint(
-                table=table.code,
-                row=cell.row,
-                column=cell.column,
-                sheet=cell.sheet,
-                keys=dict(keys),
-                value=values.get(cell.datapoint),
-                ref=(table.code, cell.datapoint, keys),
-            )
-            for keys, values in self.rows.get(table.code, {}).items()
-            for cell in table.cells
-            if selected(cell.row, query.rows)
-            and selected(cell.column, query.columns)
-            and selected(cell.sheet, query.sheets)
-        ]
-
-    def table_reported(self, table):
-        folded = table.casefold()
-        return any(
-            reported and code.casefold() == folded
-            for code, reported in self.report.filing_indicators.items()
-        ) or any(
-            t.code.casefold() == folded and t.code in self.rows
-            for t in self.template.tables
-        )
-
-    def parameter(self, name):
-        if name.casefold() == "refperiod":
-            return self.report.reference_date
-        if name.casefold() == "reportinglevel":
-            return self.report.entity_id.rsplit(".", 1)[-1].casefold()
-        return None
-
-    def open_keys(self, table):
-        found = self.template.table(table)
-        return tuple(key.code for key in found.open_keys) if found else ()
+```bash
+pip install "dpm-xl[xbrl]"
+dpm-xl check-report sample.json sample.zip
 ```
 
-## Evaluate the rules
+```text
+report: sample.zip (xbrl-csv); module SAMPLE, release 1.0
+warning: reports/report.json: 1 extended metadata document could not be resolved offline (https://example.com/taxonomy/sample/1.0/mod/sample.json); tables without resolved metadata use the EBA datapoint/factValue convention
+filing rules broken: 0 errors, 1 warning
+  - [warning] file-naming The file name does not follow ReportSubject_Country_FrameworkCodeModuleVersion_Module_ReferenceDate_CreationTimestamp, the structure for reports sent to the EBA.
+prior-period: unsupported
+  message: time_shift needs the report 1 year(s) earlier (reference date 2025-12-31), which the provider does not have
+  records: 0 passed, 0 failed, 0 null
+9 rules: 8 passed, 1 unsupported (8 not listed; --all lists every rule)
+```
 
+The rules end with the statuses `dpm-synth generate` printed. The warning
+says the example taxonomy is not available offline, so the tables are read
+by their datapoint codes, which is all the check needs. Rule
+`prior-period` compares with last year's report; pass one with
+`--previous` to evaluate it. See
+[`dpm-xl check-report`](https://luukhopman.github.io/dpm-xl/reference/cli/#dpm-xl-check-report)
+for the options and exit statuses.
+
+## Check it in Python
+
+`dpmxl.xbrl.ReportProvider` places the facts of a report read with
+dpm-xbrl in the template file's tables, so any rule can be evaluated on
+them:
+
+<!-- docs: skip -->
 ```python
 from collections import Counter
 
+from dpmxbrl import read_report
 from dpmxl import evaluate_rule
+from dpmxl.module import load_module
+from dpmxl.xbrl import ReportProvider
 
-provider = PackageProvider(template, report)
+module = load_module("sample.json")
+provider = ReportProvider(module, read_report("sample.zip"))
 statuses = {
     rule.code: evaluate_rule(
         rule.expression, provider, precondition=rule.precondition
     ).status
-    for rule in template.rules
+    for rule in module.rules
 }
 print(Counter(statuses.values()))
-failed = [code for code, status in statuses.items() if status == "failed"]
-print(failed == result.failed)
+print(provider.unplaced)
 ```
 
 ```text
 Counter({'passed': 8, 'unsupported': 1})
-True
+()
 ```
 
-The package passes the same eight rules. The ninth, a `time_shift`, is
-`unsupported` here, as it is in the generator: a single
-report has no previous period. To evaluate it, give the provider an
-`earlier_report(period, count)` method that returns a provider over last
-year's package.
+`unplaced` lists the facts that are in no table of the template file; here
+there are none. dpm-xl's
+[end-to-end guide](https://luukhopman.github.io/dpm-xl/guides/end-to-end/)
+takes the same path on a large module, with the columnar evaluator.
 
-For a large module, use dpm-xl's columnar evaluator and its
-[end-to-end guide](https://luukhopman.github.io/dpm-xl/guides/end-to-end/),
-which reads a package with dpm-xbrl in the same way.
+## Explain what still fails
+
+On a real module some rules can stay failing (see
+[limits of the loop](../concepts/limits.md#rules-that-still-fail)).
+`dpm-xl check-report` explains each failing rule. In Python, evaluate the
+rule on the generated values and explain the failure with dpm-xl. Here a
+rule asks for a three-letter code in a text cell, a pattern the loop does
+not repair:
+
+```python
+import json
+from pathlib import Path
+
+from dpmxl import evaluate_rule, explain
+
+document = json.loads(Path("minimal.json").read_text(encoding="utf-8"))
+document["tables"][0]["cells"].append(
+    {"id": "T_01.00/r0040", "row": "0040", "column": "0010", "datapoint": "dp1004"}
+)
+document["rules"].append(
+    {"code": "v3", "expression": 'match({tT_01.00, r0040, c0010}, "^[A-Z]{3}$")'}
+)
+template = load_template(document)
+result = generate(template, seed=7)
+rules = {rule.code: rule for rule in template.rules}
+for code in result.failed:
+    rule = rules[code]
+    outcome = evaluate_rule(
+        rule.expression, result.data, precondition=rule.precondition
+    )
+    failure = outcome.failures[0]
+    print(code, explain(outcome.evaluation, rule.expression, failure.key).summary)
+```
+
+```text
+v3 "Synthetic text 1187" does not have the required format
+```
+
+The summary of `dpm-synth generate` names up to 20 failing rules; `--json`
+lists them all.

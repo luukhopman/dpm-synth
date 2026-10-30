@@ -111,7 +111,7 @@ wrote sample.zip (20 facts)
 | Option | Effect |
 | --- | --- |
 | `-o`, `--output ZIP` | The package to write; required, and must end in `.zip`. Its name without `.zip` names the package's root folder. An existing file is replaced. |
-| `--seed N` | Random seed, any whole number. The same template, seed, options and versions give the same package; see [reproduce a report](../guides/reproducible-seeds.md). |
+| `--seed N` | Random seed, any whole number. The seed reproduces the package; see [reproduce a report](../guides/reproducible-seeds.md) for what else it depends on. |
 | `--open-rows N` | Key rows per open table while solving, from 1 to 1,000 ([`MAX_OPEN_ROWS`][dpmsynth.MAX_OPEN_ROWS]). A table whose keys are all enumerated gets at most as many rows as its item lists repeat after. |
 | `--max-rounds N` | Most evaluate-and-repair rounds, 0 or more; 0 writes the starting values. |
 | `--scale-rows N` | Write every open table with `N` key rows, from 1 to 9,999,999,999, by repeating the solved rows under new keys; see [load-test with scaled packages](../guides/load-testing.md). The summary and the exit status are those of the unscaled report. |

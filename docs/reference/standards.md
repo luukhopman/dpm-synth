@@ -116,9 +116,11 @@ differently from the specification, are on dpm-xl's
 - **Each filing rule.** Unit tests cover the filing indicators, rounding
   and the decimals minimums, the base currency and the `unit` column, and
   the reporting subject before and after 2022-12-31.
-- **Real modules.** On EBA DPM 4.3 COREP_OF, all 1,051 EBA rules that
-  apply pass with seed 7, as measured in
-  [limits of the loop](../concepts/limits.md#results-on-eba-modules).
+- **Real modules.** The measurement in
+  [limits of the loop](../concepts/limits.md#results-on-eba-modules):
+
+    --8<-- "docs/.snippets/corep-of.md"
+
   That measurement is run by hand: it needs a module file exported from
   the DPM release with `dpm-xl export-module`, which is not in the
   repository, so the test suite does not repeat it.

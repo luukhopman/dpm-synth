@@ -1,37 +1,44 @@
 ---
-description: What dpm-synth is, a 30-second example in Python and on the command line, installation, the standards its reports follow and where to go next.
+description: What dpm-synth is, how to install it, a 30-second example in Python and on the command line, generating from an EBA DPM release, and where to go next.
 ---
 
 # dpm-synth
 
-dpm-synth generates synthetic EBA xBRL-CSV report packages that satisfy a
-module's DPM-XL validation rules. Give it a template that lists a module's
-tables, cells and rules, such as the module file `dpm-xl export-module`
-writes from an EBA DPM release; it fills every cell with a plausible value, repairs
-the values until the rules pass, and writes a report package that reads and
-validates like a real submission.
+dpm-synth generates synthetic EBA supervisory reports: xBRL-CSV report
+packages whose values are made up but pass the module's validation rules.
+You give it a template file with a module's tables, cells and DPM-XL rules,
+such as the module file `dpm-xl export-module` writes from an EBA DPM
+release; it fills every cell with a plausible value, repairs the values
+until the rules pass, and writes a report package that reads and validates
+like a real submission.
 
 dpm-synth is an independent project, not affiliated with or endorsed by the
 European Banking Authority.
 
-<div class="toolkit-badges" markdown>
-
-[xBRL-CSV 1.0](reference/standards.md#xbrl-csv)
-[Report Packages 1.0](reference/standards.md#report-packages)
-[EBA Filing Rules 5.9](reference/standards.md#eba-filing-rules)
-[DPM-XL 0.11](reference/standards.md#dpm-xl)
-[Python 3.11+](project/stability.md#python-versions)
-
-</div>
-
 It is for teams that build loaders, data warehouses or validators for EBA
-reports and need internally consistent test submissions without real
-supervisory data. It builds on [dpm-xl], which evaluates the rules, and
-[dpm-xbrl], which writes the package. The entity is a fictional LEI and
-every value is generated.
+reports and need internally consistent test reports without real
+supervisory data. The entity is a fictional LEI and every value is
+generated. It builds on [dpm-xl], which evaluates the rules, and
+[dpm-xbrl], which writes the package.
 
 [Get started](getting-started.md){ .md-button .md-button--primary }
-[Standards and conformance](reference/standards.md){ .md-button }
+
+## Install
+
+=== "pip"
+
+    ```text
+    pip install dpm-synth
+    ```
+
+=== "uv"
+
+    ```text
+    uv add dpm-synth
+    ```
+
+This installs dpm-xl and dpm-xbrl too. The import name is `dpmsynth`; the
+command is `dpm-synth`.
 
 ## In 30 seconds
 
@@ -52,8 +59,8 @@ every value is generated.
     ```
 
     1. A module's tables, cells and rules, in the
-       [template format](reference/template-format.md). A path or the
-       parsed JSON.
+       [template format](reference/template-format.md): a path to the
+       template file, or the parsed JSON.
     2. Fills every cell and repairs the values until the rules pass. The
        same seed gives the same report.
     3. `result.report` is a `dpmxbrl.Report`; dpm-xbrl writes it as an
@@ -78,43 +85,27 @@ every value is generated.
     1. Add `--size large`, `--fill 0.5` or `--currency SEK` to shape the
        report; see [shape a realistic report](guides/realistic-reports.md).
 
-The template [`minimal.json`](samples/minimal.json) has one table of three
-monetary cells and two rules: row 0010 is the sum of rows 0020 and 0030,
+The template file [`minimal.json`](samples/minimal.json) has one table of
+three monetary cells and two rules: row 0010 is the sum of rows 0020 and 0030,
 and both components are not negative. Every example in these pages runs
 against the templates in
 [`docs/samples`](https://github.com/luukhopman/dpm-synth/tree/main/docs/samples),
 and the test suite checks that each prints what is shown.
 
-## From an EBA release
+## From an EBA DPM release
 
-[dpm-xl] exports a module of the EBA's DPM 2.0 database as a module file
-(`dpm-module/1`), which dpm-synth reads as its template; dpm-xl then checks
-the generated report against the same file:
+For a real module, export its module file from the EBA's DPM database with
+dpm-xl, and generate from that file:
 
 ```bash
-dpm-xl export-module dpm-4.4.sqlite COREP_OF --release 4.3 -o corep_of.json
-dpm-synth generate corep_of.json -o report.zip --seed 7
-dpm-xl check-report corep_of.json report.zip
+pip install dpm-xl
+dpm-xl export-module dpm-4.4.sqlite COREP_OF --release 4.3 -o module.json
+dpm-synth generate module.json -o report.zip --seed 7
 ```
 
-See [get a template from a DPM release](guides/from-a-dpm-release.md).
-
-## Install
-
-=== "pip"
-
-    ```text
-    pip install dpm-synth
-    ```
-
-=== "uv"
-
-    ```text
-    uv add dpm-synth
-    ```
-
-This installs dpm-xl and dpm-xbrl too. The import name is `dpmsynth`; the
-command is `dpm-synth`.
+`dpm-4.4.sqlite` is the EBA's DPM 2.0 database as a SQLite file;
+[get a template from a DPM release](guides/from-a-dpm-release.md) says
+where to get it and what to expect.
 
 ## Find your way
 
@@ -124,8 +115,8 @@ command is `dpm-synth`.
 
     ---
 
-    Install dpm-synth, generate a first report, read it back and check
-    its rules, step by step.
+    Install dpm-synth, generate a first report, look inside it, read it
+    back and check its rules, step by step.
 
     [:lucide-arrow-right: Tutorial](getting-started.md)
 
@@ -143,8 +134,7 @@ command is `dpm-synth`.
 
     ---
 
-    How the joint solve and the evaluate-and-repair loop work, and where
-    they stop.
+    How dpm-synth makes the values pass the rules, and where that stops.
 
     [:lucide-arrow-right: Concepts](concepts/index.md)
 
@@ -161,41 +151,25 @@ command is `dpm-synth`.
 
 ## Features
 
-- **Any module.** The template format describes tables, open keys, cells,
-  data types, allowed items and rules, so one tool covers COREP, FINREP and
-  every other DPM framework; see the [template format](reference/template-format.md).
-- **Templates from a DPM release.** dpm-synth reads the module file
-  (`dpm-module/1`) that `dpm-xl export-module` writes, as well as its own
-  `dpm-synth-template/1`; see
-  [get a template from a DPM release](guides/from-a-dpm-release.md).
-- **Every DPM data type.** Values follow the DPM's codes: `es` cells get
-  non-empty text, as EBA filing rule 2.19 requires, `t` cells are always
-  `true`, and dates, URIs and ordinals have their own forms; see
-  [data types](reference/template-format.md#data-types).
-- **Rules satisfied, not just shapes.** Linear rules are solved jointly;
-  products of two cells, `isnull`, `in`, `match` and the rest are repaired.
-  On EBA DPM 4.3 COREP_OF, all 1,051 rules that apply pass with seed 7, and
-  seeds 0 to 4 leave 0 to 2 failing. See
-  [the evaluate-and-repair loop](concepts/repair-loop.md) and
-  [its limits](concepts/limits.md).
-- **Realistic shape.** Amounts for an institution size (`--size`), sparse
-  reports (`--fill`), a reporting currency (`--currency`) and currencies of
-  denomination; see [shape a realistic report](guides/realistic-reports.md).
-- **Severities and inactive rules.** A rule's `severity` is shown in the
-  output, and failing warnings exit with status 1 only with
-  `--fail-on warning`; rules with `"active": false` are skipped; see
-  [warnings and inactive rules](guides/realistic-reports.md#warnings-and-inactive-rules).
-- **Filing rules followed.** Filing indicators, decimals, currencies and the
-  reporting subject follow the EBA filing rules, and dpm-xbrl reads the
-  packages back without a broken filing rule other than the file name; see
-  [standards and conformance](reference/standards.md).
-- **Reproducible.** The same template, seed, options and versions give the
-  same bytes; see [reproduce a report](guides/reproducible-seeds.md).
+- **Any module.** The [template format](reference/template-format.md)
+  describes tables, open keys, cells, every DPM data type, allowed items
+  and rules, so one tool covers COREP, FINREP and every other DPM
+  framework, from the module file of a DPM release or a file you write.
+- **Rules satisfied, not just shapes.** Linear rules are solved together,
+  and the rest are repaired one value at a time; the result names the
+  rules that still fail. See [limits of the loop](concepts/limits.md).
+- **Realistic shape.** Amounts for an institution size, sparse reports,
+  currencies, rule severities and inactive rules; see
+  [shape a realistic report](guides/realistic-reports.md).
+- **Valid packages, reproducibly.** Filing indicators, decimals,
+  currencies and the reporting subject follow the EBA filing rules
+  ([standards](reference/standards.md)), and a seed reproduces a report
+  byte for byte ([reproduce a report](guides/reproducible-seeds.md)).
 - **Large.** Scaled packages stream open tables with millions of rows; see
   [load-test with scaled packages](guides/load-testing.md).
-- **For AI agents too.** The essentials on [one page](agents.md), and every
-  page as Markdown in [`llms.txt`](llms.txt) and
-  [`llms-full.txt`](llms-full.txt).
+
+The essentials for AI agents are on [one page](agents.md), and every page
+is in [`llms.txt`](llms.txt) and [`llms-full.txt`](llms-full.txt).
 
 ## Part of the dpm toolkit
 

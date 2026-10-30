@@ -5,10 +5,11 @@
 <p align="center"><em>Generate synthetic EBA reports that satisfy DPM-XL validation rules.</em></p>
 
 Generate synthetic EBA xBRL-CSV report packages that satisfy a module's
-DPM-XL validation rules. Give dpm-synth a template with a module's tables,
-cells and rules; it fills every cell with a plausible value, repairs the
-values until the rules pass, and writes a report package that reads and
-validates like a real submission. Use it to test loaders, data warehouses
+DPM-XL validation rules. Give dpm-synth a template file with a module's
+tables, cells and rules, such as the module file `dpm-xl export-module`
+writes from an EBA DPM release; it fills every cell with a plausible
+value, repairs the values until the rules pass, and writes a report
+package that reads and validates like a real submission. Use it to test loaders, data warehouses
 and validators for EBA reports, for any module, without real supervisory
 data.
 
@@ -57,20 +58,19 @@ whose module file dpm-synth reads as it is (see
 
 ## Features
 
-- **Any module**: the `dpm-synth-template/1` format describes tables, open
-  keys, cells, data types, allowed items and DPM-XL rules. dpm-synth also
-  reads the module file (`dpm-module/1`) that `dpm-xl export-module` writes
-  from an EBA DPM release.
+- **Any module**: dpm-synth reads the module file (`dpm-module/1`) that
+  `dpm-xl export-module` writes from an EBA DPM release, or a file you
+  write with a module's tables, open keys, cells, data types, allowed
+  items and DPM-XL rules.
 - **Every DPM data type**: `es` cells get non-empty text (EBA filing rule
   2.19), `t` cells are always `true`, and dates, URIs and ordinals have
   their own forms.
 - **Rules satisfied**: an evaluate-and-repair loop over the rules, with
   [dpm-xl](https://luukhopman.github.io/dpm-xl/), repairs sums,
   differences, products, sign rules, `isnull`, `in` and `match`, after a
-  joint solve of the linear rules. On EBA DPM 4.3 COREP_OF, all 1,051
-  rules that apply pass with seed 7, and seeds 0 to 4 leave 0 to 2
-  failing; the result names the rest
-  ([limits](https://luukhopman.github.io/dpm-synth/concepts/limits/)).
+  joint solve of the linear rules. The result names the rules that still
+  fail; [limits](https://luukhopman.github.io/dpm-synth/concepts/limits/)
+  has the figures for a real module.
 - **Realistic shape**: `--size small|medium|large` for the amounts,
   `--fill` for sparse reports and `--currency` for the reporting currency.
 - **Severities and inactive rules**: failing `warning` rules exit with
@@ -79,8 +79,8 @@ whose module file dpm-synth reads as it is (see
 - **Valid packages**: written by
   [dpm-xbrl](https://luukhopman.github.io/dpm-xbrl/), with a fictional LEI,
   and read back without broken EBA filing rules other than the file name.
-- **Reproducible**: the same template, seed and versions give the same
-  bytes.
+- **Reproducible**: a seed reproduces a report byte for byte
+  ([what else it depends on](https://luukhopman.github.io/dpm-synth/guides/reproducible-seeds/)).
 - **Large**: scaled packages stream open tables with millions of rows.
 
 ## Toolkit

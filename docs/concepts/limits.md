@@ -12,28 +12,34 @@ rules still fail.
 
 ## Results on EBA modules
 
-EBA DPM 4.3 modules, their EBA validation rules only, seed 7, default
-options, with dpm-xl and dpm-xbrl 1.0.0. COREP_OF is measured with this
-version; the other modules with dpm-synth 1.0.0, before the joint solve of
-linear rules, which on COREP_OF had 52 failing rules. Times are wall clock
-on a laptop (AMD Ryzen 7 4700U) and only indicate the scale; the other
-columns do not depend on the machine:
+--8<-- "docs/.snippets/corep-of.md"
 
-| Module | Tables | Cells | Rules | Apply | Pass | Fail | Not applicable | Unsupported | Rounds | Time |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| COREP_OF | 81 | 21,339 | 1,205 | 1,051 | 1,051 | 0 | 154 | 0 | 13 | 17 s |
-| FINREP9 (1.0.0) | 124 | 13,834 | 2,260 | 2,258 | 1,929 | 329 | 0 | 2 | 14 | 10 s |
-| AE (1.0.0) | 23 | 1,306 | 218 | 218 | 207 | 11 | 0 | 0 | 10 | < 1 s |
-| COREP_LCR_DA (1.0.0) | 14 | 5,119 | 328 | 328 | 321 | 7 | 0 | 0 | 9 | 2 s |
-| COREP_LE (1.0.0) | 5 | 79 | 25 | 25 | 24 | 1 | 0 | 0 | 9 | < 1 s |
+In detail: the module file is release 4.3, exported from the
+EBA's 4.4 database with
+`dpm-xl export-module dpm-4.4.sqlite COREP_OF --release 4.3`, measured on
+2026-10-30 with the dpm-synth, dpm-xl and dpm-xbrl versions these pages
+document; seed 7, default options. The time is wall clock on a laptop
+(AMD Ryzen 7 4700U) and only indicates the scale:
 
-On COREP_OF, seeds 0 to 4 leave 0 to 2 failing rules, against 51 to 55
-before the joint solve.
+| COREP_OF, release 4.3 | |
+| --- | --- |
+| Tables and cells | 81 tables, 21,339 cells |
+| Rules | 1,418: 213 skipped, 1,151 apply, 54 not applicable |
+| Rules that apply | 1,146 pass, 5 fail |
+| Rounds | 14 |
+| Facts written | 25,486 |
+| Time | 30 s |
 
-"Apply" counts the rules that are evaluated and whose precondition holds.
-On each of these modules, the rules that pass and fail on the generated values are
-exactly those that pass and fail when the written package is read back with
-dpm-xbrl and evaluated with dpm-xl, as in
+- Skipped rules are those the EBA deactivated (`"active": false`); the
+  other 1,205 rules are evaluated.
+- The rules that apply are those that are evaluated and whose precondition
+  holds. None is `error` or `unsupported`.
+- The rules that fail are `v6290_m` (an error) and the warnings
+  `e4891_n`, `v4810_m`, `v6050_m` and `v6052_m`. The exit status is 1, because of `v6290_m`.
+
+`dpm-xl check-report` on the written package gives the same statuses, so
+the rules that pass and fail on the generated values are exactly those
+that pass and fail when the package is read back, as in
 [validate the output](../guides/validate-output.md).
 
 ## Rules that still fail
@@ -52,8 +58,17 @@ dpm-xbrl and evaluated with dpm-xl, as in
   by an amount holds before rounding but can miss by a few units after the
   ratio is rounded to its reporting decimals.
 
-[Explain a failing rule](#explain-a-failing-rule) below shows how to
-see why with dpm-xl.
+`v6290_m` on COREP_OF is a sum with a `max(...)` term; `dpm-xl
+check-report` explains it:
+
+```text
+v6290_m: failed
+  records: 0 passed, 1 failed, 0 null
+  - scalar: 208,290,245 should equal 807,250,548 (37,194,687 + 76,800,000 + 609,992,861 + 4,377,000 + max(541,000, 78,886,000)): difference 598,960,303, at least 598,960,300 given the reported precision
+```
+
+[Explain what still fails](../guides/validate-output.md#explain-what-still-fails)
+shows how to explain a failing rule yourself.
 
 ## Rules that cannot be evaluated
 
@@ -64,9 +79,10 @@ dpm-xl reports some rules as `unsupported` or `error`, and the result's
   none (`unsupported`);
 - a rule that uses a construct dpm-xl does not support.
 
-A rule that does not parse, or that selects a table the template does not
-have, is an error of the template; a rule on a template in
-`filing_indicators` without tables is `not_applicable`.
+A rule that does not parse, or that selects a table the template file does
+not have, is an error of the template file. A rule on a reporting template
+that is listed in `filing_indicators` but has no tables in the file is
+`not_applicable`.
 
 An `error` rule makes exit status 1, as a failing rule does; an
 `unsupported` rule never changes the exit status.
@@ -84,42 +100,3 @@ time: enumerated keys take their items in order.
 
 `match` is repaired for the two patterns EBA rules use, LEIs and
 `dd/mm/yyyy` dates. Any other pattern is evaluated but not repaired.
-
-## Explain a failing rule
-
-The summary names up to 20 failing rules; `--json` lists them all. To see
-why a rule fails, evaluate it on the generated values and explain the
-failure with dpm-xl:
-
-```python
-from dpmxl import evaluate_rule, explain
-
-from dpmsynth import generate, load_template
-
-template = load_template("sample.json")
-result = generate(template, seed=7, max_rounds=0)
-rules = {rule.code: rule for rule in template.rules}
-for code in result.failed:
-    rule = rules[code]
-    outcome = evaluate_rule(
-        rule.expression, result.data, precondition=rule.precondition
-    )
-    failure = outcome.failures[0]
-    print(code, explain(outcome.evaluation, rule.expression, failure.key).summary)
-```
-
-```text
-rows 936,000 should equal 2,314,000 (165,000 + 149,000 + 2,000,000): difference 1,378,000, at least 1,377,998 given the reported precision
-columns 936,000 should equal 9,253,000 (283,000 + 8,970,000): difference 8,317,000, at least 8,316,998.5 given the reported precision
-ratio 90,750 should equal 149,000: difference 58,250, at least 58,240.9 given the reported precision
-item [AS:x1] is not one of [AS:x2]
-open 69,558,000 should not exceed 150,000: difference 69,408,000, at least 69,407,999 given the reported precision
-open-total 5,120,000 should equal 936,000: difference 4,184,000
-lei "Synthetic text 5147" does not have the required format
-```
-
-Here `max_rounds=0` keeps the starting values, so rules that the solver
-and the loop would settle still fail. On a real module, a rule that still
-fails is usually nonlinear and coupled to rules that define the same cells,
-such as a total of `max(...)` terms, as listed
-[above](#rules-that-still-fail).
