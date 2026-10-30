@@ -90,7 +90,7 @@ from dpmxbrl import read_report
 report = read_report("currencies.zip")
 print(report.base_currency)
 for fact in report.facts:
-    print(fact.template, fact.datapoint, fact.value, dict(fact.keys))  # (1)!
+    print(fact.datapoint, fact.value, dict(fact.keys))  # (1)!
 ```
 
 1. `eba_CU:x1` stands for the reporting currency; `eba_CU:USD` names one.
@@ -98,13 +98,13 @@ for fact in report.facts:
 
 ```text
 iso4217:NOK
-k_01.00 dp1 6961500 {'CUS': 'eba_CU:x1', 'unit': 'iso4217:NOK'}
-k_01.00 dp2 2944500 {'CUS': 'eba_CU:x1', 'unit': 'iso4217:NOK'}
-k_01.00 dp3 0.6900 {'CUS': 'eba_CU:x1', 'unit': ''}
-k_01.00 dp1 283000 {'CUS': 'eba_CU:USD', 'unit': 'iso4217:USD'}
-k_01.00 dp2 165000 {'CUS': 'eba_CU:USD', 'unit': 'iso4217:USD'}
-k_01.00 dp3 0.1300 {'CUS': 'eba_CU:USD', 'unit': ''}
-k_02.00 dp4 1250000 {}
+dp1 6961500 {'CUS': 'eba_CU:x1', 'unit': 'iso4217:NOK'}
+dp2 2944500 {'CUS': 'eba_CU:x1', 'unit': 'iso4217:NOK'}
+dp3 0.6900 {'CUS': 'eba_CU:x1', 'unit': ''}
+dp1 283000 {'CUS': 'eba_CU:USD', 'unit': 'iso4217:USD'}
+dp2 165000 {'CUS': 'eba_CU:USD', 'unit': 'iso4217:USD'}
+dp3 0.1300 {'CUS': 'eba_CU:USD', 'unit': ''}
+dp4 1250000 {}
 ```
 
 ## Warnings and inactive rules

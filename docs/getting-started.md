@@ -99,17 +99,12 @@ failed; the [exit statuses](reference/exit-statuses.md) list the others.
 CSV files.
 
 ```console
-$ unzip -l report.zip
-Archive:  report.zip
-  Length      Date    Time    Name
----------  ---------- -----   ----
-       87  1980-01-01 00:00   report/META-INF/reportPackage.json
-      289  1980-01-01 00:00   report/reports/report.json
-      118  1980-01-01 00:00   report/reports/parameters.csv
-       35  1980-01-01 00:00   report/reports/FilingIndicators.csv
-       68  1980-01-01 00:00   report/reports/t_01.00.csv
----------                     -------
-      597                     5 files
+$ unzip -Z1 report.zip
+report/META-INF/reportPackage.json
+report/reports/report.json
+report/reports/parameters.csv
+report/reports/FilingIndicators.csv
+report/reports/t_01.00.csv
 ```
 
 - `reportPackage.json` marks the ZIP as a report package.
@@ -141,7 +136,7 @@ from dpmxbrl import read_report
 report = read_report("report.zip")
 print(report.entity_id, report.reference_date, report.filing_indicators)
 for fact in report.facts:
-    print(fact.template, fact.datapoint, fact.value)
+    print(fact.datapoint, fact.value)
 print([finding.code for finding in report.filing])  # (1)!
 ```
 
@@ -149,18 +144,17 @@ print([finding.code for finding in report.filing])  # (1)!
 
 ```text
 SYNTHETICDPMXL000002.CON 2026-12-31 {'T_01.00': True}
-t_01.00 dp1001 9253000
-t_01.00 dp1002 283000
-t_01.00 dp1003 8970000
+dp1001 9253000
+dp1002 283000
+dp1003 8970000
 ['invalidFileName']
 ```
 
 The entity is the fictional LEI `SYNTHETICDPMXL000002` at the consolidated
 level. `{'T_01.00': True}` is the filing indicator: the report declares that
-it includes template `T_01.00`. `fact.template` is the code of the table a
-fact is in. The only EBA filing rule the package breaks is the file name, which
-for a real submission encodes the entity, module and dates; name the output
-accordingly if that matters to you. [Standards and
+it includes template `T_01.00`. The only EBA filing rule the package breaks
+is the file name, which for a real submission encodes the entity, module
+and dates; name the output accordingly if that matters to you. [Standards and
 conformance](reference/standards.md) lists the filing rules the reports
 follow.
 

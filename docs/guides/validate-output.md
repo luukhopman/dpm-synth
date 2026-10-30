@@ -23,12 +23,12 @@ write_xbrl_csv(result.report, "sample.zip")
 report = read_report("sample.zip")
 print(report.format, report.entity_id, len(report.facts))
 for finding in report.filing:
-    print(finding.severity, finding.rule, finding.code)
+    print(finding.severity, finding.code)
 ```
 
 ```text
 xbrl-csv SYNTHETICDPMXL000002.CON 20
-warning File naming invalidFileName
+warning invalidFileName
 ```
 
 dpm-xbrl records every [EBA filing rule][dpm-xbrl-filing] the file breaks.
