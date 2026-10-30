@@ -28,7 +28,6 @@ from typing import IO, Any
 from dpmxbrl import write_xbrl_csv
 
 from .generator import (
-    DEFAULT_REFERENCE_DATE,
     LEI_PREFIX,
     SyntheticData,
     _key_dates,
@@ -66,7 +65,7 @@ def _scaled_rows(
     """
     solved = data.key_rows[table.code]
     typed = [key for key in table.open_keys if not key.items]
-    reference = data.template.reference_date or DEFAULT_REFERENCE_DATE
+    reference = data._reference()
     if not typed:
         count = min(count, len(solved))
     elif all(key.data_type == "d" for key in typed):

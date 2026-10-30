@@ -30,7 +30,7 @@ from .generator import (
     generate,
 )
 from .scale import _MAX_ROWS, write_scaled_package
-from .template import TemplateError, load_template
+from .template import _CURRENCY, TemplateError, load_template
 
 RULES_FAILED = 1
 """Exit status when the package is written but a rule at or above
@@ -125,7 +125,7 @@ def _entity(text: str) -> str:
 
 
 def _currency(text: str) -> str:
-    if not re.fullmatch(r"[A-Z]{3}", text):
+    if not _CURRENCY.fullmatch(text):
         raise argparse.ArgumentTypeError(
             f"expected an ISO 4217 code such as EUR, got {text!r}"
         )

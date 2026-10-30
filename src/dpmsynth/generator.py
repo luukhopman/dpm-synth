@@ -69,6 +69,7 @@ from dpmxl.ast import (
 )
 
 from .template import (
+    _CURRENCY,
     _ENUMERATED_TYPES,
     ModuleTemplate,
     OpenKey,
@@ -116,7 +117,6 @@ _MIRRORED = {"=": "=", "!=": "!=", "<": ">", "<=": ">=", ">": "<", ">=": "<="}
 _LIMIT = Decimal(10) ** 15
 _STORED = Decimal("1e-8")
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
-_CURRENCY = re.compile(r"[A-Z]{3}")
 _RSCHEME = "https://eurofiling.info/eu/rs"
 _LEI_SCHEME = "http://standards.iso.org/iso/17442"
 # Reporting subjects carry a suffix from this reference date, except in
@@ -307,7 +307,7 @@ class SyntheticData:
             count = min(
                 count, math.lcm(*(len(key.items or ()) for key in table.open_keys))
             )
-        reference = self.template.reference_date or DEFAULT_REFERENCE_DATE
+        reference = self._reference()
         rows = []
         for index in range(count):
             row = []
@@ -341,9 +341,13 @@ class SyntheticData:
             return self.rng.random() < 0.5
         if kind == "d":
             # A day in the ten years up to the reference date.
-            reference = self.template.reference_date or DEFAULT_REFERENCE_DATE
+            reference = self._reference()
             return reference - timedelta(days=self.rng.randint(0, 3652))
         return f"Synthetic text {self.rng.randint(1, 9999)}"
+
+    def _reference(self) -> date:
+        # The reference date of the report.
+        return self.template.reference_date or DEFAULT_REFERENCE_DATE
 
     def _cell(self, slot: object) -> TemplateCell | None:
         if not isinstance(slot, tuple) or slot not in self.values:
@@ -520,7 +524,7 @@ class SyntheticData:
         """
         folded = name.casefold()
         if folded == "refperiod":
-            return self.template.reference_date or DEFAULT_REFERENCE_DATE
+            return self._reference()
         if folded == "reportinglevel":
             return self.reporting_level.casefold()
         return None
@@ -962,7 +966,7 @@ def _matching_text(pattern: Value, data: SyntheticData) -> str | None:
     if _LEI_PATTERN.search(pattern):
         return _lei(data.rng)
     if _DATE_PATTERN.fullmatch(pattern):
-        reference = data.template.reference_date or DEFAULT_REFERENCE_DATE
+        reference = data._reference()
         return reference.strftime("%d/%m/%Y")
     return None
 
@@ -1779,7 +1783,7 @@ def build_report(data: SyntheticData) -> Report:
                     )
                 )
     used_types = {cell.data_type for table in template.tables for cell in table.cells}
-    reference_date = template.reference_date or DEFAULT_REFERENCE_DATE
+    reference_date = data._reference()
     # A subject with a suffix uses the reporting-subject scheme, a bare LEI
     # the LEI scheme (EBA filing rule 3.6).
     if reference_date < _SUFFIX_FROM or _LEVEL_MODULE.search(template.module):
@@ -1795,9 +1799,7 @@ def build_report(data: SyntheticData) -> Report:
         reference_date=reference_date,
         # baseCurrency is written only when a fact refers to it (EBA filing
         # rules, the xBRL-CSV parameters file).
-        base_currency=f"iso4217:{template.currency or 'EUR'}"
-        if base_currency
-        else None,
+        base_currency=_base_unit(template) if base_currency else None,
         parameters={},
         decimals_parameters={
             parameter: data.decimals[kind]
@@ -1831,7 +1833,12 @@ def _unit(data: SyntheticData, keys: tuple[tuple[str, Any], ...]) -> str:
             code = data._text(value).rpartition(":")[2]
             if _CURRENCY.fullmatch(code):
                 return f"iso4217:{code}"
-    return f"iso4217:{data.template.currency or 'EUR'}"
+    return _base_unit(data.template)
+
+
+def _base_unit(template: ModuleTemplate) -> str:
+    # The unit of the reporting currency, EUR unless the template says.
+    return f"iso4217:{template.currency or 'EUR'}"
 
 
 def _filing_indicators(template: ModuleTemplate) -> dict[str, bool]:
