@@ -44,6 +44,8 @@ JSON_SCHEMA_VERSION = 2
 """Version of the ``generate --json`` layout; it changes when the layout does."""
 
 _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+# The most rules the text summary names in a list.
+_SHOWN = 20
 
 _EPILOG = """examples:
   dpm-synth generate template.json -o report.zip
@@ -362,12 +364,15 @@ def _lines(result: GenerationResult) -> Iterator[str]:
         severity = _severities(result)
         shown = ", ".join(
             code + (" (warning)" if severity[code] == "warning" else "")
-            for code in failed[:20]
+            for code in failed[:_SHOWN]
         )
-        more = len(failed) - 20
+        more = len(failed) - _SHOWN
         yield f"still failing: {shown}" + (f" and {more} more" if more > 0 else "")
-    for code, message in result.messages.items():
+    messages = list(result.messages.items())
+    for code, message in messages[:_SHOWN]:
         yield f"{code}: {result.statuses[code].replace('_', ' ')}: {message}"
+    if len(messages) > _SHOWN:
+        yield f"and {len(messages) - _SHOWN} more"
 
 
 if __name__ == "__main__":  # pragma: no cover

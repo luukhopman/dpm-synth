@@ -103,7 +103,8 @@ wrote sample.zip (20 facts)
 - `rounds` lists the failing rules at the start of each round.
 - When rules still fail, a line `still failing: ...` names up to 20 of
   them, with `(warning)` after a rule of severity `warning`.
-- Each rule that is `error` or `unsupported` gets a line with the reason.
+- Each rule that is `error` or `unsupported` gets a line with the reason,
+  for up to 20 rules; `and N more` counts the others.
 - `wrote` names the package and the facts in it.
 
 | Option | Effect |

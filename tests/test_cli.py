@@ -287,3 +287,17 @@ def test_bad_size_and_fill_are_usage_errors(tmp_path: Path, sample, option) -> N
     with pytest.raises(SystemExit) as raised:
         main(["generate", str(sample), "-o", str(tmp_path / "r.zip"), *option])
     assert raised.value.code == 2
+
+
+def test_messages_are_capped_like_the_failing_rules(tmp_path: Path, capsys) -> None:
+    rules = [
+        {"code": f"bad{n:02}", "expression": '{tT, r0010, c0010} + "a" > 0'}
+        for n in range(25)
+    ]
+    template = write(tmp_path, document([cell("0010", "0010", 1)], rules))
+    assert main(["generate", str(template), "-o", str(tmp_path / "report.zip")]) == 1
+    lines = capsys.readouterr().out.splitlines()
+    shown = [line for line in lines if line.startswith("bad")]
+    expected = [f"bad{n:02}: error: + needs numbers, found string" for n in range(20)]
+    assert shown == expected
+    assert lines[lines.index(shown[-1]) + 1] == "and 5 more"
