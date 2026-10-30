@@ -1046,7 +1046,7 @@ def generate(
                 f"currency must be an ISO 4217 code such as 'EUR': {currency!r}"
             )
         template = replace(template, currency=currency)
-    if size not in _SIZES:
+    if not isinstance(size, str) or size not in _SIZES:
         raise ValueError(f"size must be one of {', '.join(_SIZES)}: {size!r}")
     if isinstance(fill, bool) or not isinstance(fill, int | float) or not 0 < fill <= 1:
         raise ValueError(f"fill must be a number above 0 and at most 1: {fill!r}")

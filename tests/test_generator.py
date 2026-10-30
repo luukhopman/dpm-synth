@@ -604,6 +604,7 @@ def test_rules_give_empty_cells_a_value() -> None:
     ("option", "message"),
     [
         ({"size": "huge"}, "size must be one of small, medium, large"),
+        ({"size": ["small"]}, "size must be one of small, medium, large"),
         ({"fill": 0}, "fill must be a number above 0"),
         ({"fill": 1.5}, "fill must be a number above 0"),
         ({"fill": True}, "fill must be a number above 0"),
