@@ -1,35 +1,43 @@
 ---
-description: Build a dpm-synth template for a real module from a DPM release - what an exporter must fill in, a small exporter, choosing rules, generating and reading the results.
+description: Get a dpm-synth template for a real EBA module from a DPM release - no public exporter exists yet, so what an exporter must write, where each field comes from, and a small exporter to adapt.
+icon: lucide/database
 ---
 
-# Build a template from a DPM release
+# Get a template from a DPM release
 
 A real module has thousands of cells and rules, so its template is exported
-from a DPM release rather than written by hand. The
-[template format](../reference/template-format.md) is the interface:
-dpm-synth does not read DPM databases itself, and any tool that can read a
-release, such as a script over the EBA's DPM database, can write templates.
-This guide shows what such an exporter must fill in, with a small exporter
-you can adapt.
+from the EBA's DPM release rather than written by hand.
 
-## What an exporter fills in
+!!! warning "No public exporter yet"
 
-For one module of one release, the exporter writes:
+    dpm-synth does not read DPM releases, and no published tool exports
+    templates from one yet. You write the exporter: a script over the
+    release's DPM database that writes one module in the
+    [template format](../reference/template-format.md). This guide lists
+    what it must write and gives a small exporter to start from.
+
+The same fields make a [module file](https://luukhopman.github.io/dpm-xl/reference/module-file/)
+for dpm-xl, so one export serves both packages; see the
+[toolkit page](../toolkit.md).
+
+## What an exporter writes
+
+For one module of one release:
 
 | Template field | From the DPM release |
 | --- | --- |
 | `release`, `module` | The release code, such as `4.3`, and the module code, such as `COREP_OF`. |
-| `entry_point` | The module's xBRL-CSV entry point (its `.json` URL in the taxonomy), if the consumer of the package needs it. |
+| `entry_point` | The module's xBRL-CSV entry point, the `.json` URL in its taxonomy package. Take it from the package: the folder and version in the URL do not always follow the module code and release. |
 | `tables[].code` | Every non-abstract table version of the module, such as `C_07.00.a`. |
 | `tables[].filing_indicator` | The table's template code, as the module's taxonomy gives it. It is usually the table code without its single-letter parts, such as `C_07.00` for `C_07.00.a` and `C_08.05.1` for `C_08.05.1.a`, but not always. |
 | `filing_indicators` | The filing indicators of every template of the module, so that templates without tables in the template are reported as `false`. |
-| `tables[].open_keys` | The table's open-axis properties: their codes, the CSV column of each, and for an enumerated property the item qnames of its domain or subdomain. |
-| `tables[].cells` | Every reportable cell: its row, column and sheet codes, the datapoint (variable) code that carries its value, the variable's data type code, for enumerated variables the allowed item qnames, and `unit` for a datapoint reported in its currency of denomination. |
-| `rules` | The module's validation rules: code, DPM-XL expression and precondition, with a `source` such as `eba`. |
+| `tables[].open_keys` | The table's open-axis properties: their codes, the CSV column of each, the item qnames of an enumerated property's domain or subdomain, and the data type of a typed one. |
+| `tables[].cells` | Every reportable cell: its row, column and sheet codes, the datapoint (variable) code that carries its value, the variable's data type code, the allowed item qnames of an enumerated variable, and `unit` for a datapoint reported in its currency of denomination. |
+| `rules` | The module's validation rules: code, DPM-XL expression and precondition, `severity`, and `active: false` for a deactivated rule. |
 | `decimals` | The reporting decimals per data type, if the defaults (`m` 0, `p` 4, `i` 0, `r` 2) do not suit. |
 
 Leave out abstract tables, cells without a variable and rules of other
-modules. Item qnames are written as they appear in a report, such as
+modules. Write item qnames as they appear in a report, such as
 `eba_qEC:qx16`; dpm-synth writes them back unchanged.
 
 ## A small exporter
@@ -156,50 +164,7 @@ rounds: 2 (failing rules per round: 1, 0)
 wrote x.zip (5 facts)
 ```
 
-On EBA DPM 4.3 COREP_OF, with its 1,205 EBA rules, generation takes 13
-rounds with seed 7 (about 20 seconds on a laptop), and all 1,051 rules
-that apply pass; other seeds leave one or two failing. The
-other 154 rules do not apply to the generated report: they select no
-generated cell, such as rows filtered on key values that the generated
-rows do not have.
-[Limits of the loop](../concepts/limits.md) has the figures for other
-modules and explains what remains.
-
-## Read the results
-
-The summary names up to 20 failing rules; `--json` lists them all. To see
-why a rule fails, evaluate it on the generated values and explain the
-failure with dpm-xl:
-
-```python
-from dpmxl import evaluate_rule, explain
-
-from dpmsynth import generate, load_template
-
-template = load_template("sample.json")
-result = generate(template, seed=7, max_rounds=0)
-rules = {rule.code: rule for rule in template.rules}
-for code in result.failed:
-    rule = rules[code]
-    outcome = evaluate_rule(
-        rule.expression, result.data, precondition=rule.precondition
-    )
-    failure = outcome.failures[0]
-    print(code, explain(outcome.evaluation, rule.expression, failure.key).summary)
-```
-
-```text
-rows 936,000 should equal 2,314,000 (165,000 + 149,000 + 2,000,000): difference 1,378,000, at least 1,377,998 given the reported precision
-columns 936,000 should equal 9,253,000 (283,000 + 8,970,000): difference 8,317,000, at least 8,316,998.5 given the reported precision
-ratio 90,750 should equal 149,000: difference 58,250, at least 58,240.9 given the reported precision
-item [AS:x1] is not one of [AS:x2]
-open 69,558,000 should not exceed 150,000: difference 69,408,000, at least 69,407,999 given the reported precision
-open-total 5,120,000 should equal 936,000: difference 4,184,000
-lei "Synthetic text 5147" does not have the required format
-```
-
-Here `max_rounds=0` keeps the starting values, so rules that the solver
-and the loop would settle still fail. On a real module, a rule that still
-fails is usually nonlinear and coupled to rules that define the same cells,
-such as a total of `max(...)` terms; see
-[limits of the loop](../concepts/limits.md).
+On a real module, expect some rules to stay failing or not to apply.
+[Limits of the loop](../concepts/limits.md) has the figures for EBA DPM 4.3
+modules, explains what remains, and shows how to explain a failing rule
+with dpm-xl.

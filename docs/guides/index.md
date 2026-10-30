@@ -1,5 +1,5 @@
 ---
-description: Task-oriented recipes for dpm-synth - write a template, build one from a DPM release, shape a realistic report, load-test, reproduce reports and validate the output.
+description: Task-oriented recipes for dpm-synth - write a template, get one from a DPM release, shape a realistic report, load-test, reproduce reports and validate the output.
 ---
 
 # How-to guides
@@ -17,7 +17,7 @@ tutorial covers the basics. Every example runs against the templates in
 
     Describe your own tables, keys, data types and rules, and check the template.
 
--   :lucide-database:{ .lg .middle } [**Build a template from a DPM release**](from-a-dpm-release.md)
+-   :lucide-database:{ .lg .middle } [**Get a template from a DPM release**](from-a-dpm-release.md)
 
     ---
 
