@@ -25,9 +25,8 @@ test data, not submissions.
 ## EBA Filing Rules
 
 The [EBA Filing Rules][eba-filing-rules], version 5.9 (EBA/XBRL/2026/06,
-26 June 2026), say how a report file must be written. Most are met by the
-way dpm-xbrl writes a package; these four depend on what dpm-synth puts in
-the report.
+26 June 2026), say how a report file must be written. dpm-xbrl writes the
+package's files; these four rules depend on what dpm-synth puts in them.
 
 Rule 1.6, filing indicators
 :   Every table's filing indicator is reported as `true`. A template's
