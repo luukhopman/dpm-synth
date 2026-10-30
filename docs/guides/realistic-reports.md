@@ -56,15 +56,14 @@ needs a value, and every table keeps at least one fact:
 
 ```console
 $ dpm-synth generate sample.json -o sparse.zip --seed 7 --fill 0.5
-rules: 9, passed: 7, failed: 0, not applicable: 1, unsupported: 1
-rounds: 2 (failing rules per round: 2, 0)
+rules: 9, passed: 8, failed: 0, unsupported: 1
+rounds: 3 (failing rules per round: 4, 1, 0)
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
-wrote sparse.zip (10 facts)
+wrote sparse.zip (13 facts)
 ```
 
-The full report has 20 facts. One rule is now `not_applicable`: the total
-it compares with was left out, so there is nothing to check, as a validator
-reading the report would also find.
+The full report has 20 facts. Three of the 13 were left out at first and
+got a value because a rule needed one, such as the total of a row.
 
 ## Currencies
 

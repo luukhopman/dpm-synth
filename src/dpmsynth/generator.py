@@ -255,6 +255,8 @@ class SyntheticData:
         self._query_cells: dict[CellQuery, list[TemplateCell]] = {}
         # Slot -> (lower, upper) from single-cell sign rules such as {x} >= 0.
         self._bounds: dict[Slot, tuple[Decimal | None, Decimal | None]] = {}
+        # Cells that fill left empty; an isnull repair empties a cell for good.
+        self._sparse: set[Slot] = set()
         # Item -> the qname the template wrote, for the written report.
         self._item_names: dict[Item, str] = {}
         for table in template.tables:
@@ -290,6 +292,7 @@ class SyntheticData:
                 emptied = emptied[1:]
             for slot in emptied:
                 self.values[slot] = None
+            self._sparse.update(emptied)
 
     def _key_rows(
         self, table: TemplateTable, count: int
@@ -728,6 +731,9 @@ class _Repairer:
             value = self.data._number(cell, value.value)
             if not self.data._within_bounds(slot, value.value):
                 return False
+        if value is None:
+            # Cleared for a rule, not for sparseness: the solve keeps it empty.
+            self.data._sparse.discard(slot)
         if self.data.values.get(slot) == value:
             return False
         self.data.values[slot] = value
@@ -1343,7 +1349,8 @@ def _linear_constraints(
             data, evaluation, dict(zip(recordset.keys, key, strict=True))
         )
         left, right = repairer.value(node.left), repairer.value(node.right)
-        if not (isinstance(left, Number | None) and isinstance(right, Number | None)):
+        # A null side (an empty cell without a default) skips the record.
+        if not (isinstance(left, Number) and isinstance(right, Number)):
             continue
         found.append(_linear(repairer, node.op, node.left, node.right))
         for call in signs:
@@ -1450,11 +1457,16 @@ def _project(
             else:
                 negated = tuple((slot, -c) for slot, c in terms)
                 inequalities.append((-constant - margin, negated))
-    # A cleared cell (an isnull repair) stays cleared: it counts as 0.
+    # A cleared cell (an isnull repair) stays cleared: it counts as 0. A cell
+    # that fill left empty starts at 0 and takes a value if a rule needs one.
+    sparse: set[Slot] = set()
     for _op, _constant, terms in constraints:
         for slot, _c in terms:
             if data.values.get(slot) is None:
-                limit(slot)[:] = [0.0, 0.0]
+                if slot in data._sparse:
+                    sparse.add(slot)
+                else:
+                    limit(slot)[:] = [0.0, 0.0]
     pivots = _eliminate(equalities)
     for slot, bounds in limits.items():
         if slot in pivots:
@@ -1473,7 +1485,12 @@ def _project(
         if slot not in values:
             value = float(_value(data.values.get(slot)))
             bounds = limits.get(slot)
-            if bounds is not None and bounds[0] <= bounds[1] and slot not in pivots:
+            if (
+                bounds is not None
+                and bounds[0] <= bounds[1]
+                and slot not in pivots
+                and slot not in sparse
+            ):
                 value = min(max(value, bounds[0]), bounds[1])
             values[slot] = value
 
@@ -1492,16 +1509,20 @@ def _project(
         {s: b for s, b in limits.items() if s not in pivots},
         passes,
         relaxation,
+        sparse,
     )
     for slot, (constant, expression) in pivots.items():
         values[slot] = constant + sum(values[s] * c for s, c in expression.items())
     for slot, value in values.items():
-        if (
-            value != original[slot]
-            and math.isfinite(value)
-            and data.values.get(slot) is not None
-        ):
-            data._assign(slot, Decimal(repr(value)))
+        if value == original[slot] or not math.isfinite(value):
+            continue
+        if slot in sparse:
+            # An empty cell stays empty unless it gets a reportable value.
+            if abs(value) < float(data._quantum(data._cell(slot))) / 2:
+                continue
+        elif data.values.get(slot) is None:
+            continue
+        data._assign(slot, Decimal(repr(value)))
 
 
 def _eliminate(
@@ -1574,14 +1595,17 @@ def _feasible(
     limits: dict[Slot, list[float]],
     passes: int,
     relaxation: float,
+    sparse: set[Slot] | None = None,
 ) -> None:
     """Move values until every ``constant + terms >= 0`` holds, if it can.
 
     A violated row is met by the smallest change of its cells that can move
     the way it needs, over-relaxed past the boundary so that rows sharing
-    cells settle sooner, and clamped to the cells' bounds. A row is checked
-    again only after one of its cells moved.
+    cells settle sooner, and clamped to the cells' bounds; cells in
+    ``sparse`` (left empty) move only when no other cell can. A row is
+    checked again only after one of its cells moved.
     """
+    sparse = sparse or set()
     uses: dict[Slot, list[int]] = {}
     for index, (_constant, terms) in enumerate(rows):
         for slot, _c in terms:
@@ -1604,6 +1628,8 @@ def _feasible(
                 values[slot] < bounds[1] if c > 0 else values[slot] > bounds[0]
             ):
                 movable.append((slot, c))
+        filled = [(slot, c) for slot, c in movable if slot not in sparse]
+        movable = filled or movable
         norm = sum(c * c for _slot, c in movable)
         if not norm:
             continue

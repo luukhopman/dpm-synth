@@ -971,3 +971,30 @@ def test_strict_comparisons_of_ratios_use_the_reporting_step(seed) -> None:
     assert result.failed == []
     assert 0 < value(result, 1).value <= 1
     assert value(result, 1).value > value(result, 2).value > 0
+
+
+@pytest.mark.parametrize("seed", range(10))
+def test_sparse_cells_take_what_a_total_needs(seed) -> None:
+    # An empty total is not pinned at 0: that would zero its components.
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3, 4)]
+    rules = [
+        "with {tT, c0010, default: 0, interval: true}: "
+        "{r0010} = {r0020} + {r0030} + {r0040}",
+        "{tT, c0010} >= 0",
+    ]
+    result = run(cells, rules, seed=seed, fill=0.6)
+    assert result.failed == []
+    values = [value(result, n) for n in (1, 2, 3, 4)]
+    assert any(item is not None and item.value > 0 for item in values)
+
+
+@pytest.mark.parametrize("seed", range(10))
+def test_null_records_of_rules_without_a_default_are_left_alone(seed) -> None:
+    # Without a default an empty cell makes the record null, not 0: the rule
+    # does not apply to it, so the solve does not move the other cells.
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    rules = ["{tT, r0010, c0010} = {tT, r0020, c0010} + {tT, r0030, c0010}"]
+    result = run(cells, rules, seed=seed, fill=0.6)
+    if result.statuses["r1"] == "not_applicable":
+        initial = run(cells, rules, seed=seed, fill=0.6, max_rounds=0)
+        assert result.data.values == initial.data.values
