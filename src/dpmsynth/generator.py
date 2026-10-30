@@ -1438,11 +1438,18 @@ def _project(
                 bounds[1] = min(bounds[1], value)
         elif op == "=":
             equalities.append((constant, terms))
-        elif op in {">=", ">"}:
-            inequalities.append((constant - (op == ">"), terms))
         else:
-            negated = tuple((slot, -c) for slot, c in terms)
-            inequalities.append((-constant - (op == "<"), negated))
+            # A strict inequality holds by one reporting step of its cells.
+            margin = (
+                max(float(data._quantum(data._cell(s))) * abs(c) for s, c in terms)
+                if op in {">", "<"}
+                else 0.0
+            )
+            if op in {">=", ">"}:
+                inequalities.append((constant - margin, terms))
+            else:
+                negated = tuple((slot, -c) for slot, c in terms)
+                inequalities.append((-constant - margin, negated))
     # A cleared cell (an isnull repair) stays cleared: it counts as 0.
     for _op, _constant, terms in constraints:
         for slot, _c in terms:

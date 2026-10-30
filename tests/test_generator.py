@@ -960,3 +960,14 @@ def test_dates_compared_with_each_other() -> None:
     result = run(cells, rules, seed=0)
     assert result.failed == []
     assert value(result, 1) < value(result, 2)
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_strict_comparisons_of_ratios_use_the_reporting_step(seed) -> None:
+    # A margin of 1 would push percentages far past 1.
+    cells = [cell("0010", "0010", 1, "p"), cell("0020", "0010", 2, "p")]
+    rules = ["{tT, r0010, c0010} > {tT, r0020, c0010}", "{tT, r0010-0020, c0010} >= 0"]
+    result = run(cells, rules, seed=seed)
+    assert result.failed == []
+    assert 0 < value(result, 1).value <= 1
+    assert value(result, 1).value > value(result, 2).value > 0
