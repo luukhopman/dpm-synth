@@ -18,7 +18,8 @@ of the [template](../reference/template-format.md).
 | Leave cells out, as real reports do | `--fill RATIO` | `generate(..., fill=0.5)` |
 | Report in another currency | `--currency CODE` | `generate(..., currency="SEK")`, or `"currency"` in the template |
 | Report a cell in its currency of denomination | | `"unit": true` on the cell |
-| Make a rule a warning | `--fail-on error\|warning` sets what fails the run | `"severity": "warning"` on the rule |
+| Mark a rule as a warning | | `"severity": "warning"` on the rule |
+| Fail the run on failing warnings too | `--fail-on warning` | |
 | Switch a rule off | | `"active": false` on the rule |
 
 The values still satisfy the rules, not economics: see

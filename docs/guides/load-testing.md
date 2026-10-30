@@ -45,7 +45,8 @@ print(written)
 {'S_01.00': 14, 'S_02.00.a': 4, 'S_03.00': 50000}
 ```
 
-It returns the fact rows written per table. Read the package back with
+It returns the facts written per table, one CSV row each; the command line
+prints their total. Read the package back with
 dpm-xbrl; for millions of facts its `frames` extra reads them into polars
 frames in seconds:
 
@@ -73,7 +74,8 @@ print(len(report.facts), report.facts[-1].keys)
 - An enumerated key keeps the value of the solved row that the scaled row
   repeats, so the scaled rows have the same mix of items as the solved
   ones. When every key of a table is enumerated, the table keeps its solved
-  rows; generate with more `--open-rows` to have more item combinations.
+  rows; generate with more key rows per open table while solving
+  (`--open-rows`, default 2) to have more item combinations.
 - Closed tables are written as generated.
 
 ## Which rules still hold

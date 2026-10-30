@@ -121,7 +121,7 @@ wrote sample.zip (20 facts)
 | `--currency CODE` | The reporting currency, an ISO 4217 code such as `SEK`, written as `baseCurrency` when a monetary fact is reported. |
 | `--size small\|medium\|large` | The institution size: monetary amounts start between 1,000 and 1,000,000, 100,000 and 100,000,000 (the default), or 10,000,000 and 10,000,000,000 ([`SIZES`][dpmsynth.SIZES]). |
 | `--fill RATIO` | The share of cells that start with a value, above 0 and at most 1 (default 1). The other cells are left out of the report, a sparse report, unless a rule needs a value; every table keeps at least one fact. |
-| `--fail-on error\|warning` | The least [severity](template-format.md#rules) of a failed or `error` rule that makes [exit status](exit-statuses.md) 1. Default `error`: failing warnings are reported but do not fail the run. |
+| `--fail-on error\|warning` | The least [severity](template-format.md#rules) of a rule that counts for [exit status](exit-statuses.md) 1. Default `error`: failing warnings are reported but do not fail the run. |
 | `--json` | Print the summary as JSON instead; see [JSON output](json-output.md). |
 | `--version` | Print the version and exit. |
 

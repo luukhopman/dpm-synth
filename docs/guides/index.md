@@ -21,7 +21,7 @@ tutorial covers the basics. Every example runs against the templates in
 
     ---
 
-    Export a real module with dpm-xl, and what each field holds.
+    Export a real EBA module with dpm-xl, generate a report and check it.
 
 -   :lucide-sliders-horizontal:{ .lg .middle } [**Shape a realistic report**](realistic-reports.md)
 
@@ -45,6 +45,6 @@ tutorial covers the basics. Every example runs against the templates in
 
     ---
 
-    Check a package independently, as a downstream consumer would.
+    Check a package with dpm-xl check-report, and explain what still fails.
 
 </div>

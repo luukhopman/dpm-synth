@@ -4,23 +4,32 @@ description: The exit statuses of dpm-synth generate - 0 all evaluable rules pas
 
 # Exit statuses
 
+`dpm-synth generate` exits with status 1 when, for some rule whose
+severity is at least `--fail-on` (default `error`, so only rules of
+severity `error` count):
+
+- its status is `failed`, or
+- its status is `error`: dpm-xl cannot evaluate it, such as `+` on a text
+  cell.
+
+Statuses `unsupported` (such as `time_shift`), `not_applicable` and
+`skipped` never change the exit status. `--fail-on warning` makes rules of
+severity `warning` count too.
+
 | Status | Meaning | Package written |
 | --- | --- | --- |
-| 0 | No rule at or above `--fail-on` fails or is an `error`. Rules that are `unsupported` (such as `time_shift`), `not_applicable` or `skipped` never count. | yes |
-| 1 | A rule at or above `--fail-on` still fails, or is an `error` (dpm-xl cannot evaluate it, such as `+` on a text cell); the summary names them. By default only rules of severity `error` count; `--fail-on warning` counts warnings too. | yes |
+| 0 | No rule meets the conditions above. | yes |
+| 1 | A rule meets them; the summary names it. | yes |
 | 2 | Usage error: an unknown option, a missing argument, or a bad option value, such as `--open-rows 0`, `--open-rows 5000`, a reference date not written as `YYYY-MM-DD` or an output not ending in `.zip`. argparse prints the usage and the error. | no |
-| 3 | The template cannot be read, is not JSON or is not a valid [template](template-format.md); or the package cannot be written. One line `error: ...` on standard error. | no |
+| 3 | The template file cannot be read, is not JSON or does not follow the [template format](template-format.md); or the package cannot be written. One line `error: ...` on standard error. | no |
 
-The statuses match the sibling commands: `dpm-xl eval` and `dpm-xbrl`
-also exit with 0 when nothing is wrong, 1 when the input was read and has
-problems (a failed or `error` rule, or a filing rule broken at or above
-`--fail-on`),
-2 for a usage error and 3 for unreadable or invalid input. With
-`--scale-rows`, the status is that of the unscaled report, since the scaled
-rows are not evaluated.
+With `--scale-rows`, the status is that of the unscaled report, since the
+scaled rows are not evaluated. Statuses 0, 2 and 3 mean the same in
+`dpm-xl` and `dpm-xbrl`, and their `--fail-on` also defaults to `error`;
+see the [toolkit page](../toolkit.md#what-the-packages-share).
 
-A rule that cannot be satisfied makes status 1, not a failure of the run:
-the package is still useful for testing:
+Status 1 does not mean dpm-synth crashed: the package is written and is
+still useful for testing:
 
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7 --max-rounds 0

@@ -60,7 +60,7 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
 | Rebuild the report after changing values | `build_report(result.data) -> dpmxbrl.Report` |
 | Evaluate a rule on the values | `dpmxl.evaluate_rule(expression, result.data, precondition=...)` |
 | Keep only some rules | `dataclasses.replace(template, rules=tuple(...))` |
-| Command line | `dpm-synth generate TEMPLATE -o OUT.zip [--seed N] [--size small\|medium\|large] [--fill RATIO] [--currency CODE] [--fail-on error\|warning] [--json]`; exit 0 no rule at or above `--fail-on` fails or is `error`, 1 some do, 2 usage, 3 bad input |
+| Command line | `dpm-synth generate TEMPLATE -o OUT.zip [--seed N] [--size small\|medium\|large] [--fill RATIO] [--currency CODE] [--fail-on error\|warning] [--json]`; see [exit statuses](reference/exit-statuses.md) |
 | Check the package against the same file | `dpm-xl check-report module.json report.zip` (needs `dpm-xl[xbrl]`) |
 
 ## Contracts
@@ -84,9 +84,10 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
   "module", "seed", "rounds", "history", "repairs", "results": [{"rule",
   "severity", "status", "message"}]}` ([JSON output](reference/json-output.md));
   `schema_version` changes when the layout does.
-- Exit status 1 means a rule at or above `--fail-on` (default `error`)
-  fails or is `error`; failing `warning` rules and `unsupported` rules
-  leave it at 0 by default.
+- Exit status 1 means a rule of severity `error` (or, with
+  `--fail-on warning`, any rule) has status `failed` or `error`;
+  `unsupported`, `not_applicable` and `skipped` never count. See
+  [exit statuses](reference/exit-statuses.md).
 - Every generated LEI-shaped identifier starts with `SYNTH`
   (`LEI_PREFIX`) and has valid check digits; the default entity is the
   fictional `SYNTHETICDPMXL000002`. None can be a real entity's LEI.
