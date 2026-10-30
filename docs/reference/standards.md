@@ -16,7 +16,7 @@ evaluates the rules, and their standards pages give the details.
 | [EBA Filing Rules][eba-filing-rules] | 5.9, 26 June 2026 | EBA | Writes reports that follow rules 1.6, 2.18, 2.19, 3.1 and 3.6, where the template gives what they need. |
 | [xBRL-CSV][xbrl-csv-spec] | 1.0, Recommendation of 13 October 2021, errata to 19 April 2023 | XBRL International | Writes reports in the EBA's layout, through dpm-xbrl. |
 | [Report Packages][report-packages] | 1.0, Recommendation of 22 September 2023, errata to 11 March 2025 | XBRL International | Writes each report as a `.zip` package, through dpm-xbrl. |
-| [DPM-XL][dpm-xl-spec] | 0.11, 18 September 2026 | EBA and EIOPA | Reads and evaluates the template's rules, through dpm-xl. |
+| [DPM-XL][dpm-xl-spec] | 0.11, 18 September 2026 | EBA and EIOPA | Reads and evaluates the template file's rules, through dpm-xl. |
 
 dpm-synth is an independent project. It has not been certified by any
 standards body, and the EBA does not endorse it. Its reports are synthetic
@@ -29,10 +29,10 @@ The [EBA Filing Rules][eba-filing-rules], version 5.9 (EBA/XBRL/2026/06,
 package's files; these five rules depend on what dpm-synth puts in them.
 
 Rule 1.6, filing indicators
-:   Every table's filing indicator is reported as `true`. A template's
-    `filing_indicators` lists every template of the module, and those
-    without a table in the template are reported as `false`, so the report
-    has an indicator for each template of the module (1.6 (d)). See
+:   Every table's filing indicator is reported as `true`. The template file's
+    `filing_indicators` lists every reporting template of the module, and
+    those without a table in the file are reported as `false`, so the
+    report has an indicator for each template of the module (1.6 (d)). See
     [`filing_indicators`](template-format.md#the-module).
 
 Rule 2.18, decimals
@@ -50,7 +50,7 @@ Rule 2.19, empty values
     See [data types](template-format.md#data-types).
 
 Rule 3.1, currency
-:   Monetary facts are in one reporting currency, the template's
+:   Monetary facts are in one reporting currency, the template file's
     `currency` or `--currency` (default EUR), written as `baseCurrency`
     only when a monetary fact is reported. A cell with `"unit": true` is
     reported in its currency of denomination (3.1 (b)): the currency of its
@@ -77,7 +77,7 @@ lists every filing rule it checks.
 ## xBRL-CSV
 
 dpm-synth builds a `dpmxbrl.Report` and writes it with dpm-xbrl's
-`write_xbrl_csv`: `reports/report.json` extends the template's
+`write_xbrl_csv`: `reports/report.json` extends the template file's
 `entry_point`, `parameters.csv` holds the entity, reference date, base
 currency and decimals, `FilingIndicators.csv` the filing indicators, and
 each table is one CSV file with the EBA's `datapoint` and `factValue`

@@ -109,7 +109,7 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
 - **The root folder is the file name.** Packages are named as dpm-xbrl
   names them: `report.zip` holds `report/...`. The EBA file-naming filing
   rule is a warning on synthetic names.
-- **Rule order matters for reproducibility.** Reordering the template's
+- **Rule order matters for reproducibility.** Reordering the template file's
   tables, cells or rules can change the values for a seed.
 - **Values are synthetic.** They satisfy rules, not economics; do not use
   them as realistic magnitudes.

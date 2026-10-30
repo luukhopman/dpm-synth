@@ -1,53 +1,86 @@
 ---
-description: Get a dpm-synth template for a real EBA module from a DPM release with dpm-xl export-module, where each field comes from, and a small exporter to adapt for another source.
+description: Get a dpm-synth template file for a real EBA module - get the DPM database, export the module with dpm-xl export-module, generate a report and check it - and notes for writing an exporter for another DPM source.
 icon: lucide/database
 ---
 
 # Get a template from a DPM release
 
-A real module has thousands of cells and rules, so its template is exported
-from the EBA's DPM release rather than written by hand.
-[`dpm-xl export-module`](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/)
-reads the EBA's DPM 2.0 database and writes one module of one release as a
-[module file](https://luukhopman.github.io/dpm-xl/reference/module-file/),
-which dpm-synth loads as its template (`"format": "dpm-module/1"`):
+For a real EBA module, the template file is the
+[module file](https://luukhopman.github.io/dpm-xl/reference/module-file/)
+that `dpm-xl export-module` writes from the EBA's DPM database: one JSON
+file with the module's tables, cells and rules for one release. dpm-synth
+reads it as it is.
+
+## 1. Get the database
+
+You need the EBA's DPM 2.0 database as a SQLite file, about 350 MB. The
+EBA publishes each release as a Microsoft Access file; dpm-xl's guide
+shows how to
+[convert it, or download one already converted](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/#2-get-the-database-as-sqlite).
+One database holds every release up to its own, so the 4.4 database,
+`dpm-4.4.sqlite` below, also exports release 4.3.
+
+## 2. Export the module
 
 ```bash
 pip install dpm-xl
 dpm-xl export-module dpm-4.4.sqlite COREP_OF --release 4.3 -o corep_of.json
+```
+
+```text
+note: COREP_OF: left out 32 rules whose scope spans several modules: v0655_m, v0656_m, …, v6259_m
+note: COREP_OF: rule v7551_m: corrected 'trueendif' to 'true endif' (no space before endif)
+wrote corep_of.json: module COREP_OF, release 4.3: 81 tables, 21339 cells, 1418 rules
+```
+
+The notes say what the export corrected or left out of the EBA's data.
+`dpm-xl list-modules dpm-4.4.sqlite --release 4.3` lists the module codes
+of a release.
+
+## 3. Generate a report
+
+```bash
 dpm-synth generate corep_of.json -o report.zip --seed 7
 ```
 
-dpm-xl's guide
-[Start from an EBA DPM release](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/)
-shows how to get the database as SQLite, list its modules, and check the
-generated report against the same file with `dpm-xl check-report`; see
-also the [toolkit page](../toolkit.md).
+```text
+rules: 1418, passed: 1146, failed: 5, not applicable: 54, skipped: 213
+rounds: 14 (failing rules per round: 69, 32, 22, 14, 14, 14, 14, 14, 14, 14, 7, 11, 10, 10)
+still failing: e4891_n (warning), v4810_m (warning), v6050_m (warning), v6052_m (warning), v6290_m
+wrote report.zip (25486 facts)
+```
 
-## What the template holds
+The 213 skipped rules are those the EBA deactivated. Expect a few rules to
+stay failing on a real module: [limits of the loop](../concepts/limits.md)
+explains why. Here `v6290_m` is of severity `error`, so the exit status is
+1; the package is written either way. Another seed can leave other rules
+failing.
 
-For one module of one release:
+## 4. Check the report
 
-| Template field | From the DPM release |
-| --- | --- |
-| `release`, `module` | The release code, such as `4.3`, and the module code, such as `COREP_OF`. |
-| `entry_point` | The module's xBRL-CSV entry point, the `.json` URL in its taxonomy package. Take it from the package: the folder and version in the URL do not always follow the module code and release. |
-| `tables[].code` | Every non-abstract table version of the module, such as `C_07.00.a`. |
-| `tables[].filing_indicator` | The table's template code, as the module's taxonomy gives it. It is usually the table code without its single-letter parts, such as `C_07.00` for `C_07.00.a` and `C_08.05.1` for `C_08.05.1.a`, but not always. |
-| `filing_indicators` | The filing indicators of every template of the module, so that templates without tables in the template are reported as `false`. |
-| `tables[].open_keys` | The table's open-axis properties: their codes, the CSV column of each, the item qnames of an enumerated property's domain or subdomain, and the data type of a typed one. |
-| `tables[].cells` | Every reportable cell: its row, column and sheet codes, the datapoint (variable) code that carries its value, the variable's data type code, the allowed item qnames of an enumerated variable, and `unit` for a datapoint reported in its currency of denomination. |
-| `rules` | The module's validation rules: code, DPM-XL expression and precondition, `severity`, and `active: false` for a deactivated rule. |
-| `decimals` | The reporting decimals per data type, if the defaults (`m` 0, `p` 4, `i` 0, `r` 2) do not suit. |
+```bash
+pip install "dpm-xl[xbrl]"
+dpm-xl check-report corep_of.json report.zip
+```
 
-Leave out abstract tables, cells without a variable and rules of other
-modules. Write item qnames as they appear in a report, such as
-`eba_qEC:qx16`; dpm-synth writes them back unchanged.
+`dpm-xl check-report` reads the package with dpm-xbrl and evaluates the
+module's rules on what it read. It gives the same statuses as step 3 and
+explains each failing rule; see
+[validate the output](validate-output.md).
 
-## A small exporter
+## Notes for exporter authors
 
-For a DPM source that `dpm-xl export-module` does not read, write the
-fields above yourself. An exporter is a query per field. Here the
+Only for a DPM source that `dpm-xl export-module` does not read: write the
+fields of the [template format](../reference/template-format.md) yourself.
+dpm-xl's [module file](https://luukhopman.github.io/dpm-xl/reference/module-file/)
+reference says where each field comes from in the DPM. Leave out abstract
+tables, cells without a variable and rules of other modules, and write
+item qnames as they appear in a report, such as `eba_qEC:qx16`; dpm-synth
+writes them back unchanged.
+
+### A small exporter
+
+An exporter is a query per field. Here the
 release's rows are plain Python lists, standing in for the query results of
 your DPM database:
 
@@ -62,7 +95,7 @@ cells = [  # table, row, column, sheet, variable, data type
     ("X_01.00", "0010", "0010", None, "500", "m"),
     ("X_01.00", "0020", "0010", None, "501", "m"),
     ("X_01.00", "0030", "0010", None, "502", "e"),
-    ("X_02.00.a", "*", "0010", "*", "510", "m"),
+    ("X_02.00.a", "*", "0010", None, "510", "m"),
 ]
 open_axes = [("X_02.00.a", "qCP", None)]  # table, property, domain (None: typed)
 domains = {"CT": ["x1", "x2"]}  # domain code -> item codes
@@ -143,25 +176,7 @@ print(result.summary["passed"], result.failed)
 3 []
 ```
 
-## Choose the rules
-
-Each rule carries a `source`. If the release, or your own rule set, has
-rules from more than one source, keep the ones you want before generating.
-`ModuleTemplate` is a frozen dataclass, so `dataclasses.replace` gives a
-copy with other rules, or other tables:
-
-```python
-from dataclasses import replace
-
-own = replace(module, rules=tuple(r for r in module.rules if r.source == "eba"))
-print(len(own.rules))
-```
-
-```text
-3
-```
-
-## Generate
+Then generate from it:
 
 ```console
 $ dpm-synth generate x.json -o x.zip --seed 1
@@ -169,8 +184,3 @@ rules: 3, passed: 3, failed: 0
 rounds: 2 (failing rules per round: 1, 0)
 wrote x.zip (5 facts)
 ```
-
-On a real module, expect some rules to stay failing or not to apply.
-[Limits of the loop](../concepts/limits.md) has the figures for EBA DPM 4.3
-modules, explains what remains, and shows how to explain a failing rule
-with dpm-xl.

@@ -8,7 +8,7 @@ icon: lucide/sliders-horizontal
 By default dpm-synth fills every cell, draws amounts for a medium-sized
 institution and reports in euro. Four options bring a report closer to the
 one you need to test with: `--size`, `--fill`, `--currency`, and the
-`severity` and `active` fields of the template's rules. Each has the same
+`severity` and `active` fields of the template file's rules. Each has the same
 name in Python, as an argument of [`generate`][dpmsynth.generate] or a field
 of the [template](../reference/template-format.md).
 
@@ -68,7 +68,7 @@ got a value because a rule needed one, such as the total of a row.
 ## Currencies
 
 Monetary facts are reported in one reporting currency, as EBA filing rule
-3.1 asks: the template's `currency`, or `--currency`, or else EUR. A cell
+3.1 asks: the template file's `currency`, or `--currency`, or else EUR. A cell
 with `"unit": true` is reported in its currency of denomination instead,
 the currency of its row's `CUS` or `CUA` key.
 [`currencies.json`](../samples/currencies.json) has both:

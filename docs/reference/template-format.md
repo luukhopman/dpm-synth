@@ -1,22 +1,24 @@
 ---
-description: The dpm-synth-template/1 JSON format, field by field - the module, tables, open keys, cells, data types, items, rules and decimals - and how it is validated.
+description: The template file format (dpm-module/1 and dpm-synth-template/1), field by field - the module, tables, open keys, cells, data types, items, rules and decimals - and how it is validated.
 ---
 
 # Template format
 
-A template describes one module of a DPM release: its tables, the cells of
-each table, and the rules a report must satisfy. It is a JSON document
-(UTF-8) in the `dpm-synth-template/1` format, read by
-[`load_template`][dpmsynth.load_template]. Any DPM source can produce one;
-see [get a template from a DPM release](../guides/from-a-dpm-release.md)
-and [write a template by hand](../guides/write-a-template.md).
+A template file describes one module of a DPM release: its tables, the
+cells of each table, and the rules a report must satisfy. It is a JSON
+document (UTF-8), read by [`load_template`][dpmsynth.load_template]: the
+[module file](https://luukhopman.github.io/dpm-xl/reference/module-file/)
+(`dpm-module/1`) that `dpm-xl export-module` writes, or the same fields in
+the `dpm-synth-template/1` format. See
+[get a template from a DPM release](../guides/from-a-dpm-release.md) and
+[write a template by hand](../guides/write-a-template.md).
 
 ## Example
 
 ```json
 {
-  "format": "dpm-synth-template/1",
-  "release": "4.2",
+  "format": "dpm-module/1",
+  "release": "4.3",
   "module": "COREP_OF",
   "entry_point": "http://www.eba.europa.eu/eu/fr/xbrl/crr/fws/corep/4.2/mod/corep_of.json",
   "reference_date": "2026-12-31",
@@ -29,7 +31,7 @@ and [write a template by hand](../guides/write-a-template.md).
         {"code": "qEBB", "column": "qEBB", "items": ["eba_qEC:qx16", "eba_qEC:qx23"]}
       ],
       "cells": [
-        {"id": "table-cell:5", "row": "0010", "column": "0010", "sheet": "*",
+        {"id": "C_07.00.a/dp12345", "row": "0010", "column": "0010", "sheet": "*",
          "datapoint": "dp12345", "data_type": "m"}
       ]
     }
@@ -44,14 +46,14 @@ and [write a template by hand](../guides/write-a-template.md).
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `format` | string | yes | `"dpm-synth-template/1"`, or `"dpm-module/1"` for a [dpm-xl module file](https://luukhopman.github.io/dpm-xl/reference/module-file/), which has the same fields. |
+| `format` | string | yes | `"dpm-module/1"` for a [dpm-xl module file](https://luukhopman.github.io/dpm-xl/reference/module-file/), or `"dpm-synth-template/1"`; both have the fields on this page. |
 | `release` | string | yes | The DPM release, such as `"4.3"`. Informative. |
 | `module` | string | yes | The module code, such as `"COREP_OF"`. Named in error messages and the JSON output. |
 | `entry_point` | string or null | no | The module's xBRL-CSV entry point, written to `reports/report.json` as `extends`. |
 | `reference_date` | string or null | no | The reference date, `YYYY-MM-DD`; it is the `refPeriod` parameter and the rules' `{refPeriod}`, and `d` cells start in the ten years up to it. Before 2022-12-31 the entity is identified by its bare LEI (EBA filing rule 3.6). Default `2026-12-31`; the `--reference-date` option overrides it. |
 | `currency` | string or null | no | The reporting currency, an ISO 4217 code such as `"SEK"`; the report's `baseCurrency`, written only when a monetary fact is reported. Default `"EUR"`; the `--currency` option overrides it. |
 | `decimals` | object | no | Reporting decimals by data type code, such as `{"m": -3}`; whole numbers from -20 to 20. Unlisted types keep the defaults `m` 0, `p` 4, `i` 0, `r` 2. EBA filing rule 2.18 sets the least accuracy: `p` 4 or more, `i` exactly 0, and `m` -4 or more, or -6 for the FP, ESG, Pillar 3 and REM_DBM modules; `m` below -6 is rejected. |
-| `filing_indicators` | array of strings | no | The filing indicators of every template of the module, such as `["C_07.00", "C_08.01"]`, which EBA filing rule 1.6 asks a report to declare. Those of the template's tables are reported as `true`, the others as `false`. Unique, and must include every table's `filing_indicator`. |
+| `filing_indicators` | array of strings | no | The filing indicators of every reporting template of the module, such as `["C_07.00", "C_08.01"]`, which EBA filing rule 1.6 asks a report to declare. Those that a table of the file uses are reported as `true`, the others as `false`. Unique, and must include every table's `filing_indicator`. |
 | `tables` | array | yes | At least one [table](#tables). |
 | `rules` | array | no | The [rules](#rules); none means every value is simply generated. |
 
@@ -59,7 +61,7 @@ and [write a template by hand](../guides/write-a-template.md).
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `code` | string | yes | The table code, such as `"C_07.00.a"`, as rules name it. Lower-cased, it names the table's file, `reports/c_07.00.a.csv`, so it is letters, digits, `_`, `.` and `-`, starting with a letter or digit, and not `parameters` or `FilingIndicators`. Unique within the template, ignoring case. |
+| `code` | string | yes | The table code, such as `"C_07.00.a"`, as rules name it. Lower-cased, it names the table's file, `reports/c_07.00.a.csv`, so it is letters, digits, `_`, `.` and `-`, starting with a letter or digit, and not `parameters` or `FilingIndicators`. Unique within the file, ignoring case. |
 | `filing_indicator` | string or null | no | The filing indicator the table is reported under, such as `"C_07.00"`. Default: the code. It is reported as `true`. |
 | `open_keys` | array | no | The table's [open keys](#open-keys); none for a closed table. |
 | `cells` | array | yes | At least one [cell](#cells). |
@@ -80,22 +82,40 @@ The generator gives every open table `open_rows` key rows (default 2).
 Enumerated keys take their items in order, row by row, so an enumerated key
 with fewer items than rows gives fewer distinct rows.
 
+## Open tables
+
+In an open table, the reporter adds one row of the table's file per key
+value. In the table's layout, the axis that repeats per key value is the
+*open axis*, and its code is written `*`:
+
+- In most open tables the rows repeat: the cells have `"row": "*"` and
+  their own columns, as `S_03.00` in [`sample.json`](../samples/sample.json):
+  `{"row": "*", "column": "0020", ...}`.
+- In some, the sheets repeat, such as one sheet per counterparty group,
+  and the rows stay fixed: the cells have their rows and `"sheet": "*"`, as
+  `S_02.00.a`: `{"row": "0010", "column": "0010", "sheet": "*", ...}`.
+
+Copy what `dpm-xl export-module` writes. A rule selects the `*` cells only
+when it names no code on that axis, or `*`: `{tS_03.00, c0020}` and
+`{tS_02.00.a, r0010, c0010}` select them; `{tS_03.00, r0010, c0020}` does
+not.
+
 ## Cells
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `id` | string | yes | An identifier of the cell, unique within the template. Only used in error messages. |
+| `id` | string | yes | An identifier of the cell, unique within the file, in any form, such as `C_07.00.a/dp12345`. Only used in error messages. |
 | `datapoint` | string | yes | The datapoint code written in the table's `datapoint` column, such as `"dp12345"`. Two tables may share a datapoint; they then share its value. |
 | `data_type` | string or null | no | The [data type](#data-types). |
-| `row` | string or null | no | The row code, such as `"0010"`, without the `r`. Null for a table without rows; `"*"` for a cell of every row of an open table, which only a selection without rows, or with `r*`, selects. |
+| `row` | string or null | no | The row code, such as `"0010"`, without the `r`. Null for a table without rows; `"*"` when the rows are the [open axis](#open-tables). |
 | `column` | string or null | no | The column code, such as `"0010"`. |
-| `sheet` | string or null | no | The sheet code; `"*"` for a cell on every sheet, as in open tables. |
+| `sheet` | string or null | no | The sheet code, without the `s`; `"*"` when the sheets are the [open axis](#open-tables). |
 | `items` | array of strings or null | no | The allowed item qnames of an enumerated (`e`) cell; required for those. The first is its starting value. Ignored for other data types. |
 | `unit` | boolean or null | no | `true` for a monetary cell reported in its currency of denomination, whose datapoint has a `unit` in the module's metadata (EBA filing rule 3.1). Its table's file then has a `unit` column: the currency of the row's `CUS` or `CUA` key, such as `iso4217:USD` for `eba_CU:USD`, and otherwise the reporting currency. Default `false`. |
 
 Rules select cells by table, row, column and sheet, as in
 `{tC_07.00.a, r0010, c0010}`; the generator answers such a selection with
-the template's cells, for every key row of an open table.
+the file's cells, for every key row of an open table.
 
 ## Data types
 
@@ -109,7 +129,7 @@ repairs apply, how the value is rounded and how it is written.
 | `i` | integer | 1 to 50 | a decimal with `decimals.i` places |
 | `r` | decimal | 1.00 to 9.99 | a decimal with `decimals.r` places |
 | `o` | ordinal | 1 to 10 | a whole number |
-| `e` | enumerated | the first of `items` | the item qname as the template writes it |
+| `e` | enumerated | the first of `items` | the item qname as the file writes it |
 | `b` | boolean | `true` or `false` | `true` or `false` |
 | `t` | true | `true`; no repair changes it | `true` |
 | `d` | date | a day in the ten years up to the reference date | `YYYY-MM-DD` |
@@ -132,21 +152,22 @@ monetary value is written as a multiple of 1,000.
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `code` | string | yes | The rule code, such as `"v0001_m"`. Unique within the template: results list rules by code. |
+| `code` | string | yes | The rule code, such as `"v0001_m"`. Unique within the file: results list rules by code. |
 | `expression` | string | yes | The DPM-XL expression, as [dpm-xl] parses it. |
 | `precondition` | string or null | no | A DPM-XL precondition, such as `"{v_C_07.00}"`; the rule applies only when it holds. |
 | `source` | string or null | no | Who defines the rule, such as `"eba"`. Default `"eba"`. Informative: filter the rules before generating if you want only some sources. |
 | `severity` | string or null | no | `"error"` for a blocking rule or `"warning"`. Default `"error"`. Both are repaired alike; the severity is shown in the output and decides, with `--fail-on`, the [exit status](exit-statuses.md). |
-| `active` | boolean or null | no | `false` for a rule that does not apply, such as one the EBA deactivated: it is neither repaired nor evaluated, and is reported as `skipped`. It is not parsed, so it may select a table the template does not have. Default `true`. |
+| `active` | boolean or null | no | `false` for a rule that does not apply, such as one the EBA deactivated: it is neither repaired nor evaluated, and is reported as `skipped`. It is not parsed, so it may select a table the file does not have. Default `true`. |
 
-Every table of the template counts as reported, so a precondition such as
-`{v_C_07.00}` holds when the template has that table or filing indicator,
-and is false otherwise.
-`{vReportingLevel}` is `con` or `ind` and `{refPeriod}` is the reference
-date. A rule or precondition that does not parse, or that selects a table
-the template does not have, is an error of the template, unless the table
-is of a template in `filing_indicators` without tables: that template is
-reported as absent, so the rule is `not_applicable`.
+Every table of the file counts as reported, so a precondition such as
+`{v_C_07.00}` holds when the file has a table of reporting template
+`C_07.00`, and is false otherwise. `{vReportingLevel}` is `con` or `ind`
+and `{refPeriod}` is the reference date.
+
+A rule or precondition that does not parse, or that selects a table the
+file does not have, is an error of the template file, with one exception:
+a reporting template listed in `filing_indicators` with no tables in the
+file is reported as absent, so a rule on it is `not_applicable`.
 
 ## Validation
 
@@ -179,9 +200,9 @@ the command line reports any of them with exit status 3.
 
 ## Compatibility
 
-Fields a version does not know are ignored, so a template with extra fields
-loads, and exports may carry more information than dpm-synth uses. A module
-file that `dpm-xl export-module` writes loads as it is. A change
+Fields a version does not know are ignored, so a template file with extra
+fields loads, and exports may carry more information than dpm-synth uses.
+A module file that `dpm-xl export-module` writes loads as it is. A change
 that a reader of `dpm-synth-template/1` cannot ignore gets a new format
 version, `dpm-synth-template/2`; see
 [stability and versioning](../project/stability.md).

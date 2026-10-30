@@ -97,7 +97,7 @@ rule prior-period (unsupported): The rule compares with the previous reporting p
 wrote sample.zip (20 facts)
 ```
 
-- `rules` counts the template's rules; the counts by
+- `rules` counts the template file's rules; the counts by
   [status](../reference/json-output.md#rule-statuses) add up to it.
   `passed` and `failed` are always shown, the others when a rule has them.
 - `rounds` lists the failing rules at the start of each round.
@@ -115,7 +115,7 @@ wrote sample.zip (20 facts)
 | `--open-rows N` | Key rows per open table while solving, from 1 to 1,000 ([`MAX_OPEN_ROWS`][dpmsynth.MAX_OPEN_ROWS]). A table whose keys are all enumerated gets at most as many rows as its item lists repeat after. |
 | `--max-rounds N` | Most evaluate-and-repair rounds, 0 or more; 0 writes the starting values. |
 | `--scale-rows N` | Write every open table with `N` key rows, from 1 to 9,999,999,999, by repeating the solved rows under new keys; see [load-test with scaled packages](../guides/load-testing.md). The summary and the exit status are those of the unscaled report. |
-| `--reference-date YYYY-MM-DD` | Overrides the template's reference date; exactly `YYYY-MM-DD`, as in the template. |
+| `--reference-date YYYY-MM-DD` | Overrides the template file's reference date; exactly `YYYY-MM-DD`, as in the file. |
 | `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme, or the bare LEI in the LEI scheme before the reference date 2022-12-31 and for a module whose code has `_con` or `_ind` (EBA filing rule 3.6). |
 | `--level CON\|IND` | The reporting level, consolidated or individual. |
 | `--currency CODE` | The reporting currency, an ISO 4217 code such as `SEK`, written as `baseCurrency` when a monetary fact is reported. |

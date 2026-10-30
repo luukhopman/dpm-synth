@@ -75,7 +75,10 @@ An open table has one row per key value. Each `open_keys` entry becomes a
 column of the table's file. A key with `items` is enumerated and takes its
 items in order; a key without is typed, and gets generated values: integers
 for `"data_type": "i"`, dates for `"d"`, and LEI-shaped identifiers
-otherwise. Cells of an open table usually have row `*`, for every row:
+otherwise. The open axis is written `*`: here the rows, one per key value,
+so the cells have row `*`. See
+[open tables](../reference/template-format.md#open-tables) for tables whose
+sheets are open instead.
 
 ```python
 template["tables"].append(
@@ -86,8 +89,8 @@ template["tables"].append(
             {"code": "qCT", "column": "c0020", "items": ["eba_CT:x1", "eba_CT:x2"]},
         ],
         "cells": [
-            cell("L_02.00", "*", "0030", "dp201", "m", sheet="*"),  # amount
-            cell("L_02.00", "*", "0040", "dp202", "s", sheet="*"),  # name
+            cell("L_02.00", "*", "0030", "dp201", "m"),  # amount
+            cell("L_02.00", "*", "0040", "dp202", "s"),  # name
         ],
     }
 )
@@ -194,4 +197,23 @@ tables[1].open_keys[0].column: 'datapoint' is a fact column of the table
 ```
 
 The loader also parses every rule: a rule that does not parse, or that
-selects a table the template does not have, is an error of the template.
+selects a table the template file does not have, is an error of the
+template file.
+
+## Keep only some rules
+
+Each rule carries a `source`. If the release, or your own rule set, has
+rules from more than one source, keep the ones you want before generating.
+`ModuleTemplate` is a frozen dataclass, so `dataclasses.replace` gives a
+copy with other rules, or other tables:
+
+```python
+from dataclasses import replace
+
+own = replace(loaded, rules=tuple(r for r in loaded.rules if r.source == "eba"))
+print(len(own.rules))
+```
+
+```text
+7
+```
