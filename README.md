@@ -58,13 +58,24 @@ whose module file dpm-synth reads as it is (see
 ## Features
 
 - **Any module**: the `dpm-synth-template/1` format describes tables, open
-  keys, cells, data types, allowed items and DPM-XL rules.
+  keys, cells, data types, allowed items and DPM-XL rules. dpm-synth also
+  reads the module file (`dpm-module/1`) that `dpm-xl export-module` writes
+  from an EBA DPM release.
+- **Every DPM data type**: `es` cells get non-empty text (EBA filing rule
+  2.19), `t` cells are always `true`, and dates, URIs and ordinals have
+  their own forms.
 - **Rules satisfied**: an evaluate-and-repair loop over the rules, with
   [dpm-xl](https://luukhopman.github.io/dpm-xl/), repairs sums,
   differences, products, sign rules, `isnull`, `in` and `match`, after a
   joint solve of the linear rules. On EBA DPM 4.3 COREP_OF, all 1,051
-  rules that apply pass with seed 7, and all but one or two with other
-  seeds; the result names the rest.
+  rules that apply pass with seed 7, and seeds 0 to 4 leave 0 to 2
+  failing; the result names the rest
+  ([limits](https://luukhopman.github.io/dpm-synth/concepts/limits/)).
+- **Realistic shape**: `--size small|medium|large` for the amounts,
+  `--fill` for sparse reports and `--currency` for the reporting currency.
+- **Severities and inactive rules**: failing `warning` rules exit with
+  status 1 only with `--fail-on warning`; rules with `"active": false` are
+  skipped.
 - **Valid packages**: written by
   [dpm-xbrl](https://luukhopman.github.io/dpm-xbrl/), with a fictional LEI,
   and read back without broken EBA filing rules other than the file name.

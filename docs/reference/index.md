@@ -20,13 +20,13 @@ Exact, complete descriptions. For explanations, see the
 
     ---
 
-    The `dpm-synth-template/1` JSON format, field by field, and how it is validated.
+    The `dpm-synth-template/1` JSON format, field by field, and how it is validated; dpm-xl's `dpm-module/1` has the same fields.
 
 -   :lucide-terminal:{ .lg .middle } [**CLI**](cli.md)
 
     ---
 
-    The `dpm-synth generate` command and every option.
+    The `dpm-synth generate` command and every option, such as `--size`, `--fill`, `--currency` and `--fail-on`.
 
 -   :lucide-list-ordered:{ .lg .middle } [**Exit statuses**](exit-statuses.md)
 
