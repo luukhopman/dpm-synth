@@ -7,7 +7,7 @@ from dpmxbrl import read_report
 
 from dpmsynth import __version__
 from dpmsynth.cli import main
-from tests.support import SAMPLES, cell, document
+from tests.support import SAMPLES, cell, document, facts_in
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def test_options(tmp_path: Path, sample: Path) -> None:
     assert report.entity_id == "SYNTHETICDPMXL000002.IND"
     assert str(report.reference_date) == "2025-06-30"
     assert report.base_currency == "iso4217:SEK"
-    assert len([fact for fact in report.facts if fact.template == "s_03.00"]) == 1
+    assert len(facts_in(report, "s_03.00")) == 1
 
 
 def test_json_summary(tmp_path: Path, sample: Path, capsys) -> None:

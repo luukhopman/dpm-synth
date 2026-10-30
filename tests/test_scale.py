@@ -7,7 +7,7 @@ import pytest
 from dpmxbrl import read_report
 
 from dpmsynth import generate, load_template, write_scaled_package
-from tests.support import SAMPLES, cell, document
+from tests.support import SAMPLES, cell, document, facts_in
 
 
 @pytest.fixture(scope="module")
@@ -23,9 +23,9 @@ def test_scaled_package_repeats_solved_rows_under_unique_keys(
     # Typed keys get one fresh value per row; enumerated keys cap the rows.
     assert written == {"S_01.00": 14, "S_02.00.a": 4, "S_03.00": 50}
     report = read_report(path)
-    typed = [fact for fact in report.facts if fact.template == "s_03.00"]
+    typed = facts_in(report, "s_03.00")
     assert len({fact.keys["c0010"] for fact in typed}) == 50
-    keyed = [fact for fact in report.facts if fact.template == "s_02.00.a"]
+    keyed = facts_in(report, "s_02.00.a")
     assert {fact.keys["qEBB"] for fact in keyed} == {"eba_qEC:qx16", "eba_qEC:qx23"}
     assert len(report.facts) == sum(written.values())
     for fact in typed:
@@ -55,9 +55,9 @@ def test_scaled_typed_keys_keep_their_data_type(tmp_path: Path) -> None:
     # Date keys run back to 1900-01-01: ten distinct dates.
     assert written == {"T": 20, "U": 10}
     report = read_report(path)
-    integers = [fact.keys["qID"] for fact in report.facts if fact.template == "t"]
+    integers = [fact.keys["qID"] for fact in facts_in(report, "t")]
     assert integers == [str(n) for n in range(1, 21)]
-    dates = [fact.keys["qDT"] for fact in report.facts if fact.template == "u"]
+    dates = [fact.keys["qDT"] for fact in facts_in(report, "u")]
     assert dates[0] == "1900-01-10" and dates[-1] == "1900-01-01"
 
 

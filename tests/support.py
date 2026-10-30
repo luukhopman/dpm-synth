@@ -9,7 +9,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from dpmxbrl import Report
+from dpmxbrl import Fact, Report
 from dpmxl import CellQuery, DataPoint, Item, Number, Value, axis_matches
 
 from dpmsynth import TEMPLATE_FORMAT, ModuleTemplate, OpenKey
@@ -19,6 +19,19 @@ SAMPLES = Path(__file__).parent.parent / "docs" / "samples"
 
 def sample(name: str) -> dict[str, Any]:
     return json.loads((SAMPLES / name).read_text(encoding="utf-8"))
+
+
+def facts_in(report: Report, table: str) -> list[Fact]:
+    """Return a report's facts of a table, whatever the case of its code.
+
+    dpm-xbrl gives the template of a fact read back either as the file stem
+    (``t_01.00``) or in the EBA form (``T_01.00``), depending on its version.
+    """
+    return [
+        fact
+        for fact in report.facts
+        if (fact.template or "").casefold() == table.casefold()
+    ]
 
 
 def cell(row, column, number, data_type="m", sheet=None, items=None):

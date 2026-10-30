@@ -61,6 +61,11 @@ def test_scaled_package_keeps_row_wise_rules(tmp_path: Path) -> None:
 
 def _facts(report):
     return sorted(
-        (fact.template, fact.datapoint, fact.value, sorted(fact.keys.items()))
+        (
+            (fact.template or "").lower(),
+            fact.datapoint,
+            fact.value,
+            sorted(fact.keys.items()),
+        )
         for fact in report.facts
     )
