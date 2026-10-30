@@ -44,7 +44,7 @@ and [write a template by hand](../guides/write-a-template.md).
 
 | Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `format` | string | yes | Exactly `"dpm-synth-template/1"`. |
+| `format` | string | yes | `"dpm-synth-template/1"`, or `"dpm-module/1"` for a [dpm-xl module file](https://luukhopman.github.io/dpm-xl/reference/module-file/), which has the same fields. |
 | `release` | string | yes | The DPM release, such as `"4.3"`. Informative. |
 | `module` | string | yes | The module code, such as `"COREP_OF"`. Named in error messages and the JSON output. |
 | `entry_point` | string or null | no | The module's xBRL-CSV entry point, written to `reports/report.json` as `extends`. |
@@ -180,7 +180,8 @@ the command line reports any of them with exit status 3.
 ## Compatibility
 
 Fields a version does not know are ignored, so a template with extra fields
-loads, and exports may carry more information than dpm-synth uses. A change
+loads, and exports may carry more information than dpm-synth uses. A module
+file that `dpm-xl export-module` writes loads as it is. A change
 that a reader of `dpm-synth-template/1` cannot ignore gets a new format
 version, `dpm-synth-template/2`; see
 [stability and versioning](../project/stability.md).

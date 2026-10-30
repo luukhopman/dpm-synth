@@ -28,6 +28,9 @@ https://luukhopman.github.io/dpm-synth/reference/template-format/; in short:
                  "expression": "…", "precondition": "{v_C_07.00}"}]
     }
 
+A dpm-xl module file (``"format": "dpm-module/1"``) has the same fields and
+loads too.
+
 Data types follow DPM codes: ``m`` monetary, ``p`` percentage, ``i`` integer,
 ``r`` decimal, ``o`` ordinal, ``e`` enumerated item, ``b`` boolean, ``t``
 true, ``d`` date, ``dt`` date and time, ``u`` URI, ``s`` and ``es`` text,
@@ -49,7 +52,10 @@ from typing import Any
 from dpmxl import DpmXlSyntaxError, parse, tables
 
 TEMPLATE_FORMAT = "dpm-synth-template/1"
-"""The ``format`` value of the templates this version reads."""
+"""The ``format`` value of a template."""
+
+# A dpm-xl module file has the same fields, so it loads too.
+_FORMATS = (TEMPLATE_FORMAT, "dpm-module/1")
 
 # Table codes name the package's CSV files, as dpm-xbrl writes them.
 _TABLE_CODE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
@@ -225,8 +231,9 @@ def load_template(
 ) -> ModuleTemplate:
     """Load and validate a template from a JSON file or a parsed document.
 
-    Fields this version does not know are ignored, so newer exports still
-    load.
+    The ``format`` is ``dpm-synth-template/1``, or ``dpm-module/1`` for a
+    dpm-xl module file, which has the same fields. Fields this version does
+    not know are ignored, so newer exports still load.
 
     Args:
         source: A path to a JSON file, or the document as a mapping.
@@ -236,7 +243,7 @@ def load_template(
 
     Raises:
         TemplateError: If the file cannot be read, is not JSON, or the
-            document is not a valid ``dpm-synth-template/1`` template.
+            document is not a valid template.
 
     Examples:
         >>> template = load_template("minimal.json")
@@ -272,11 +279,12 @@ class _Loader:
     def template(self, document: object) -> ModuleTemplate:
         root = self.mapping(document, "template")
         found = root.get("format")
-        if found != TEMPLATE_FORMAT:
+        if found not in _FORMATS:
+            expected = " or ".join(repr(name) for name in _FORMATS)
             raise TemplateError(
-                f"format: expected {TEMPLATE_FORMAT!r}, got {found!r}"
+                f"format: expected {expected}, got {found!r}"
                 if found is not None
-                else f"format: required, {TEMPLATE_FORMAT!r}"
+                else f"format: required, {expected}"
             )
         release = self.text(root, "release", "")
         module = self.text(root, "module", "")

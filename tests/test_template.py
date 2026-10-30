@@ -101,6 +101,12 @@ def test_optional_fields_and_unknown_fields() -> None:
     assert template.currency == "SEK"
 
 
+def test_loads_a_dpm_xl_module_file() -> None:
+    raw = document()
+    raw["format"] = "dpm-module/1"
+    assert load_template(raw) == load_template(document())
+
+
 def test_es_cells_need_no_items() -> None:
     raw = document()
     raw["tables"][0]["cells"][0] = {"id": "a", "datapoint": "dp1", "data_type": "es"}
@@ -157,7 +163,8 @@ _DELETE = object()
     [
         (
             _set(["format"], "dpm-synth-template/2"),
-            "format: expected 'dpm-synth-template/1', got 'dpm-synth-template/2'",
+            "format: expected 'dpm-synth-template/1' or 'dpm-module/1', "
+            "got 'dpm-synth-template/2'",
         ),
         (_set(["format"], _DELETE), "format: required"),
         (_set(["release"], _DELETE), "release: required"),

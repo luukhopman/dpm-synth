@@ -18,6 +18,8 @@ All notable changes to this project are documented here. The project follows
 - `t` cells are always `true`.
 - `dt` cells get dates, `u` cells URIs and `o` cells whole numbers; `o`
   and `dt` keys count like `i` and `d` keys.
+- `load_template` reads a dpm-xl module file (`"format": "dpm-module/1"`),
+  so the file `dpm-xl export-module` writes serves both tools.
 - `load_template` rejects an enumerated cell without `items`, which used to
   get the invalid value `eba_qx:qx0`.
 - A template's optional `filing_indicators` lists every template of the
