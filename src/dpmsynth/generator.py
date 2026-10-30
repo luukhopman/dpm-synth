@@ -1503,9 +1503,13 @@ def _project(
                 inequalities.append((bounds[1], ((slot, -1.0),)))
     rows = []
     for constant, terms in inequalities:
-        expression = _substitute(constant, terms, pivots)
-        if expression[1]:
-            rows.append((expression[0], tuple(expression[1].items())))
+        constant, row = _substitute(constant, terms, pivots)
+        if row:
+            # A row may fall short by a hundredth of a reporting step.
+            tolerance = 0.01 * min(
+                float(data._quantum(data._cell(s))) * abs(c) for s, c in row.items()
+            )
+            rows.append((constant, tuple(row.items()), tolerance))
     values: dict[Slot, float] = {}
 
     def start(slot: Slot) -> None:
@@ -1521,7 +1525,7 @@ def _project(
                 value = min(max(value, bounds[0]), bounds[1])
             values[slot] = value
 
-    for _constant, terms in rows:
+    for _constant, terms, _tolerance in rows:
         for slot, _c in terms:
             start(slot)
     for _constant, expression in pivots.values():
@@ -1617,14 +1621,14 @@ def _substitute(
 
 
 def _feasible(
-    rows: list[tuple[float, tuple[tuple[Slot, float], ...]]],
+    rows: list[tuple[float, tuple[tuple[Slot, float], ...], float]],
     values: dict[Slot, float],
     limits: dict[Slot, list[float]],
     passes: int,
     relaxation: float,
     sparse: set[Slot] | None = None,
 ) -> None:
-    """Move values until every ``constant + terms >= 0`` holds, if it can.
+    """Move values until every ``constant + terms >= -tolerance`` holds, if it can.
 
     A violated row is met by the smallest change of its cells that can move
     the way it needs, over-relaxed past the boundary so that rows sharing
@@ -1634,7 +1638,7 @@ def _feasible(
     """
     sparse = sparse or set()
     uses: dict[Slot, list[int]] = {}
-    for index, (_constant, terms) in enumerate(rows):
+    for index, (_constant, terms, _tolerance) in enumerate(rows):
         for slot, _c in terms:
             uses.setdefault(slot, []).append(index)
     queue = deque(range(len(rows)))
@@ -1644,9 +1648,9 @@ def _feasible(
         budget -= 1
         index = queue.popleft()
         queued[index] = False
-        constant, terms = rows[index]
+        constant, terms, tolerance = rows[index]
         excess = constant + sum(values[slot] * c for slot, c in terms)
-        if excess >= -0.01:
+        if excess >= -tolerance:
             continue
         movable = []
         for slot, c in terms:

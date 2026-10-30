@@ -1021,3 +1021,17 @@ def test_the_second_pass_never_ends_worse_than_the_first(monkeypatch) -> None:
     assert len(calls) == 2
     assert result.failed == ["r2"]
     assert value(result, 1).value >= 0
+
+
+def test_the_solve_meets_small_violations_of_ratios() -> None:
+    # 0.005 is 50 reporting steps of a percentage, not a rounding error.
+    from dpmsynth.generator import _project
+
+    cells = [cell("0010", "0010", 1, "p"), cell("0020", "0010", 2, "p")]
+    data = SyntheticData(load_template(document(cells, [])), random.Random(0), 1)
+    data.values["dp1", ()] = Number(Decimal("0.3"))
+    data.values["dp2", ()] = Number(Decimal("0.305"))
+    _project([(">=", 0.0, ((("dp1", ()), 1.0), (("dp2", ()), -1.0)))], data)
+    first, second = data.values["dp1", ()], data.values["dp2", ()]
+    assert isinstance(first, Number) and isinstance(second, Number)
+    assert first.value >= second.value
