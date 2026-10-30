@@ -93,6 +93,9 @@ with the rows; for larger tables, write a scaled package instead.
 """
 
 _NUMERIC = {"m", "p", "i", "r"}
+# DPM data types written as dates, and typed keys that count like integers.
+_DATES = {"d", "dt"}
+_COUNTED = {"i", "o"}
 # Monetary starting values by institution size: powers of ten, low to high.
 _SIZES = {"small": (3.0, 6.0), "medium": (5.0, 8.0), "large": (7.0, 10.0)}
 SIZES = tuple(_SIZES)
@@ -349,15 +352,24 @@ class SyntheticData:
             return self._number(cell, Decimal(self.rng.randint(1, 50)))
         if kind == "r":
             return self._number(cell, Decimal(self.rng.randint(100, 999)) / 100)
+        if kind == "o":
+            # An ordinal: an exact position, without reporting decimals.
+            return Number(Decimal(self.rng.randint(1, 10)))
         if kind in _ENUMERATED_TYPES:
-            # An enumeration set (es) is written as a set of one item.
             return Item.parse(cell.items[0]) if cell.items else None
         if kind == "b":
             return self.rng.random() < 0.5
-        if kind == "d":
-            # A day in the ten years up to the reference date.
+        if kind == "t":
+            # A Boolean that can only be true.
+            return True
+        if kind in _DATES:
+            # A day in the ten years up to the reference date; a date and
+            # time (dt) may be a date.
             reference = self._reference()
             return reference - timedelta(days=self.rng.randint(0, 3652))
+        if kind == "u":
+            return f"https://example.com/dpm-synth/{self.rng.randint(1, 9999)}"
+        # Text, es included: EBA filing rule 2.19 forbids the empty string.
         return f"Synthetic text {self.rng.randint(1, 9999)}"
 
     def _reference(self) -> date:
@@ -403,7 +415,7 @@ class SyntheticData:
         """Round every numeric value to its reporting decimals."""
         for slot, value in self.values.items():
             cell = self._cells.get(slot[0])
-            if isinstance(value, Number) and cell is not None:
+            if isinstance(value, Number) and cell and cell.data_type in _NUMERIC:
                 self.values[slot] = self._number(cell, value.value)
 
     def _within_bounds(self, slot: Slot, value: Decimal) -> bool:
@@ -495,7 +507,7 @@ class SyntheticData:
             for cell in cells:
                 slot = (cell.datapoint, keys)
                 value = self.values.get(slot)
-                if isinstance(value, Number):
+                if isinstance(value, Number) and cell.data_type in _NUMERIC:
                     # Reported facts carry their decimals as a tolerance.
                     value = Number.of(
                         value.value, self.decimals.get(cell.data_type or "", 2)
@@ -566,9 +578,9 @@ def _typed_key(key: OpenKey, number: int, reference: date) -> Value:
     Returns:
         Value: A number or a date; ``None`` for a key of any other type.
     """
-    if key.data_type == "i":
+    if key.data_type in _COUNTED:
         return Number(Decimal(number + 1))
-    if key.data_type == "d":
+    if key.data_type in _DATES:
         return reference - timedelta(days=number % _key_dates(reference))
     return None
 
@@ -746,12 +758,20 @@ class _Repairer:
         if cell is None:
             return False
         slot = cast(Slot, slot)
-        if value is not None and (cell.data_type in _NUMERIC) != isinstance(
-            value, Number
-        ):
+        kind = cell.data_type
+        if kind == "o":
+            # An ordinal is an exact whole number.
+            if value is not None and not (
+                isinstance(value, Number) and value.value == value.value.to_integral()
+            ):
+                return False
+        elif value is not None and (kind in _NUMERIC) != isinstance(value, Number):
             # Numbers go in numeric cells only, and nothing else does.
             return False
-        if isinstance(value, Number):
+        elif kind == "t" and value not in (None, True):
+            # A t cell can only be true.
+            return False
+        if isinstance(value, Number) and kind != "o":
             if abs(value.value) > _LIMIT:
                 return False
             value = self.data._number(cell, value.value)

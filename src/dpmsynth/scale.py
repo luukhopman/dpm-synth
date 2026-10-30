@@ -68,7 +68,7 @@ def _scaled_rows(
     reference = data._reference()
     if not typed:
         count = min(count, len(solved))
-    elif all(key.data_type == "d" for key in typed):
+    elif all(key.data_type in {"d", "dt"} for key in typed):
         count = min(count, _key_dates(reference))
     prefixes = {
         key.code: LEI_PREFIX + (_PREFIX.sub("", key.code.upper()) + "XXX")[:3]

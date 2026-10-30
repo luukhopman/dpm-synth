@@ -74,7 +74,7 @@ counterparty. Each key becomes a column of the table's file.
 | `code` | string | yes | The key's property code, as rules name it, such as `"qEBB"` in `[where qEBB = …]`. |
 | `column` | string or null | no | The key's column in the table's file. Default: the code. Unique within the table, and not `datapoint` or `factValue`. |
 | `items` | array of strings or null | no | The allowed item qnames of an enumerated key, such as `"eba_qEC:qx16"`. Null or empty for a typed key, whose values are generated. |
-| `data_type` | string or null | no | The data type of a typed key: `i` gives integers 1, 2, 3 and so on; `d` gives dates counting back from the reference date; any other code, or null, gives LEI-shaped identifiers starting with `SYNTH`. |
+| `data_type` | string or null | no | The data type of a typed key: `i` or `o` gives integers 1, 2, 3 and so on; `d` or `dt` gives dates counting back from the reference date; any other code, or null, gives LEI-shaped identifiers starting with `SYNTH`. |
 
 The generator gives every open table `open_rows` key rows (default 2).
 Enumerated keys take their items in order, row by row, so an enumerated key
@@ -90,7 +90,7 @@ with fewer items than rows gives fewer distinct rows.
 | `row` | string or null | no | The row code, such as `"0010"`, without the `r`. Null for a table without rows; `"*"` for a cell of every row of an open table, which only a selection without rows, or with `r*`, selects. |
 | `column` | string or null | no | The column code, such as `"0010"`. |
 | `sheet` | string or null | no | The sheet code; `"*"` for a cell on every sheet, as in open tables. |
-| `items` | array of strings or null | no | The allowed item qnames of an enumerated (`e` or `es`) cell; required for those. The first is its starting value. |
+| `items` | array of strings or null | no | The allowed item qnames of an enumerated (`e`) cell; required for those. The first is its starting value. Ignored for other data types. |
 | `unit` | boolean or null | no | `true` for a monetary cell reported in its currency of denomination, whose datapoint has a `unit` in the module's metadata (EBA filing rule 3.1). Its table's file then has a `unit` column: the currency of the row's `CUS` or `CUA` key, such as `iso4217:USD` for `eba_CU:USD`, and otherwise the reporting currency. Default `false`. |
 
 Rules select cells by table, row, column and sheet, as in
@@ -108,11 +108,18 @@ repairs apply, how the value is rounded and how it is written.
 | `p` | percentage | 0.01 to 0.99 | a decimal with `decimals.p` places |
 | `i` | integer | 1 to 50 | a decimal with `decimals.i` places |
 | `r` | decimal | 1.00 to 9.99 | a decimal with `decimals.r` places |
+| `o` | ordinal | 1 to 10 | a whole number |
 | `e` | enumerated | the first of `items` | the item qname as the template writes it |
-| `es` | enumeration set | the first of `items`, as a set of one item | the item qname as the template writes it |
 | `b` | boolean | `true` or `false` | `true` or `false` |
+| `t` | true | `true`; no repair changes it | `true` |
 | `d` | date | a day in the ten years up to the reference date | `YYYY-MM-DD` |
-| anything else, or null | text | `Synthetic text` and a number; a `match` repair writes an LEI-shaped identifier starting with `SYNTH` where a rule asks for one | the text |
+| `dt` | date and time | a day in the ten years up to the reference date | `YYYY-MM-DD`, a valid date and time value |
+| `u` | URI | `https://example.com/dpm-synth/` and a number | the URI |
+| `s`, `es`, anything else, or null | text | `Synthetic text` and a number; a `match` repair writes an LEI-shaped identifier starting with `SYNTH` where a rule asks for one | the text |
+
+An `es` value may be empty in the DPM, but EBA filing rule 2.19 forbids
+reporting the empty string (in xBRL-CSV, `#empty`), so dpm-synth never
+writes one.
 
 Starting values depend on the seed only. With `fill` below 1 (`--fill`),
 a share of the cells starts empty instead and is left out of the report

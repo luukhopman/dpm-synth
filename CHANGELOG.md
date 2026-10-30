@@ -13,8 +13,11 @@ All notable changes to this project are documented here. The project follows
   `not_applicable`.
 - Typed open keys take an optional `data_type`: `i` keys get integers and
   `d` keys get dates instead of LEI-shaped identifiers.
-- Enumeration-set (`es`) cells get an allowed item instead of an
-  LEI-shaped identifier.
+- `es` cells are text that may be empty, as the DPM defines them, and need
+  no `items`; they get non-empty text, as EBA filing rule 2.19 requires.
+- `t` cells are always `true`.
+- `dt` cells get dates, `u` cells URIs and `o` cells whole numbers; `o`
+  and `dt` keys count like `i` and `d` keys.
 - `load_template` rejects an enumerated cell without `items`, which used to
   get the invalid value `eba_qx:qx0`.
 - A template's optional `filing_indicators` lists every template of the

@@ -101,6 +101,12 @@ def test_optional_fields_and_unknown_fields() -> None:
     assert template.currency == "SEK"
 
 
+def test_es_cells_need_no_items() -> None:
+    raw = document()
+    raw["tables"][0]["cells"][0] = {"id": "a", "datapoint": "dp1", "data_type": "es"}
+    assert load_template(raw).tables[0].cells[0].items is None
+
+
 def test_rules_may_select_templates_reported_as_absent() -> None:
     raw = document()
     raw["filing_indicators"] = ["T_01.00", "U_01.00"]
@@ -209,13 +215,6 @@ _DELETE = object()
         (
             _set(["tables", 0, "cells", 0, "data_type"], "e"),
             "tables[0].cells[0].items: required for an enumerated cell (data type 'e')",
-        ),
-        (
-            _set(
-                ["tables", 0, "cells", 0],
-                {"id": "a", "datapoint": "dp1", "data_type": "es", "items": []},
-            ),
-            "tables[0].cells[0].items: required for an enumerated cell (data type 'es')",
         ),
         (
             _set(["filing_indicators"], "T_01.00"),

@@ -29,9 +29,10 @@ https://luukhopman.github.io/dpm-synth/reference/template-format/; in short:
     }
 
 Data types follow DPM codes: ``m`` monetary, ``p`` percentage, ``i`` integer,
-``r`` decimal, ``e`` enumerated item, ``es`` enumeration set, ``b`` boolean,
-``d`` date, anything else text. ``items`` lists the allowed item qnames of
-enumerated cells and keys.
+``r`` decimal, ``o`` ordinal, ``e`` enumerated item, ``b`` boolean, ``t``
+true, ``d`` date, ``dt`` date and time, ``u`` URI, ``s`` and ``es`` text,
+anything else text. ``items`` lists the allowed item qnames of enumerated
+cells and keys.
 """
 
 from __future__ import annotations
@@ -59,7 +60,7 @@ _MAX_DECIMALS = 20
 # -4 (-6 for some modules), percentages 4; integers take exactly 0.
 _MIN_DECIMALS = {"m": -6, "p": 4}
 _CURRENCY = re.compile(r"[A-Z]{3}")
-_ENUMERATED_TYPES = frozenset({"e", "es"})
+_ENUMERATED_TYPES = frozenset({"e"})
 _SEVERITIES = ("error", "warning")
 
 
@@ -86,9 +87,9 @@ class OpenKey:
         column: The column of the key in the table's CSV file.
         items: Allowed item qnames for an enumerated key; ``None`` for a
             typed key, which gets generated identifiers.
-        data_type: The DPM data type code of a typed key: ``i`` for
-            integers, ``d`` for dates; ``None`` or any other code gives
-            LEI-shaped identifiers.
+        data_type: The DPM data type code of a typed key: ``i`` or ``o``
+            for integers, ``d`` or ``dt`` for dates; ``None`` or any other
+            code gives LEI-shaped identifiers.
     """
 
     code: str
@@ -110,8 +111,8 @@ class TemplateCell:
             rows, ``*`` for every row of an open table.
         column: The column code.
         sheet: The sheet code, ``*`` for every sheet, or ``None``.
-        items: Allowed item qnames of an enumerated (``e`` or ``es``) cell;
-            required for those.
+        items: Allowed item qnames of an enumerated (``e``) cell; required
+            for those.
         unit: Whether the monetary value is reported in its currency of
             denomination, in the table's ``unit`` column.
     """

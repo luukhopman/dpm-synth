@@ -530,25 +530,40 @@ def test_huge_corrections_are_not_written() -> None:
 
 
 def test_initial_values_by_data_type() -> None:
-    kinds = ["m", "p", "i", "r", "e", "b", "d", "s", None, "es"]
+    kinds = ["m", "p", "i", "r", "e", "b", "d", "s", None, "es", "t", "dt", "u", "o"]
     cells = [
-        cell(f"00{index}0", "0010", index, kind, items=["eba_AB:x1", "eba_AB:x2"])
-        if kind in ("e", "es")
-        else cell(f"00{index}0", "0010", index, kind)
+        cell(f"{index:03}0", "0010", index, kind, items=["eba_AB:x1", "eba_AB:x2"])
+        if kind == "e"
+        else cell(f"{index:03}0", "0010", index, kind)
         for index, kind in enumerate(kinds, 1)
     ]
     result = run(cells, [], seed=11)
-    m, p, i, r, e, b, d, s, text, es = (value(result, n) for n in range(1, 11))
+    m, p, i, r, e, b, d, s, text, es, t, dt, u, o = (
+        value(result, n) for n in range(1, 15)
+    )
     assert m.value % 1000 == 0 and 100_000 <= m.value <= 100_000_000
     assert 0 < p.value < 1
     assert 1 <= i.value <= 50 and i.value == i.value.to_integral_value()
     assert 1 <= r.value < 10
-    assert e == es == Item("AB", "x1")
+    assert e == Item("AB", "x1")
     assert isinstance(b, bool)
+    assert t is True
     assert date(2016, 12, 31) <= d <= date(2026, 12, 31)
+    assert date(2016, 12, 31) <= dt <= date(2026, 12, 31)
     # Text is not LEI-shaped: only match repairs write LEIs.
     assert isinstance(s, str) and s.startswith("Synthetic text ")
     assert isinstance(text, str) and text.startswith("Synthetic text ")
+    # es may be empty in the DPM, but EBA filing rule 2.19 forbids it.
+    assert isinstance(es, str) and es.startswith("Synthetic text ")
+    assert u.startswith("https://example.com/")
+    assert 1 <= o.value <= 10 and result.data._text(o) == str(o.value)
+
+
+def test_a_t_cell_stays_true() -> None:
+    cells = [cell("0010", "0010", 1, "t"), cell("0020", "0010", 2, "b")]
+    rules = ["{tT, r0010, c0010} = {tT, r0020, c0010}", "not({tT, r0020, c0010})"]
+    result = run(cells, rules, seed=1)
+    assert value(result, 1) is True
 
 
 def test_booleans_and_dates_vary_by_seed() -> None:

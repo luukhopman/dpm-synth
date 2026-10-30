@@ -1,5 +1,5 @@
 ---
-description: The standards the reports of dpm-synth follow (EBA Filing Rules v5.9 rules 1.6, 2.18, 3.1 and 3.6; xBRL-CSV 1.0 and Report Packages 1.0 through dpm-xbrl; DPM-XL 0.11 through dpm-xl), with links to the primary sources, what is not followed, and how it is tested.
+description: The standards the reports of dpm-synth follow (EBA Filing Rules v5.9 rules 1.6, 2.18, 2.19, 3.1 and 3.6; xBRL-CSV 1.0 and Report Packages 1.0 through dpm-xbrl; DPM-XL 0.11 through dpm-xl), with links to the primary sources, what is not followed, and how it is tested.
 icon: lucide/badge-check
 ---
 
@@ -13,7 +13,7 @@ evaluates the rules, and their standards pages give the details.
 
 | Standard | Version | Publisher | dpm-synth |
 | --- | --- | --- | --- |
-| [EBA Filing Rules][eba-filing-rules] | 5.9, 26 June 2026 | EBA | Writes reports that follow rules 1.6, 2.18, 3.1 and 3.6, where the template gives what they need. |
+| [EBA Filing Rules][eba-filing-rules] | 5.9, 26 June 2026 | EBA | Writes reports that follow rules 1.6, 2.18, 2.19, 3.1 and 3.6, where the template gives what they need. |
 | [xBRL-CSV][xbrl-csv-spec] | 1.0, Recommendation of 13 October 2021, errata to 19 April 2023 | XBRL International | Writes reports in the EBA's layout, through dpm-xbrl. |
 | [Report Packages][report-packages] | 1.0, Recommendation of 22 September 2023, errata to 11 March 2025 | XBRL International | Writes each report as a `.zip` package, through dpm-xbrl. |
 | [DPM-XL][dpm-xl-spec] | 0.11, 18 September 2026 | EBA and EIOPA | Reads and evaluates the template's rules, through dpm-xl. |
@@ -26,7 +26,7 @@ test data, not submissions.
 
 The [EBA Filing Rules][eba-filing-rules], version 5.9 (EBA/XBRL/2026/06,
 26 June 2026), say how a report file must be written. dpm-xbrl writes the
-package's files; these four rules depend on what dpm-synth puts in them.
+package's files; these five rules depend on what dpm-synth puts in them.
 
 Rule 1.6, filing indicators
 :   Every table's filing indicator is reported as `true`. A template's
@@ -43,6 +43,11 @@ Rule 2.18, decimals
     template's `decimals` below the rule's minimums (`p` 4, `i` 0, `m` -6)
     is rejected; see [`decimals`](template-format.md#the-module) and
     [rounding](../concepts/repair-loop.md#6-rounding-and-the-final-evaluation).
+
+Rule 2.19, empty values
+:   No fact is empty: text cells, `es` (text that may be empty in the DPM)
+    included, get non-empty text, and a cell without a value is left out.
+    See [data types](template-format.md#data-types).
 
 Rule 3.1, currency
 :   Monetary facts are in one reporting currency, the template's
