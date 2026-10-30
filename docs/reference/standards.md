@@ -119,9 +119,9 @@ differently from the specification, are on dpm-xl's
 - **Real modules.** On EBA DPM 4.3 COREP_OF, all 1,051 EBA rules that
   apply pass with seed 7, as measured in
   [limits of the loop](../concepts/limits.md#results-on-eba-modules).
-  That measurement is run by hand: it needs a template exported from the
-  DPM release, which is not in the repository, so the test suite does not
-  repeat it.
+  That measurement is run by hand: it needs a module file exported from
+  the DPM release with `dpm-xl export-module`, which is not in the
+  repository, so the test suite does not repeat it.
 - **Documentation examples.** Every Python and command-line example on
   these pages runs in the test suite and must print what the page shows.
 

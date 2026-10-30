@@ -50,9 +50,9 @@ wrote report.zip (3 facts)
 
 The sample template `minimal.json` is in
 [`docs/samples`](https://github.com/luukhopman/dpm-synth/tree/main/docs/samples);
-templates for real EBA modules are exported from a DPM release in the
-[template format](https://luukhopman.github.io/dpm-synth/reference/template-format/),
-by an exporter you write: no public one exists yet (see
+templates for real EBA modules are exported from a DPM release with
+[`dpm-xl export-module`](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/),
+whose module file dpm-synth reads as it is (see
 [get a template from a DPM release](https://luukhopman.github.io/dpm-synth/guides/from-a-dpm-release/)).
 
 ## Features

@@ -1,5 +1,5 @@
 ---
-description: Get a dpm-synth template for a real EBA module from a DPM release - no public exporter exists yet, so what an exporter must write, where each field comes from, and a small exporter to adapt.
+description: Get a dpm-synth template for a real EBA module from a DPM release with dpm-xl export-module, where each field comes from, and a small exporter to adapt for another source.
 icon: lucide/database
 ---
 
@@ -7,20 +7,24 @@ icon: lucide/database
 
 A real module has thousands of cells and rules, so its template is exported
 from the EBA's DPM release rather than written by hand.
+[`dpm-xl export-module`](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/)
+reads the EBA's DPM 2.0 database and writes one module of one release as a
+[module file](https://luukhopman.github.io/dpm-xl/reference/module-file/),
+which dpm-synth loads as its template (`"format": "dpm-module/1"`):
 
-!!! warning "No public exporter yet"
+```bash
+pip install dpm-xl
+dpm-xl export-module dpm-4.4.sqlite COREP_OF --release 4.3 -o corep_of.json
+dpm-synth generate corep_of.json -o report.zip --seed 7
+```
 
-    dpm-synth does not read DPM releases, and no published tool exports
-    templates from one yet. You write the exporter: a script over the
-    release's DPM database that writes one module in the
-    [template format](../reference/template-format.md). This guide lists
-    what it must write and gives a small exporter to start from.
+dpm-xl's guide
+[Start from an EBA DPM release](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/)
+shows how to get the database as SQLite, list its modules, and check the
+generated report against the same file with `dpm-xl check-report`; see
+also the [toolkit page](../toolkit.md).
 
-The same fields make a [module file](https://luukhopman.github.io/dpm-xl/reference/module-file/)
-for dpm-xl, so one export serves both packages; see the
-[toolkit page](../toolkit.md).
-
-## What an exporter writes
+## What the template holds
 
 For one module of one release:
 
@@ -42,8 +46,10 @@ modules. Write item qnames as they appear in a report, such as
 
 ## A small exporter
 
-An exporter is a query per field. Here the release's rows are plain Python
-lists, standing in for the query results of your DPM database:
+For a DPM source that `dpm-xl export-module` does not read, write the
+fields above yourself. An exporter is a query per field. Here the
+release's rows are plain Python lists, standing in for the query results of
+your DPM database:
 
 ```python
 import json

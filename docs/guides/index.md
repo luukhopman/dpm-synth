@@ -21,7 +21,7 @@ tutorial covers the basics. Every example runs against the templates in
 
     ---
 
-    What an exporter of a real module must write, with a small one to adapt.
+    Export a real module with dpm-xl, and what each field holds.
 
 -   :lucide-sliders-horizontal:{ .lg .middle } [**Shape a realistic report**](realistic-reports.md)
 
