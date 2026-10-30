@@ -1,5 +1,5 @@
 ---
-description: What dpm-synth is, who it is for, a 30-second example, installation and where to go next.
+description: What dpm-synth is, a 30-second example in Python and on the command line, installation, the standards its reports follow and where to go next.
 ---
 
 # dpm-synth
@@ -13,67 +13,137 @@ validates like a real submission.
 dpm-synth is an independent project, not affiliated with or endorsed by the
 European Banking Authority.
 
-It builds on two sibling packages: [dpm-xl] evaluates the rules and
-[dpm-xbrl] writes the package. It needs Python 3.11 or newer. The reports it
-writes are synthetic: the entity is a fictional LEI and every value is
-generated.
+<div class="toolkit-badges" markdown>
 
-## Who it is for
+[xBRL-CSV 1.0](reference/standards.md#xbrl-csv)
+[Report Packages 1.0](reference/standards.md#report-packages)
+[EBA Filing Rules 5.9](reference/standards.md#eba-filing-rules)
+[DPM-XL 0.11](reference/standards.md#dpm-xl)
+[Python 3.11+](project/stability.md#python-versions)
 
-- Teams that build loaders, data warehouses or validators for EBA reports
-  and need realistic, internally consistent test submissions for any
-  module, without using real supervisory data.
-- Performance tests that need report packages with millions of facts.
-- Rule authors who want to see a module's rules satisfied, or find the
-  rules that cannot be satisfied together.
+</div>
+
+It is for teams that build loaders, data warehouses or validators for EBA
+reports and need internally consistent test submissions without real
+supervisory data. It builds on [dpm-xl], which evaluates the rules, and
+[dpm-xbrl], which writes the package. The entity is a fictional LEI and
+every value is generated.
+
+[Get started](getting-started.md){ .md-button .md-button--primary }
+[Standards and conformance](reference/standards.md){ .md-button }
 
 ## In 30 seconds
 
-```python
-from dpmxbrl import write_xbrl_csv
+=== "Python"
 
-from dpmsynth import generate, load_template
+    ```python
+    from dpmxbrl import write_xbrl_csv
 
-template = load_template("minimal.json")  # a module's tables, cells and rules
-result = generate(template, seed=7)
-summary = result.summary  # rules counted by status
-print(summary["passed"], "of", summary["rules"], "rules pass; failing:", result.failed)
-write_xbrl_csv(result.report, "report.zip")
-for fact in result.report.facts:
-    print(fact.template, fact.datapoint, fact.value)
-```
+    from dpmsynth import generate, load_template
 
-```text
-2 of 2 rules pass; failing: []
-t_01.00 dp1001 9253000
-t_01.00 dp1002 283000
-t_01.00 dp1003 8970000
-```
+    template = load_template("minimal.json")  # (1)!
+    result = generate(template, seed=7)  # (2)!
+    summary = result.summary
+    print(summary["passed"], "of", summary["rules"], "rules pass:", result.failed)
+    write_xbrl_csv(result.report, "report.zip")  # (3)!
+    for fact in result.report.facts:
+        print(fact.template, fact.datapoint, fact.value)
+    ```
+
+    1. A module's tables, cells and rules, in the
+       [template format](reference/template-format.md). A path or the
+       parsed JSON.
+    2. Fills every cell and repairs the values until the rules pass. The
+       same seed gives the same report.
+    3. `result.report` is a `dpmxbrl.Report`; dpm-xbrl writes it as an
+       xBRL-CSV report package.
+
+    ```text
+    2 of 2 rules pass: []
+    t_01.00 dp1001 9253000
+    t_01.00 dp1002 283000
+    t_01.00 dp1003 8970000
+    ```
+
+=== "Command line"
+
+    ```console
+    $ dpm-synth generate minimal.json -o report.zip --seed 7  # (1)!
+    rules: 2, passed: 2, failed: 0
+    rounds: 1 (failing rules per round: 0)
+    wrote report.zip (3 facts)
+    ```
+
+    1. Add `--size large`, `--fill 0.5` or `--currency SEK` to shape the
+       report; see [shape a realistic report](guides/realistic-reports.md).
 
 The template [`minimal.json`](samples/minimal.json) has one table of three
 monetary cells and two rules: row 0010 is the sum of rows 0020 and 0030,
-and both components are not negative. The same from the command line:
-
-```console
-$ dpm-synth generate minimal.json -o report.zip --seed 7
-rules: 2, passed: 2, failed: 0
-rounds: 1 (failing rules per round: 0)
-wrote report.zip (3 facts)
-```
-
-Every example in these pages runs against the templates in
+and both components are not negative. Every example in these pages runs
+against the templates in
 [`docs/samples`](https://github.com/luukhopman/dpm-synth/tree/main/docs/samples),
 and the test suite checks that each prints what is shown.
 
 ## Install
 
-```text
-pip install dpm-synth
-```
+=== "pip"
 
-This installs dpm-xl and dpm-xbrl too, and the `dpm-synth` command.
+    ```text
+    pip install dpm-synth
+    ```
 
-## Key features
+=== "uv"
+
+    ```text
+    uv add dpm-synth
+    ```
+
+This installs dpm-xl and dpm-xbrl too. The import name is `dpmsynth`; the
+command is `dpm-synth`.
+
+## Find your way
+
+<div class="grid cards" markdown>
+
+-   :lucide-graduation-cap:{ .lg .middle } **Getting started**
+
+    ---
+
+    Install dpm-synth, generate a first report, read it back and check
+    its rules, step by step.
+
+    [:lucide-arrow-right: Tutorial](getting-started.md)
+
+-   :lucide-list-checks:{ .lg .middle } **How-to guides**
+
+    ---
+
+    Recipes for one task each: write a template, shape a realistic report,
+    load-test, reproduce a report, validate the output.
+
+    [:lucide-arrow-right: Guides](guides/index.md)
+
+-   :lucide-lightbulb:{ .lg .middle } **Concepts**
+
+    ---
+
+    How the joint solve and the evaluate-and-repair loop work, and where
+    they stop.
+
+    [:lucide-arrow-right: Concepts](concepts/index.md)
+
+-   :lucide-library:{ .lg .middle } **Reference**
+
+    ---
+
+    The template format, the command line, exit statuses, JSON output, the
+    Python API and the standards.
+
+    [:lucide-arrow-right: Reference](reference/index.md)
+
+</div>
+
+## Features
 
 - **Any module.** The template format describes tables, open keys, cells,
   data types, allowed items and rules, so one tool covers COREP, FINREP and
@@ -83,27 +153,25 @@ This installs dpm-xl and dpm-xbrl too, and the `dpm-synth` command.
   on EBA DPM 4.3 COREP_OF, all 1,051 rules that apply pass with seed 7. See
   [the evaluate-and-repair loop](concepts/repair-loop.md) and
   [its limits](concepts/limits.md).
-- **Valid packages.** Packages are written by dpm-xbrl and read back without
-  a single broken EBA filing rule that the file can show, other than the
-  synthetic file name.
+- **Realistic shape.** Amounts for a small, medium or large institution,
+  sparse reports, a reporting currency and currencies of denomination, and
+  rules graded as warnings or switched off; see
+  [shape a realistic report](guides/realistic-reports.md).
+- **Filing rules followed.** Filing indicators, decimals, currencies and the
+  reporting subject follow the EBA filing rules, and dpm-xbrl reads the
+  packages back without a broken filing rule other than the file name; see
+  [standards and conformance](reference/standards.md).
 - **Reproducible.** The same template, seed, options and versions give the
   same bytes; see [reproduce a report](guides/reproducible-seeds.md).
-- **Large.** Scaled packages stream open tables with millions of rows in
-  seconds; see [load-test with scaled packages](guides/load-testing.md).
+- **Large.** Scaled packages stream open tables with millions of rows; see
+  [load-test with scaled packages](guides/load-testing.md).
+- **For AI agents too.** The essentials on [one page](agents.md), and every
+  page as Markdown in [`llms.txt`](llms.txt) and
+  [`llms-full.txt`](llms-full.txt).
 
-## Toolkit
+## Part of the dpm toolkit
+
+dpm-synth generates the reports that [dpm-xbrl] reads and [dpm-xl]
+evaluates; the [toolkit page](toolkit.md) shows how they fit together.
 
 --8<-- "docs/.snippets/toolkit-cards.md"
-
-## Where next
-
-- New here: the [getting started](getting-started.md) tutorial.
-- A task to do: the [how-to guides](guides/index.md).
-- How it works: the [concepts](concepts/index.md).
-- Exact behaviour: the [reference](reference/index.md), including the
-  [template format](reference/template-format.md), the
-  [API](reference/api.md) and the [command line](reference/cli.md).
-- Working with an AI agent: [dpm-synth for AI agents](agents.md),
-  [`llms.txt`](llms.txt) and [`llms-full.txt`](llms-full.txt).
-- The sibling packages: [dpm-xl] for DPM-XL rules and [dpm-xbrl] for
-  reading and writing reports.
