@@ -676,6 +676,29 @@ def test_typed_keys_are_valid_leis() -> None:
         assert digits % 97 == 1
 
 
+def test_typed_keys_share_identifiers_across_tables() -> None:
+    # C_14.00 and C_14.01 style: a rule joining two tables on the same key
+    # finds both rows only if the tables use the same identifiers.
+    other = {
+        "code": "U",
+        "open_keys": [{"code": "SIC"}],
+        "cells": [cell("0010", "0020", 2)],
+    }
+    result = run(
+        [cell("0010", "0010", 1)],
+        ["{tT, r0010, c0010, default: null} > 0 or {tU, r0010, c0020} < 0"],
+        open_keys=[{"code": "SIC"}],
+        more_tables=[other],
+        open_rows=3,
+    )
+    by_table: dict[str, set[str]] = {}
+    for fact in result.report.facts:
+        by_table.setdefault(fact.datapoint or "", set()).add(fact.keys["SIC"])
+    assert by_table["dp1"] == by_table["dp2"]
+    assert len(by_table["dp1"]) == 3
+    assert result.failed == []
+
+
 def test_enumerated_keys_cap_the_rows() -> None:
     result = run(
         [cell("0010", "0010", 1)],

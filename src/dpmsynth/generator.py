@@ -262,6 +262,7 @@ class SyntheticData:
         # Cells that fill left empty; an isnull repair empties a cell for good.
         self._sparse: set[Slot] = set()
         # Item -> the qname the template wrote, for the written report.
+        self._key_pool: dict[str, list[str]] = {}
         self._item_names: dict[Item, str] = {}
         for table in template.tables:
             for name in [
@@ -315,10 +316,24 @@ class SyntheticData:
                 if key.items:
                     value: Any = Item.parse(key.items[index % len(key.items)])
                 else:
-                    value = _typed_key(key, index, reference) or _lei(self.rng)
+                    value = _typed_key(key, index, reference) or self._shared_key(
+                        key.code, index
+                    )
                 row.append((key.code, value))
             rows.append(tuple(row))
         return list(dict.fromkeys(rows))
+
+    def _shared_key(self, code: str, index: int) -> str:
+        """Return identifier ``index`` of a typed key, the same in every table.
+
+        Tables keyed by the same property describe the same things, such as
+        the securitisations of C_14.00 and C_14.01, so row ``index`` of each
+        takes the same identifier and rules that join them find both rows.
+        """
+        pool = self._key_pool.setdefault(code.casefold(), [])
+        while len(pool) <= index:
+            pool.append(_lei(self.rng))
+        return pool[index]
 
     def _initial(self, cell: TemplateCell) -> Value:
         """Return a random starting value for a cell's data type."""

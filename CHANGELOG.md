@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The project follows
 
 ## Unreleased
 
+- Typed open keys take the same identifiers in every table keyed by the
+  same property, so rules that join such tables find matching rows.
 - `load_template` rejects a rule that does not parse or selects a table
   the template does not have, instead of reporting it as not evaluated; a
   rule on a template in `filing_indicators` without tables is
