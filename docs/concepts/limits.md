@@ -52,8 +52,8 @@ dpm-xbrl and evaluated with dpm-xl, as in
   by an amount holds before rounding but can miss by a few units after the
   ratio is rounded to its reporting decimals.
 
-[Build a template from a DPM release](../guides/from-a-dpm-release.md#read-the-results) shows
-how to explain each failing rule with dpm-xl.
+[Explain a failing rule](#explain-a-failing-rule) below shows how to
+see why with dpm-xl.
 
 ## Rules that cannot be evaluated
 
@@ -67,7 +67,8 @@ dpm-xl reports some rules as `unsupported` or `error`, and the result's
 A rule that does not parse, or that selects a table the template does not
 have, is an error of the template.
 
-They do not count towards the exit status.
+An `error` rule makes exit status 1, as a failing rule does; an
+`unsupported` rule never changes the exit status.
 
 ## Rules that do not apply
 
@@ -83,9 +84,41 @@ time: enumerated keys take their items in order.
 `match` is repaired for the two patterns EBA rules use, LEIs and
 `dd/mm/yyyy` dates. Any other pattern is evaluated but not repaired.
 
-## What would do better
+## Explain a failing rule
 
-Solving a module's linear equalities jointly, with a sparse least-squares
-or mixed-integer solver, before repairing the rest would settle most cells
-defined twice consistently, or prove that the rules contradict each other.
-The template already carries what such a solver needs.
+The summary names up to 20 failing rules; `--json` lists them all. To see
+why a rule fails, evaluate it on the generated values and explain the
+failure with dpm-xl:
+
+```python
+from dpmxl import evaluate_rule, explain
+
+from dpmsynth import generate, load_template
+
+template = load_template("sample.json")
+result = generate(template, seed=7, max_rounds=0)
+rules = {rule.code: rule for rule in template.rules}
+for code in result.failed:
+    rule = rules[code]
+    outcome = evaluate_rule(
+        rule.expression, result.data, precondition=rule.precondition
+    )
+    failure = outcome.failures[0]
+    print(code, explain(outcome.evaluation, rule.expression, failure.key).summary)
+```
+
+```text
+rows 936,000 should equal 2,314,000 (165,000 + 149,000 + 2,000,000): difference 1,378,000, at least 1,377,998 given the reported precision
+columns 936,000 should equal 9,253,000 (283,000 + 8,970,000): difference 8,317,000, at least 8,316,998.5 given the reported precision
+ratio 90,750 should equal 149,000: difference 58,250, at least 58,240.9 given the reported precision
+item [AS:x1] is not one of [AS:x2]
+open 69,558,000 should not exceed 150,000: difference 69,408,000, at least 69,407,999 given the reported precision
+open-total 5,120,000 should equal 936,000: difference 4,184,000
+lei "Synthetic text 5147" does not have the required format
+```
+
+Here `max_rounds=0` keeps the starting values, so rules that the solver
+and the loop would settle still fail. On a real module, a rule that still
+fails is usually nonlinear and coupled to rules that define the same cells,
+such as a total of `max(...)` terms, as listed
+[above](#rules-that-still-fail).
