@@ -174,7 +174,7 @@ that needs last year's report:
 $ dpm-synth generate sample.json -o sample.zip --seed 7
 rules: 9, passed: 8, failed: 0, unsupported: 1
 rounds: 2 (failing rules per round: 3, 0)
-history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
+rule prior-period (unsupported): The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 ```
 

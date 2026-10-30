@@ -87,7 +87,7 @@ $ dpm-synth generate sample.json -o sample.zip --seed 7 --json
       "message": null
     },
     {
-      "rule": "history",
+      "rule": "prior-period",
       "severity": "error",
       "status": "unsupported",
       "message": "The rule compares with the previous reporting period (time_shift), which a single report does not include"

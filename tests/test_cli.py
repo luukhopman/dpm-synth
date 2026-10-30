@@ -27,7 +27,7 @@ def test_generate_writes_the_package(tmp_path: Path, sample: Path, capsys) -> No
     lines = capsys.readouterr().out.splitlines()
     assert lines[0] == ("rules: 9, passed: 8, failed: 0, unsupported: 1")
     assert lines[1].startswith("rounds: ")
-    assert lines[2].startswith("history: unsupported: The rule compares")
+    assert lines[2].startswith("rule prior-period (unsupported): The rule compares")
     assert lines[-1] == f"wrote {output} (20 facts)"
     report = read_report(output)
     assert len(report.facts) == 20
@@ -93,8 +93,8 @@ def test_json_summary(tmp_path: Path, sample: Path, capsys) -> None:
         "status": "passed",
         "message": None,
     }
-    assert results["history"]["status"] == "unsupported"
-    assert "time_shift" in results["history"]["message"]
+    assert results["prior-period"]["status"] == "unsupported"
+    assert "time_shift" in results["prior-period"]["message"]
 
 
 def test_failing_rules_exit_with_status_1(tmp_path: Path, capsys) -> None:
@@ -263,7 +263,7 @@ def test_rules_that_cannot_be_evaluated(tmp_path: Path, capsys) -> None:
     assert main(arguments) == 1
     lines = capsys.readouterr().out.splitlines()
     assert lines[0] == "rules: 2, passed: 0, failed: 0, error: 1, unsupported: 1"
-    assert "bad: error: + needs numbers, found string" in lines
+    assert "rule bad (error): + needs numbers, found string" in lines
     del rules[0]
     template = write(tmp_path, document([cell("0010", "0010", 1)], rules))
     assert main(arguments) == 0
@@ -297,7 +297,9 @@ def test_messages_are_capped_like_the_failing_rules(tmp_path: Path, capsys) -> N
     template = write(tmp_path, document([cell("0010", "0010", 1)], rules))
     assert main(["generate", str(template), "-o", str(tmp_path / "report.zip")]) == 1
     lines = capsys.readouterr().out.splitlines()
-    shown = [line for line in lines if line.startswith("bad")]
-    expected = [f"bad{n:02}: error: + needs numbers, found string" for n in range(20)]
+    shown = [line for line in lines if line.startswith("rule bad")]
+    expected = [
+        f"rule bad{n:02} (error): + needs numbers, found string" for n in range(20)
+    ]
     assert shown == expected
-    assert lines[lines.index(shown[-1]) + 1] == "and 5 more"
+    assert lines[lines.index(shown[-1]) + 1] == "and 5 more rules"

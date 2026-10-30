@@ -27,7 +27,7 @@ $ dpm-synth generate sample.json -o sample.zip --seed 7 --max-rounds 0
 rules: 9, passed: 1, failed: 7, unsupported: 1
 rounds: 0 (failing rules per round: -)
 still failing: rows, columns, ratio, item, open, open-total, lei
-history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
+rule prior-period (unsupported): The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 $ echo $?
 1

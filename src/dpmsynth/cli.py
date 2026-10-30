@@ -165,7 +165,11 @@ def _parser() -> argparse.ArgumentParser:
         description="Generate values for every cell of a template, repair them "
         "until the rules pass, and write an xBRL-CSV report package.",
     )
-    run.add_argument("template", type=Path, help="dpm-synth-template/1 JSON file")
+    run.add_argument(
+        "template",
+        type=Path,
+        help="template file (dpm-module/1 or dpm-synth-template/1)",
+    )
     run.add_argument(
         "-o",
         "--output",
@@ -242,7 +246,7 @@ def _parser() -> argparse.ArgumentParser:
         choices=("error", "warning"),
         default="error",
         help="exit with status 1 when a rule of this severity or worse fails "
-        "or is an error (default: error)",
+        "or cannot be evaluated (default: error)",
     )
     run.add_argument("--json", action="store_true", help="print a JSON summary")
     return parser
@@ -370,9 +374,9 @@ def _lines(result: GenerationResult) -> Iterator[str]:
         yield f"still failing: {shown}" + (f" and {more} more" if more > 0 else "")
     messages = list(result.messages.items())
     for code, message in messages[:_SHOWN]:
-        yield f"{code}: {result.statuses[code].replace('_', ' ')}: {message}"
+        yield f"rule {code} ({result.statuses[code].replace('_', ' ')}): {message}"
     if len(messages) > _SHOWN:
-        yield f"and {len(messages) - _SHOWN} more"
+        yield f"and {len(messages) - _SHOWN} more rules"
 
 
 if __name__ == "__main__":  # pragma: no cover

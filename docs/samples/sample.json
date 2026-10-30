@@ -58,6 +58,6 @@
     {"code": "open", "expression": "with {tS_02.00.a, c0010, default: 0, interval: true}: {r0020} <= {r0010}"},
     {"code": "open-total", "expression": "sum({tS_02.00.a, r0010, c0010, default: 0}) = {tS_01.00, r0010, c0010}"},
     {"code": "lei", "expression": "match({tS_03.00, c0020}, \"^[A-Z0-9]{18}[0-9]{2}$\") and match({tS_03.00, c0020}[get ERI], \"^[A-Z0-9]{18}[0-9]{2}$\")"},
-    {"code": "history", "expression": "{tS_01.00, r0010, c0010} = time_shift({tS_01.00, r0010, c0010}, A, 1, refPeriod)"}
+    {"code": "prior-period", "expression": "{tS_01.00, r0010, c0010} = time_shift({tS_01.00, r0010, c0010}, A, 1, refPeriod)"}
   ]
 }

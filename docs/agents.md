@@ -38,10 +38,10 @@ except TemplateError as error:  # the only exception for a bad template
     raise SystemExit(f"bad template: {error}")
 
 result = generate(template, seed=7)  # same inputs and versions, same report
-result.statuses  # {"rows": "passed", ..., "history": "unsupported"}: by rule code
+result.statuses  # {"rows": "passed", ..., "prior-period": "unsupported"}: by rule code
 result.summary  # {"rules": 9, "passed": 8, "failed": 0, ...}: counts by status
 result.failed  # []: codes of rules that still fail
-result.messages  # {"history": "...time_shift..."}: why error or unsupported
+result.messages  # {"prior-period": "...time_shift..."}: why error or unsupported
 result.report  # dpmxbrl.Report, ready to write
 result.data  # SyntheticData: a dpm-xl provider over the values
 

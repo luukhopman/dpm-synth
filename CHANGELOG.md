@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The project follows
 
 ## Unreleased
 
+- The text summary gives the reason for an `error` or `unsupported` rule
+  as `rule CODE (status): reason`, so a rule code cannot read as a heading.
 - Typed open keys take the same identifiers in every table keyed by the
   same property, so rules that join such tables find matching rows.
 - `load_template` rejects a rule that does not parse or selects a table

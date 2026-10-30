@@ -54,7 +54,7 @@ Generate values for every cell of a template, repair them until the rules
 pass, and write an xBRL-CSV report package.
 
 positional arguments:
-  template              dpm-synth-template/1 JSON file
+  template              template file (dpm-module/1 or dpm-synth-template/1)
 
 options:
   -h, --help            show this help message and exit
@@ -79,7 +79,7 @@ options:
                         left out unless a rule needs them (default 1)
   --fail-on {error,warning}
                         exit with status 1 when a rule of this severity or
-                        worse fails or is an error (default: error)
+                        worse fails or cannot be evaluated (default: error)
   --json                print a JSON summary
 ```
 
@@ -93,7 +93,7 @@ options:
 $ dpm-synth generate sample.json -o sample.zip --seed 7
 rules: 9, passed: 8, failed: 0, unsupported: 1
 rounds: 2 (failing rules per round: 3, 0)
-history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
+rule prior-period (unsupported): The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 ```
 
@@ -103,8 +103,9 @@ wrote sample.zip (20 facts)
 - `rounds` lists the failing rules at the start of each round.
 - When rules still fail, a line `still failing: ...` names up to 20 of
   them, with `(warning)` after a rule of severity `warning`.
-- Each rule that is `error` or `unsupported` gets a line with the reason,
-  for up to 20 rules; `and N more` counts the others.
+- Each rule that is `error` or `unsupported` gets a line
+  `rule CODE (status): reason`, for up to 20 rules; `and N more rules`
+  counts the others.
 - `wrote` names the package and the facts in it.
 
 | Option | Effect |

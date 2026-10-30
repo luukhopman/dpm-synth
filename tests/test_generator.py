@@ -54,9 +54,9 @@ def test_sample_satisfies_every_evaluable_rule() -> None:
         "unsupported": 1,
         "skipped": 0,
     }
-    assert result.statuses["history"] == "unsupported"
-    assert list(result.messages) == ["history"]
-    assert "time_shift" in result.messages["history"]
+    assert result.statuses["prior-period"] == "unsupported"
+    assert list(result.messages) == ["prior-period"]
+    assert "time_shift" in result.messages["prior-period"]
     for rule in template.rules[:-1]:
         status = evaluate_rule(
             rule.expression, result.data, precondition=rule.precondition
