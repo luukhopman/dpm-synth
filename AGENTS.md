@@ -75,8 +75,19 @@ All of these must pass before a commit.
   expected output; `console` blocks run `dpm-synth` commands (`$ echo $?`
   prints the exit status); `<!-- docs: skip -->` before a block skips it.
   Show real output, never invented output.
+- Code annotations (`# (1)!` comments with a numbered list right after
+  the block) may stand between a `python` block and its `text` output,
+  and are removed from `console` commands before they run; the docs tests
+  check that each annotation has its list item.
 - Shared link targets for the docs (such as the sibling sites) are in
-  `docs/.snippets/links.md`.
+  `docs/.snippets/links.md`; the glossary tooltips, auto-appended to every
+  page, in `docs/.snippets/glossary.md`, with each term also on
+  `docs/reference/glossary.md`.
+- The standards the reports follow, their versions, and how that is
+  tested belong on `docs/reference/standards.md`; other pages link there.
+- The toolkit cards, the toolkit page, the glossary and
+  `docs/stylesheets/toolkit.css` are the same in dpm-xl, dpm-xbrl and
+  dpm-synth; `tests/test_toolkit.py` pins their hashes.
 - Never use a real company's LEI in code, tests or docs; use the fictional
   `SYNTHETICDPMXL000002` (`DEFAULT_ENTITY`) or another checksum-valid
   fictional one.
