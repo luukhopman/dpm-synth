@@ -21,13 +21,13 @@ columns do not depend on the machine:
 
 | Module | Tables | Cells | Rules | Apply | Pass | Fail | Not applicable | Unsupported | Rounds | Time |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| COREP_OF | 81 | 21,339 | 1,205 | 1,051 | 1,050 | 1 | 154 | 0 | 19 | 20 s |
+| COREP_OF | 81 | 21,339 | 1,205 | 1,051 | 1,051 | 0 | 154 | 0 | 13 | 17 s |
 | FINREP9 (1.0.0) | 124 | 13,834 | 2,260 | 2,258 | 1,929 | 329 | 0 | 2 | 14 | 10 s |
 | AE (1.0.0) | 23 | 1,306 | 218 | 218 | 207 | 11 | 0 | 0 | 10 | < 1 s |
 | COREP_LCR_DA (1.0.0) | 14 | 5,119 | 328 | 328 | 321 | 7 | 0 | 0 | 9 | 2 s |
 | COREP_LE (1.0.0) | 5 | 79 | 25 | 25 | 24 | 1 | 0 | 0 | 9 | < 1 s |
 
-On COREP_OF, seeds 0 to 4 leave 0 or 1 failing rules, against 51 to 55
+On COREP_OF, seeds 0 to 4 leave 0 to 2 failing rules, against 51 to 55
 before the joint solve.
 
 "Apply" counts the rules that are evaluated and whose precondition holds.
