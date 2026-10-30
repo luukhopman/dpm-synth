@@ -12,6 +12,7 @@ repo_name = "luukhopman/dpm-synth"
 edit_uri = "edit/main/docs/"
 copyright = "Copyright &copy; 2026 Luuk Hopman. Part of the dpm toolkit: <a href=\"https://luukhopman.github.io/dpm-xl/\">dpm-xl</a>, <a href=\"https://luukhopman.github.io/dpm-xbrl/\">dpm-xbrl</a> and <a href=\"https://luukhopman.github.io/dpm-synth/\">dpm-synth</a>. Not affiliated with or endorsed by the European Banking Authority."
 docs_dir = "docs"
+extra_css = ["stylesheets/toolkit.css"]
 site_dir = "site"
 
 nav = [
@@ -38,9 +39,11 @@ nav = [
     { "Exit statuses" = "reference/exit-statuses.md" },
     { "JSON output" = "reference/json-output.md" },
     { "Python API" = "reference/api.md" },
+    { "Glossary" = "reference/glossary.md" },
   ] },
   { "AI agents" = "agents.md" },
   { "Toolkit" = [
+    { "Overview" = "toolkit.md" },
     { "Toolkit tour" = "https://luukhopman.github.io/dpm-xl/guides/toolkit-tour/" },
     { "dpm-xl" = "https://luukhopman.github.io/dpm-xl/" },
     { "dpm-xbrl" = "https://luukhopman.github.io/dpm-xbrl/" },
@@ -130,7 +133,7 @@ pymdownx.keys = {}
 pymdownx.mark = {}
 pymdownx.snippets.base_path = ["."]
 pymdownx.snippets.check_paths = true
-pymdownx.snippets.auto_append = ["docs/.snippets/links.md"]
+pymdownx.snippets.auto_append = ["docs/.snippets/links.md", "docs/.snippets/glossary.md"]
 pymdownx.superfences.custom_fences = [
   { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
 ]

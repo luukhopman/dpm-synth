@@ -93,7 +93,7 @@ This installs dpm-xl and dpm-xbrl too, and the `dpm-synth` command.
 
 ## Toolkit
 
---8<-- "docs/.snippets/toolkit.md"
+--8<-- "docs/.snippets/toolkit-cards.md"
 
 ## Where next
 
