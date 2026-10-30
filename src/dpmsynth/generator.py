@@ -1082,7 +1082,10 @@ def generate(
         # The loop repairs what rounding to the reporting decimals breaks.
         data._round_all()
         start = len(history)
-        changes, failing = _repair(parsed, data, owners, max_rounds - start, history)
+        # The second pass starts close to its end: it stalls sooner.
+        changes, failing = _repair(
+            parsed, data, owners, max_rounds - start, history, 6 if not start else 3
+        )
         repairs += changes
         if not failing:
             break
@@ -1116,10 +1119,12 @@ def _repair(
     owners: dict[Any, set[str]],
     rounds: int,
     history: list[int],
+    window: int = 6,
 ) -> tuple[int, int]:
     """Run up to ``rounds`` evaluate-and-repair rounds.
 
-    Appends the failing rules at the start of each round to ``history``.
+    Appends the failing rules at the start of each round to ``history``, and
+    stops when ``window`` rounds find no new least failing count.
 
     Returns:
         tuple[int, int]: The records repaired, and the rules failing in the
@@ -1150,7 +1155,7 @@ def _repair(
                     break
         history.append(failing)
         repairs += changed
-        if not failing or not changed or _stalled(history[start:]):
+        if not failing or not changed or _stalled(history[start:], window):
             break
     return repairs, failing
 
