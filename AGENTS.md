@@ -68,8 +68,8 @@ All of these must pass before a commit.
   picked up by `tests/test_end_to_end.py`, which writes it, reads it back
   with dpm-xbrl and evaluates its rules with dpm-xl.
 - Every invalid template raises `TemplateError`; the CLI never prints a
-  traceback. Exit statuses: 0 all evaluable rules pass, 1 some fail,
-  2 usage error, 3 invalid input or unwritable output.
+  traceback. Exit statuses: 0 no rule at or above `--fail-on` fails or is
+  an `error`, 1 some do, 2 usage error, 3 invalid input or unwritable output.
 - A change to the values generated for a seed goes in the changelog.
 - Docs examples: a `text` block directly after a `python` block is its
   expected output; `console` blocks run `dpm-synth` commands (`$ echo $?`

@@ -30,9 +30,10 @@ examples:
   dpm-synth generate template.json -o report.zip --fail-on warning
   dpm-synth generate template.json -o big.zip --scale-rows 1000000
 
-exit statuses: 0 every evaluable rule passes, 1 a rule at or above --fail-on
-fails or cannot be evaluated (error; the package is written), 2 usage error, 3
-unreadable or invalid template, or the package cannot be written.
+exit statuses: 0 no rule at or above --fail-on fails or cannot be evaluated
+(default error: failing warnings exit 0), 1 one does (the package is written),
+2 usage error, 3 unreadable or invalid template, or the package cannot be
+written.
 
 The template format: https://luukhopman.github.io/dpm-synth/reference/template-format/
 ```

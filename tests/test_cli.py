@@ -199,6 +199,9 @@ def test_version_and_help(capsys) -> None:
     assert "examples:" in help_text
     assert "dpm-synth generate template.json -o report.zip --seed 7" in help_text
     assert "exit statuses:" in help_text
+    # Failing warnings exit with status 0 unless --fail-on warning.
+    assert "every evaluable rule passes" not in help_text
+    assert "failing warnings exit 0" in help_text
 
 
 def test_any_write_failure_exits_with_status_3(
