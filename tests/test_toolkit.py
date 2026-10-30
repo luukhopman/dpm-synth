@@ -51,16 +51,16 @@ SHARED_SHA256 = {
         "0b0b4aeff0f85ffe10e7856854d0e82014341f1564be3ae7f68f6075d5c36381"
     ),
     "docs/.snippets/glossary.md": (
-        "e9c9cedbb3b254db24555466443817dd4a7d707c177f1eb64591a72d4afa693c"
+        "b5519ad7f68f0d04bc856a93bc471e16b8d8f01ebef71c2380b6923bf06b97f6"
     ),
     "docs/reference/glossary.md": (
-        "3256a608b938e2b3b125ff6b1c4d6fb5175f6b64c4c3c2fe6d994c5ee73c834d"
+        "f572c58838cbcf76aa563a97484438d8c96fdad4c1c27b8b701ffd5523afde97"
     ),
     "docs/toolkit.md": (
-        "0c6c39e5fe959177d0dcb6ff55643486164c7bf938f11ef302fd6ae290856da8"
+        "5fde52999e2c72169c4a526bd1c180bff3e67a343480a86912159c4f1860baf0"
     ),
     "docs/stylesheets/toolkit.css": (
-        "c5a095b7fb4af8f885a0a2c16eb6359c11fa778d91ca25ccee08ef82de8e2d99"
+        "3f231d0fc3d385f888c2dd44cf00266c37126322bf78d0acef79654d4dce39cf"
     ),
 }
 SECTIONS = [
