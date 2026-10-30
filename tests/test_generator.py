@@ -1036,3 +1036,21 @@ def test_the_solve_meets_small_violations_of_ratios() -> None:
     first, second = data.values["dp1", ()], data.values["dp2", ()]
     assert isinstance(first, Number) and isinstance(second, Number)
     assert first.value >= second.value
+
+
+def test_rules_on_templates_without_tables_do_not_apply() -> None:
+    # U_01.00 is in the module but not reported: its rules have nothing to
+    # check, with or without a precondition.
+    rules = [
+        {
+            "code": "guarded",
+            "expression": "{tU_01.00, r0010, c0010} = {tT, r0010, c0010}",
+            "precondition": "{v_U_01.00}",
+        },
+        {"code": "unguarded", "expression": "{tU_01.00, r0010, c0010} > 0"},
+        {"code": "part", "expression": "{tU_01.00.a, r0010, c0010} > 0"},
+    ]
+    raw = document([cell("0010", "0010", 1)], rules)
+    raw["filing_indicators"] = ["U_01.00", "T"]
+    result = generate(load_template(raw))
+    assert set(result.statuses.values()) == {"not_applicable"}, result.messages

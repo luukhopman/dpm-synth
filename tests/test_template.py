@@ -101,6 +101,23 @@ def test_optional_fields_and_unknown_fields() -> None:
     assert template.currency == "SEK"
 
 
+def test_rules_may_select_templates_reported_as_absent() -> None:
+    raw = document()
+    raw["filing_indicators"] = ["T_01.00", "U_01.00"]
+    raw["rules"].append({"code": "v2", "expression": "{tU_01.00.a, c0010} > 0"})
+    raw["rules"].append(
+        {
+            "code": "v3",
+            "expression": "{tU_01.00, c0010} > 0",
+            "precondition": "{v_U_01.00}",
+        }
+    )
+    assert len(load_template(raw).rules) == 3
+    raw["rules"].append({"code": "v4", "expression": "{tT_01.00.b, c0010} > 0"})
+    with pytest.raises(TemplateError, match=r"selects table T_01\.00\.b, which is not"):
+        load_template(raw)
+
+
 def test_table_lookup_ignores_case() -> None:
     template = load_template(document())
     assert template.table("t_01.00") is template.tables[0]

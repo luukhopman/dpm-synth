@@ -74,6 +74,8 @@ from .template import (
     OpenKey,
     TemplateCell,
     TemplateTable,
+    _absent_indicators,
+    _under,
 )
 
 DEFAULT_ENTITY = "SYNTHETICDPMXL000002"
@@ -129,8 +131,9 @@ STATUSES = ("passed", "failed", "not_applicable", "error", "unsupported", "skipp
 """The statuses a rule can end with, in the order summaries list them.
 
 The first five are dpm-xl's: ``not_applicable`` when the precondition is
-false or the rule selects no cell, ``error`` when the rule cannot be
-evaluated, such as a selection of a table the template does not have, and
+false or the rule selects no cell, such as a rule on a template whose
+filing indicator is reported as ``false``, ``error`` when the rule cannot be
+evaluated, such as ``+`` on a text cell, and
 ``unsupported`` for a construct dpm-xl does not evaluate on one report, such
 as ``time_shift``. ``skipped`` is an inactive rule, which is not evaluated.
 """
@@ -255,6 +258,7 @@ class SyntheticData:
         self._query_cells: dict[CellQuery, list[TemplateCell]] = {}
         # Slot -> (lower, upper) from single-cell sign rules such as {x} >= 0.
         self._bounds: dict[Slot, tuple[Decimal | None, Decimal | None]] = {}
+        self._absent = _absent_indicators(template.tables, template.filing_indicators)
         # Cells that fill left empty; an isnull repair empties a cell for good.
         self._sparse: set[Slot] = set()
         # Item -> the qname the template wrote, for the written report.
@@ -447,10 +451,13 @@ class SyntheticData:
             ``(datapoint, keys)`` slot.
 
         Raises:
-            LookupError: If the table is not in the template.
+            LookupError: If the table is not in the template; a table of a
+                template reported as absent selects no cells.
         """
         table = self.template.table(query.table)
         if table is None:
+            if _under(query.table, self._absent):
+                return []
             raise LookupError(
                 f"table {query.table} is not in module {self.template.module}"
             )

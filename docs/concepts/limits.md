@@ -65,7 +65,8 @@ dpm-xl reports some rules as `unsupported` or `error`, and the result's
 - a rule that uses a construct dpm-xl does not support.
 
 A rule that does not parse, or that selects a table the template does not
-have, is an error of the template.
+have, is an error of the template; a rule on a template in
+`filing_indicators` without tables is `not_applicable`.
 
 An `error` rule makes exit status 1, as a failing rule does; an
 `unsupported` rule never changes the exit status.

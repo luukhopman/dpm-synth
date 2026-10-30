@@ -137,7 +137,9 @@ Every table of the template counts as reported, so a precondition such as
 and is false otherwise.
 `{vReportingLevel}` is `con` or `ind` and `{refPeriod}` is the reference
 date. A rule or precondition that does not parse, or that selects a table
-the template does not have, is an error of the template.
+the template does not have, is an error of the template, unless the table
+is of a template in `filing_indicators` without tables: that template is
+reported as absent, so the rule is `not_applicable`.
 
 ## Validation
 

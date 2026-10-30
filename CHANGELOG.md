@@ -6,7 +6,9 @@ All notable changes to this project are documented here. The project follows
 ## Unreleased
 
 - `load_template` rejects a rule that does not parse or selects a table
-  the template does not have, instead of reporting it as not evaluated.
+  the template does not have, instead of reporting it as not evaluated; a
+  rule on a template in `filing_indicators` without tables is
+  `not_applicable`.
 - Typed open keys take an optional `data_type`: `i` keys get integers and
   `d` keys get dates instead of LEI-shaped identifiers.
 - Enumeration-set (`es`) cells get an allowed item instead of an

@@ -325,13 +325,16 @@ class _Loader:
             codes[rule.code] = index
         filing_indicators = self.filing_indicators(root, tables)
         known = {table.code.casefold() for table in tables}
+        absent = _absent_indicators(tables, filing_indicators)
         for index, rule in enumerate(rules):
             if not rule.active:
                 continue
-            self.rule_tables(rule.expression, f"rules[{index}].expression", known)
+            self.rule_tables(
+                rule.expression, f"rules[{index}].expression", known, absent
+            )
             if rule.precondition is not None:
                 self.rule_tables(
-                    rule.precondition, f"rules[{index}].precondition", known
+                    rule.precondition, f"rules[{index}].precondition", known, absent
                 )
         return ModuleTemplate(
             release=release,
@@ -479,9 +482,12 @@ class _Loader:
         )
 
     @staticmethod
-    def rule_tables(expression: str, where: str, known: set[str]) -> None:
+    def rule_tables(
+        expression: str, where: str, known: set[str], absent: frozenset[str]
+    ) -> None:
         # A rule that does not parse, or selects a table the template does
-        # not have, could never be evaluated.
+        # not have, could never be evaluated. A table of a template reported
+        # as absent (a filing indicator without tables) is not applicable.
         try:
             node = parse(expression)
         except DpmXlSyntaxError as error:
@@ -489,7 +495,7 @@ class _Loader:
         except RecursionError:
             raise TemplateError(f"{where}: expression too deeply nested") from None
         for code in tables(node):
-            if code.casefold() not in known:
+            if code.casefold() not in known and not _under(code, absent):
                 raise TemplateError(
                     f"{where}: selects table {code}, which is not in the template"
                 )
@@ -602,6 +608,26 @@ class _Loader:
                 )
             result[kind] = number
         return result
+
+
+def _absent_indicators(
+    tables: tuple[TemplateTable, ...], filing_indicators: tuple[str, ...]
+) -> frozenset[str]:
+    # The filing indicators, case-folded, of the templates without tables.
+    used = {table.filing_indicator.casefold() for table in tables}
+    return frozenset(
+        code.casefold() for code in filing_indicators if code.casefold() not in used
+    )
+
+
+def _under(code: str, indicators: frozenset[str]) -> bool:
+    # Whether a table code is a template in indicators, or one of its tables
+    # such as C_08.00.a under C_08.00.
+    folded = code.casefold()
+    return any(
+        folded == indicator or folded.startswith(f"{indicator}.")
+        for indicator in indicators
+    )
 
 
 def _encodable(value: str, where: str) -> str:
