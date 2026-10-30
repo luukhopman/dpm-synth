@@ -17,8 +17,8 @@ evaluate-and-repair loop; it is not a complete constraint solver:
    identifier.
 5. Step 4 repeats until no rule fails, a round changes nothing, or the
    failing count stops improving; if rules still fail, steps 3 and 4 run
-   once more. Values are then rounded to the reporting decimals and every
-   rule is evaluated once more.
+   once more, and the pass with fewer failing rules is kept. Values are
+   rounded to the reporting decimals before every rule is evaluated.
 
 How the loop works, and where it stops, is explained at
 https://luukhopman.github.io/dpm-synth/concepts/repair-loop/.
@@ -1078,6 +1078,8 @@ def generate(
     data._apply_bounds()
     history: list[int] = []
     repairs = 0
+    # The best rounded state so far: failing rules, values, results.
+    best: tuple[int, dict[Slot, Value], dict[str, Any]] | None = None
     # The linear rules are solved jointly, then the loop repairs the rest;
     # when rules still fail, a second solve restores the linear rules its
     # repairs broke, and the loop runs again.
@@ -1089,21 +1091,32 @@ def generate(
         data._round_all()
         start = len(history)
         # The second pass starts close to its end: it stalls sooner.
-        changes, failing = _repair(
+        changes, _failing = _repair(
             parsed, data, owners, max_rounds - start, history, 6 if not start else 3
         )
         repairs += changes
-        if not failing:
+        unrounded = dict(data.values)
+        data._round_all()
+        results = _results(parsed, data)
+        count = sum(result.status == "failed" for result in results.values())
+        # A second pass can end worse than the first: keep the earlier state.
+        if best is None or count < best[0]:
+            best = (count, dict(data.values), results)
+        if not count:
             break
+        data.values = unrounded
     rounds = len(history)
-    data._round_all()
+    if best is None:
+        data._round_all()
+        results = _results(parsed, data)
+    else:
+        _count, data.values, results = best
     found: dict[str, str] = dict.fromkeys(messages, "error")
     found.update((rule.code, "skipped") for rule in template.rules if not rule.active)
-    for rule, node, precondition in parsed:
-        result = evaluate_rule(node, data, precondition=precondition, trace=False)
-        found[rule.code] = result.status
+    for code, result in results.items():
+        found[code] = result.status
         if result.status in {"error", "unsupported"}:
-            messages[rule.code] = result.message or result.status
+            messages[code] = result.message or result.status
     return GenerationResult(
         report=build_report(data),
         data=data,
@@ -1117,6 +1130,20 @@ def generate(
         repairs=repairs,
         history=history,
     )
+
+
+def _results(
+    parsed: list[tuple[Any, Node, str | None]], data: SyntheticData
+) -> dict[str, Any]:
+    """Evaluate every parsed rule on the current values.
+
+    Returns:
+        dict[str, Any]: The dpm-xl result by rule code.
+    """
+    return {
+        rule.code: evaluate_rule(node, data, precondition=precondition, trace=False)
+        for rule, node, precondition in parsed
+    }
 
 
 def _repair(

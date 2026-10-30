@@ -998,3 +998,26 @@ def test_null_records_of_rules_without_a_default_are_left_alone(seed) -> None:
     if result.statuses["r1"] == "not_applicable":
         initial = run(cells, rules, seed=seed, fill=0.6, max_rounds=0)
         assert result.data.values == initial.data.values
+
+
+def test_the_second_pass_never_ends_worse_than_the_first(monkeypatch) -> None:
+    # A second pass that breaks a rule the first pass met is undone.
+    from dpmsynth import generator
+
+    original = generator._repair
+    calls = []
+
+    def repair(parsed, data, *args, **kwargs):
+        found = original(parsed, data, *args, **kwargs)
+        calls.append(1)
+        if len(calls) == 2:
+            data.values["dp1", ()] = Number(Decimal(-5))
+        return found
+
+    monkeypatch.setattr(generator, "_repair", repair)
+    cells = [cell("0010", "0010", 1), cell("0020", "0010", 2)]
+    rules = ["{tT, r0010, c0010} >= 0", "{tT, r0020, c0010} > {tT, r0020, c0010}"]
+    result = run(cells, rules)
+    assert len(calls) == 2
+    assert result.failed == ["r2"]
+    assert value(result, 1).value >= 0
