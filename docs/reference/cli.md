@@ -25,6 +25,7 @@ options:
 examples:
   dpm-synth generate template.json -o report.zip
   dpm-synth generate template.json -o report.zip --seed 7 --open-rows 3
+  dpm-synth generate template.json -o report.zip --size large --fill 0.6
   dpm-synth generate template.json -o report.zip --json
   dpm-synth generate template.json -o report.zip --fail-on warning
   dpm-synth generate template.json -o big.zip --scale-rows 1000000
@@ -44,6 +45,7 @@ usage: dpm-synth generate [-h] -o ZIP [--seed N] [--open-rows N]
                           [--max-rounds N] [--scale-rows N]
                           [--reference-date YYYY-MM-DD] [--entity LEI]
                           [--level {CON,IND}] [--currency CODE]
+                          [--size {small,medium,large}] [--fill RATIO]
                           [--fail-on {error,warning}] [--json]
                           template
 
@@ -69,6 +71,11 @@ options:
   --level {CON,IND}     reporting level, the entity suffix (default CON)
   --currency CODE       reporting currency, an ISO 4217 code (default: the
                         template's, else EUR)
+  --size {small,medium,large}
+                        institution size that amounts are drawn for (default
+                        medium)
+  --fill RATIO          share of cells that start with a value; the others are
+                        left out unless a rule needs them (default 1)
   --fail-on {error,warning}
                         exit with status 1 when a rule of this severity or
                         worse fails or is an error (default: error)
@@ -84,7 +91,7 @@ options:
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7
 rules: 9, passed: 8, failed: 0, unsupported: 1
-rounds: 2 (failing rules per round: 2, 0)
+rounds: 2 (failing rules per round: 3, 0)
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 ```
@@ -109,6 +116,8 @@ wrote sample.zip (20 facts)
 | `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme, or the bare LEI in the LEI scheme before the reference date 2022-12-31 and for a module whose code has `_con` or `_ind` (EBA filing rule 3.6). |
 | `--level CON\|IND` | The reporting level, consolidated or individual. |
 | `--currency CODE` | The reporting currency, an ISO 4217 code such as `SEK`, written as `baseCurrency` when a monetary fact is reported. |
+| `--size small\|medium\|large` | The institution size: monetary amounts start between 1,000 and 1,000,000, 100,000 and 100,000,000 (the default), or 10,000,000 and 10,000,000,000 ([`SIZES`][dpmsynth.SIZES]). |
+| `--fill RATIO` | The share of cells that start with a value, above 0 and at most 1 (default 1). The other cells are left out of the report, a sparse report, unless a rule needs a value; every table keeps at least one fact. |
 | `--fail-on error\|warning` | The least [severity](template-format.md#rules) of a failed or `error` rule that makes [exit status](exit-statuses.md) 1. Default `error`: failing warnings are reported but do not fail the run. |
 | `--json` | Print the summary as JSON instead; see [JSON output](json-output.md). |
 | `--version` | Print the version and exit. |
@@ -128,6 +137,7 @@ usage: dpm-synth generate [-h] -o ZIP [--seed N] [--open-rows N]
                           [--max-rounds N] [--scale-rows N]
                           [--reference-date YYYY-MM-DD] [--entity LEI]
                           [--level {CON,IND}] [--currency CODE]
+                          [--size {small,medium,large}] [--fill RATIO]
                           [--fail-on {error,warning}] [--json]
                           template
 dpm-synth generate: error: argument -o/--output: expected a .zip file, got 'report.csv'

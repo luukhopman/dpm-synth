@@ -71,9 +71,9 @@ print([finding.code for finding in report.filing])
 
 ```text
 SYNTHETICDPMXL000002.CON 2026-12-31 {'T_01.00': True}
-t_01.00 dp1001 1126000
-t_01.00 dp1002 971000
-t_01.00 dp1003 155000
+t_01.00 dp1001 9253000
+t_01.00 dp1002 283000
+t_01.00 dp1003 8970000
 ['invalidFileName']
 ```
 
@@ -127,7 +127,7 @@ that needs last year's report:
 ```console
 $ dpm-synth generate sample.json -o sample.zip --seed 7
 rules: 9, passed: 8, failed: 0, unsupported: 1
-rounds: 2 (failing rules per round: 2, 0)
+rounds: 2 (failing rules per round: 3, 0)
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sample.zip (20 facts)
 ```

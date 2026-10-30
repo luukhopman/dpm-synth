@@ -189,11 +189,13 @@ for code in result.failed:
 ```
 
 ```text
-rows 332,000 should equal 577,000 (405,000 + 75,000 + 97,000): difference 245,000, at least 244,998 given the reported precision
-columns 332,000 should equal 1,126,000 (971,000 + 155,000): difference 794,000, at least 793,998.5 given the reported precision
-ratio 32,400 should equal 75,000: difference 42,600, at least 42,579.2 given the reported precision
+rows 936,000 should equal 2,314,000 (165,000 + 149,000 + 2,000,000): difference 1,378,000, at least 1,377,998 given the reported precision
+columns 936,000 should equal 9,253,000 (283,000 + 8,970,000): difference 8,317,000, at least 8,316,998.5 given the reported precision
+ratio 90,750 should equal 149,000: difference 58,250, at least 58,240.9 given the reported precision
 item [AS:x1] is not one of [AS:x2]
-open-total 1,452,000 should equal 332,000: difference 1,120,000
+open 69,558,000 should not exceed 150,000: difference 69,408,000, at least 69,407,999 given the reported precision
+open-total 5,120,000 should equal 936,000: difference 4,184,000
+lei "Synthetic text 5147" does not have the required format
 ```
 
 Here `max_rounds=0` keeps the starting values, so rules that the solver

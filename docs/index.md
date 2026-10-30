@@ -45,9 +45,9 @@ for fact in result.report.facts:
 
 ```text
 2 of 2 rules pass; failing: []
-t_01.00 dp1001 1126000
-t_01.00 dp1002 971000
-t_01.00 dp1003 155000
+t_01.00 dp1001 9253000
+t_01.00 dp1002 283000
+t_01.00 dp1003 8970000
 ```
 
 The template [`minimal.json`](samples/minimal.json) has one table of three

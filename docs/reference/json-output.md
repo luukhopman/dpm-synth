@@ -33,10 +33,10 @@ $ dpm-synth generate sample.json -o sample.zip --seed 7 --json
   "seed": 7,
   "rounds": 2,
   "history": [
-    2,
+    3,
     0
   ],
-  "repairs": 2,
+  "repairs": 4,
   "results": [
     {
       "rule": "rows",

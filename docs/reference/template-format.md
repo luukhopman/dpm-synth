@@ -48,7 +48,7 @@ and [write a template by hand](../guides/write-a-template.md).
 | `release` | string | yes | The DPM release, such as `"4.3"`. Informative. |
 | `module` | string | yes | The module code, such as `"COREP_OF"`. Named in error messages and the JSON output. |
 | `entry_point` | string or null | no | The module's xBRL-CSV entry point, written to `reports/report.json` as `extends`. |
-| `reference_date` | string or null | no | The reference date, `YYYY-MM-DD`; it is the `refPeriod` parameter, the value of `d` cells and the rules' `{refPeriod}`. Before 2022-12-31 the entity is identified by its bare LEI (EBA filing rule 3.6). Default `2026-12-31`; the `--reference-date` option overrides it. |
+| `reference_date` | string or null | no | The reference date, `YYYY-MM-DD`; it is the `refPeriod` parameter and the rules' `{refPeriod}`, and `d` cells start in the ten years up to it. Before 2022-12-31 the entity is identified by its bare LEI (EBA filing rule 3.6). Default `2026-12-31`; the `--reference-date` option overrides it. |
 | `currency` | string or null | no | The reporting currency, an ISO 4217 code such as `"SEK"`; the report's `baseCurrency`, written only when a monetary fact is reported. Default `"EUR"`; the `--currency` option overrides it. |
 | `decimals` | object | no | Reporting decimals by data type code, such as `{"m": -3}`; whole numbers from -20 to 20. Unlisted types keep the defaults `m` 0, `p` 4, `i` 0, `r` 2. EBA filing rule 2.18 sets the least accuracy: `p` 4 or more, `i` exactly 0, and `m` -4 or more, or -6 for the FP, ESG, Pillar 3 and REM_DBM modules; `m` below -6 is rejected. |
 | `filing_indicators` | array of strings | no | The filing indicators of every template of the module, such as `["C_07.00", "C_08.01"]`, which EBA filing rule 1.6 asks a report to declare. Those of the template's tables are reported as `true`, the others as `false`. Unique, and must include every table's `filing_indicator`. |
@@ -104,17 +104,20 @@ repairs apply, how the value is rounded and how it is written.
 
 | Code | Type | Starting value | Written as |
 | --- | --- | --- | --- |
-| `m` | monetary | a multiple of 1,000 from 1,000 to 1,000,000 | a decimal with `decimals.m` places |
+| `m` | monetary | a multiple of 1,000, spread over three orders of magnitude for the institution size: 100,000 to 100,000,000 by default (`size`, `--size`) | a decimal with `decimals.m` places |
 | `p` | percentage | 0.01 to 0.99 | a decimal with `decimals.p` places |
 | `i` | integer | 1 to 50 | a decimal with `decimals.i` places |
 | `r` | decimal | 1.00 to 9.99 | a decimal with `decimals.r` places |
 | `e` | enumerated | the first of `items` | the item qname as the template writes it |
 | `es` | enumeration set | the first of `items`, as a set of one item | the item qname as the template writes it |
-| `b` | boolean | `true` | `true` or `false` |
-| `d` | date | the reference date | `YYYY-MM-DD` |
-| anything else, or null | text | a random LEI-shaped identifier starting with `SYNTH` | the text |
+| `b` | boolean | `true` or `false` | `true` or `false` |
+| `d` | date | a day in the ten years up to the reference date | `YYYY-MM-DD` |
+| anything else, or null | text | `Synthetic text` and a number; a `match` repair writes an LEI-shaped identifier starting with `SYNTH` where a rule asks for one | the text |
 
-Only numeric cells (`m`, `p`, `i`, `r`) take part in arithmetic repairs.
+Starting values depend on the seed only. With `fill` below 1 (`--fill`),
+a share of the cells starts empty instead and is left out of the report
+unless a rule needs a value. Only numeric cells (`m`, `p`, `i`, `r`) take
+part in arithmetic repairs.
 Negative decimals round to tens, hundreds or thousands: with `"m": -3` a
 monetary value is written as a multiple of 1,000.
 

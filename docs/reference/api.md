@@ -59,6 +59,8 @@ immutable.
 
 ::: dpmsynth.STATUSES
 
+::: dpmsynth.SIZES
+
 ::: dpmsynth.SyntheticData
 
 ::: dpmsynth.DEFAULT_ENTITY

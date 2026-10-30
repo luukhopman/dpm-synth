@@ -13,10 +13,16 @@ failing comparison holds, which covers the rest (products of cells, `max`,
 
 ## 1. Starting values
 
-Every cell gets a value for its [data type](../reference/template-format.md#data-types):
-monetary amounts in thousands, ratios between 0 and 1, small integers, the
-first allowed item of an enumerated cell, the reference date for dates and
-an LEI-shaped identifier for text. Every open table gets `open_rows` key
+Every cell gets a value for its [data type](../reference/template-format.md#data-types),
+drawn from the seed: monetary amounts in thousands, spread over three
+orders of magnitude for the institution size (`size`), ratios between 0
+and 1, small integers, the first allowed item of an enumerated cell,
+`true` or `false`, a date in the ten years up to the reference date, and
+`Synthetic text` with a number for text. With `fill` below 1, a share of
+the cells starts empty instead: an empty cell counts as 0 in rules with
+`default: 0`, the joint solve leaves it empty, and a repair gives it a
+value only when a rule needs one, so the report is sparse but still
+satisfies the rules. Every open table gets `open_rows` key
 rows: allowed items for enumerated keys; integers, dates or LEI-shaped
 identifiers for typed keys, by their data type.
 
@@ -36,12 +42,12 @@ print([fact.value for fact in start.report.facts], start.failed)
 ```
 
 ```text
-['332000', '971000', '155000'] ['v1']
+['936000', '283000', '8970000'] ['v1']
 ```
 
 The total in row 0010 is not the sum of rows 0020 and 0030, so rule `v1`
 fails. Without `max_rounds=0`, the joint solve of the linear rules sets
-the total to 1,126,000 before the first round, which finds no failing rule.
+the total to 9,253,000 before the first round, which finds no failing rule.
 
 ## 2. Analysis
 
@@ -120,7 +126,7 @@ print(result.history, result.rounds, result.repairs)
 ```
 
 ```text
-[2, 0] 2 2
+[3, 0] 2 4
 ```
 
 ## 6. Rounding and the final evaluation

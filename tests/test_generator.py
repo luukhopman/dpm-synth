@@ -539,15 +539,86 @@ def test_initial_values_by_data_type() -> None:
     ]
     result = run(cells, [], seed=11)
     m, p, i, r, e, b, d, s, text, es = (value(result, n) for n in range(1, 11))
-    assert m.value % 1000 == 0 and 1000 <= m.value <= 1_000_000
+    assert m.value % 1000 == 0 and 100_000 <= m.value <= 100_000_000
     assert 0 < p.value < 1
     assert 1 <= i.value <= 50 and i.value == i.value.to_integral_value()
     assert 1 <= r.value < 10
     assert e == es == Item("AB", "x1")
-    assert b is True
-    assert d == date(2026, 12, 31)
-    assert isinstance(s, str) and len(s) == 20 and s.startswith("SYNTH")
-    assert isinstance(text, str)
+    assert isinstance(b, bool)
+    assert date(2016, 12, 31) <= d <= date(2026, 12, 31)
+    # Text is not LEI-shaped: only match repairs write LEIs.
+    assert isinstance(s, str) and s.startswith("Synthetic text ")
+    assert isinstance(text, str) and text.startswith("Synthetic text ")
+
+
+def test_booleans_and_dates_vary_by_seed() -> None:
+    cells = [cell(f"00{n}0", "0010", n, kind) for n, kind in ((1, "b"), (2, "d"))]
+    results = [run(cells, [], seed=seed) for seed in range(20)]
+    assert {value(result, 1) for result in results} == {True, False}
+    assert len({value(result, 2) for result in results}) > 10
+    again = run(cells, [], seed=3)
+    assert value(again, 2) == value(results[3], 2)
+
+
+@pytest.mark.parametrize(("size", "low", "high"), [
+    ("small", 10**3, 10**6),
+    ("medium", 10**5, 10**8),
+    ("large", 10**7, 10**10),
+])  # fmt: skip
+def test_amounts_scale_with_the_institution_size(size, low, high) -> None:
+    cells = [cell(f"{n:04d}", "0010", n) for n in range(1, 40)]
+    result = run(cells, [], size=size)
+    amounts = [value(result, n).value for n in range(1, 40)]
+    assert all(low <= amount <= high and amount % 1000 == 0 for amount in amounts)
+    assert max(amounts) > 10 * min(amounts)  # spread over magnitudes
+
+
+@pytest.mark.parametrize("seed", range(3))
+def test_sparse_reports_still_satisfy_the_rules(seed) -> None:
+    template = load_template(SAMPLES / "sample.json")
+    full = generate(template, seed=seed)
+    sparse = generate(template, seed=seed, fill=0.3)
+    assert sparse.failed == []
+    assert len(sparse.report.facts) < len(full.report.facts)
+    # Every table keeps a fact.
+    tables = {fact.template for fact in sparse.report.facts}
+    assert tables == {fact.template for fact in full.report.facts}
+    assert generate(template, seed=seed, fill=0.3).report == sparse.report
+
+
+def test_rules_give_empty_cells_a_value() -> None:
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    rules = [
+        "not isnull({tT, r0030, c0010, default: null})",
+        "with {tT, c0010, default: 0, interval: true}: {r0010} = {r0020} + {r0030}",
+    ]
+    for seed in range(5):
+        result = run(cells, rules, seed=seed, fill=0.01)
+        assert result.failed == []
+        assert value(result, 2) is None  # left empty, counted as 0
+        assert value(result, 3) is not None
+        assert value(result, 1) == value(result, 3)
+
+
+@pytest.mark.parametrize(
+    ("option", "message"),
+    [
+        ({"size": "huge"}, "size must be one of small, medium, large"),
+        ({"fill": 0}, "fill must be a number above 0"),
+        ({"fill": 1.5}, "fill must be a number above 0"),
+        ({"fill": True}, "fill must be a number above 0"),
+    ],
+)
+def test_size_and_fill_are_checked(option, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        run([cell("0010", "0010", 1)], [], **option)
+
+
+def test_dates_move_against_the_reference_date() -> None:
+    cells = [cell("0010", "0010", 1, "d")]
+    result = run(cells, ["{tT, r0010, c0010} > refPeriod"], seed=0)
+    assert result.failed == []
+    assert value(result, 1) == date(2027, 1, 1)
 
 
 @pytest.mark.parametrize(

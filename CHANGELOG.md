@@ -42,6 +42,15 @@ All notable changes to this project are documented here. The project follows
   instead of about 52. Repairs also share a difference among cells that
   cannot take it alone, and move dates compared with each other. This
   changes the values generated for every seed.
+- Monetary amounts start spread over three orders of magnitude for an
+  institution size, `size` (`--size small|medium|large`, default
+  `medium`: 100,000 to 100,000,000), instead of 1,000 to 1,000,000.
+- Booleans start as `true` or `false`, dates in the ten years up to the
+  reference date, and text cells as `Synthetic text` with a number instead
+  of an LEI-shaped identifier.
+- `fill` (`--fill RATIO`) leaves a share of the cells out, for sparse
+  reports that still satisfy the rules.
+- The starting values above change the values generated for every seed.
 - Breaking: rules end with dpm-xl's statuses; `GenerationResult.statuses`,
   `messages` and `summary` replace `passed`, `rules`, `not_evaluated` and
   `not_applicable`, and the text summary uses the same words.

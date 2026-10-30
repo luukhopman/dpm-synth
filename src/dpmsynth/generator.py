@@ -90,6 +90,15 @@ with the rows; for larger tables, write a scaled package instead.
 """
 
 _NUMERIC = {"m", "p", "i", "r"}
+# Monetary starting values by institution size: powers of ten, low to high.
+_SIZES = {"small": (3.0, 6.0), "medium": (5.0, 8.0), "large": (7.0, 10.0)}
+SIZES = tuple(_SIZES)
+"""The institution sizes ``generate`` takes: ``small``, ``medium``, ``large``.
+
+Monetary amounts start log-uniformly between 1,000 and 1,000,000 for
+``small``, 100,000 and 100,000,000 for ``medium`` and 10,000,000 and
+10,000,000,000 for ``large``, in multiples of 1,000.
+"""
 _DEFAULT_DECIMALS = {"m": 0, "p": 4, "i": 0, "r": 2}
 _DECIMALS_PARAMETERS = {
     "m": "decimalsMonetary",
@@ -204,6 +213,10 @@ class SyntheticData:
         reporting_level: ``CON`` or ``IND``, the suffix of the entity
             identifier and the ``ReportingLevel`` parameter.
         decimals: Reporting decimals by data type code.
+        size: The institution size that monetary amounts are drawn for:
+            ``small``, ``medium`` or ``large``.
+        fill: The share of cells that start with a value; the others start
+            empty and are reported only when a rule needs them.
     """
 
     def __init__(
@@ -214,6 +227,8 @@ class SyntheticData:
         *,
         entity: str = DEFAULT_ENTITY,
         reporting_level: str = "CON",
+        size: str = "medium",
+        fill: float = 1.0,
     ) -> None:
         """Create initial values and open-table key rows.
 
@@ -223,11 +238,16 @@ class SyntheticData:
             open_rows: Key rows to generate per open table.
             entity: LEI of the reporting entity.
             reporting_level: Suffix of the entity identifier.
+            size: Institution size: ``small``, ``medium`` or ``large``.
+            fill: Share of cells that start with a value, above 0 and at
+                most 1.
         """
         self.template = template
         self.rng = rng
         self.entity = entity
         self.reporting_level = reporting_level
+        self.size = size
+        self.fill = fill
         self.decimals: dict[str, int] = {**_DEFAULT_DECIMALS, **template.decimals}
         self.values: dict[Slot, Value] = {}
         self.key_rows: dict[str, list[tuple[tuple[str, Any], ...]]] = {}
@@ -250,6 +270,26 @@ class SyntheticData:
                 self._cells.setdefault(cell.datapoint, cell)
                 for keys in rows:
                     self.values.setdefault((cell.datapoint, keys), self._initial(cell))
+        if fill < 1:
+            self._thin()
+
+    def _thin(self) -> None:
+        """Empty a share ``1 - fill`` of the cells, keeping a fact per table.
+
+        An empty cell counts as 0 for the rules (or as null without a
+        default), and repairs give it a value when a rule needs one.
+        """
+        for table in self.template.tables:
+            slots = [
+                (cell.datapoint, keys)
+                for keys in self.key_rows[table.code]
+                for cell in table.cells
+            ]
+            emptied = [slot for slot in slots if self.rng.random() >= self.fill]
+            if len(emptied) == len(slots):
+                emptied = emptied[1:]
+            for slot in emptied:
+                self.values[slot] = None
 
     def _key_rows(
         self, table: TemplateTable, count: int
@@ -277,7 +317,10 @@ class SyntheticData:
         """Return a random starting value for a cell's data type."""
         kind = cell.data_type
         if kind == "m":
-            return self._number(cell, Decimal(self.rng.randint(1, 1000) * 1000))
+            # Log-uniform over three orders of magnitude for the size.
+            low, high = _SIZES[self.size]
+            amount = 10 ** self.rng.uniform(low, high)
+            return self._number(cell, Decimal(round(amount, -3) or 1000))
         if kind == "p":
             return self._number(cell, Decimal(self.rng.randint(1, 99)) / 100)
         if kind == "i":
@@ -288,10 +331,12 @@ class SyntheticData:
             # An enumeration set (es) is written as a set of one item.
             return Item.parse(cell.items[0]) if cell.items else None
         if kind == "b":
-            return True
+            return self.rng.random() < 0.5
         if kind == "d":
-            return self.template.reference_date or DEFAULT_REFERENCE_DATE
-        return _lei(self.rng)
+            # A day in the ten years up to the reference date.
+            reference = self.template.reference_date or DEFAULT_REFERENCE_DATE
+            return reference - timedelta(days=self.rng.randint(0, 3652))
+        return f"Synthetic text {self.rng.randint(1, 9999)}"
 
     def _cell(self, slot: object) -> TemplateCell | None:
         if not isinstance(slot, tuple) or slot not in self.values:
@@ -707,16 +752,24 @@ class _Repairer:
         The earlier side moves, so dates do not move past the reference
         date: ``a < b`` sets ``a`` to the day before ``b``; ``a > b`` sets
         ``b`` to the day before ``a``; ``a = b`` copies ``b`` into ``a``.
+        When that side has no cells, such as ``refPeriod``, the other moves.
 
         Returns:
             bool: Whether a value changed.
         """
-        day = timedelta(days=1)
+        day = timedelta(days=0 if op in {">=", "<="} else 1)
+        if op == "=":
+            return self.assign_all(node.left, right) or self.assign_all(
+                node.right, left
+            )
         if op in {"<", "<=", "!="}:
-            return self.assign_all(node.left, right if op == "<=" else right - day)
-        if op in {">", ">="}:
-            return self.assign_all(node.right, left if op == ">=" else left - day)
-        return self.assign_all(node.left, right)
+            # A side without cells, such as refPeriod, cannot move.
+            return self.assign_all(node.left, right - day) or self.assign_all(
+                node.right, left + day
+            )
+        return self.assign_all(node.right, left - day) or self.assign_all(
+            node.left, right + day
+        )
 
     def linear(self, node: Binary, op: str) -> bool:
         """Solve ``left op right`` by moving one cell of the linearized difference.
@@ -914,6 +967,8 @@ def generate(
     reporting_level: str = "CON",
     reference_date: date | None = None,
     currency: str | None = None,
+    size: str = "medium",
+    fill: float = 1.0,
 ) -> GenerationResult:
     """Generate a report for ``template`` that satisfies as many rules as it can.
 
@@ -935,14 +990,19 @@ def generate(
         reference_date: Overrides the template's reference date.
         currency: Overrides the template's reporting currency, an ISO 4217
             code such as ``SEK``.
+        size: The institution size, one of [`SIZES`][dpmsynth.SIZES]:
+            monetary amounts start in its range.
+        fill: The share of cells that start with a value, above 0 and at
+            most 1. With less than 1 the report is sparse: the other cells
+            are left out unless a rule needs a value.
 
     Returns:
         GenerationResult: The report and the final rule status.
 
     Raises:
-        ValueError: If ``open_rows`` or ``max_rounds`` is out of range,
-            ``entity`` or ``reporting_level`` is not an identifier, or
-            ``currency`` is not an ISO 4217 code.
+        ValueError: If ``open_rows``, ``max_rounds`` or ``fill`` is out of
+            range, ``entity`` or ``reporting_level`` is not an identifier,
+            ``currency`` is not an ISO 4217 code, or ``size`` is unknown.
 
     Examples:
         >>> from dpmsynth import load_template
@@ -980,11 +1040,21 @@ def generate(
                 f"currency must be an ISO 4217 code such as 'EUR': {currency!r}"
             )
         template = replace(template, currency=currency)
+    if size not in _SIZES:
+        raise ValueError(f"size must be one of {', '.join(_SIZES)}: {size!r}")
+    if isinstance(fill, bool) or not isinstance(fill, int | float) or not 0 < fill <= 1:
+        raise ValueError(f"fill must be a number above 0 and at most 1: {fill!r}")
     if reference_date is not None:
         template = replace(template, reference_date=reference_date)
     rng = random.Random(seed)  # ruff: ignore[suspicious-non-cryptographic-random-usage] - reproducible test data, not secrets
     data = SyntheticData(
-        template, rng, open_rows, entity=entity, reporting_level=reporting_level
+        template,
+        rng,
+        open_rows,
+        entity=entity,
+        reporting_level=reporting_level,
+        size=size,
+        fill=fill,
     )
     parsed = []
     messages: dict[str, str] = {}
@@ -1704,6 +1774,7 @@ __all__ = [
     "DEFAULT_REFERENCE_DATE",
     "LEI_PREFIX",
     "MAX_OPEN_ROWS",
+    "SIZES",
     "STATUSES",
     "GenerationResult",
     "SyntheticData",

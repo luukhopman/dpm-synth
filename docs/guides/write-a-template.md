@@ -149,23 +149,23 @@ for fact in result.report.facts:
 
 ```text
 7 passed; failed: []
-l_01.00 dp101 1451000 {}
-l_01.00 dp102 583000 {}
-l_01.00 dp103 868000 {}
-l_01.00 dp104 0.4018 {}
+l_01.00 dp101 54416000 {}
+l_01.00 dp102 34858000 {}
+l_01.00 dp103 19558000 {}
+l_01.00 dp104 0.6406 {}
 l_01.00 dp105 eba_CT:x2 {}
-l_02.00 dp201 993000 {'c0010': 'SYNTHEQH524YNG5BY106', 'c0020': 'eba_CT:x1'}
-l_02.00 dp202 SYNTHB7O259OWOO3SB53 {'c0010': 'SYNTHEQH524YNG5BY106', 'c0020': 'eba_CT:x1'}
-l_02.00 dp201 433000 {'c0010': 'SYNTHA2ROGUBBB8AYN47', 'c0020': 'eba_CT:x2'}
-l_02.00 dp202 SYNTH09GLSHV616MTS07 {'c0010': 'SYNTHA2ROGUBBB8AYN47', 'c0020': 'eba_CT:x2'}
+l_02.00 dp201 3827000 {'c0010': 'SYNTHH524YNG5BY1A223', 'c0020': 'eba_CT:x1'}
+l_02.00 dp202 Synthetic text 8124 {'c0010': 'SYNTHH524YNG5BY1A223', 'c0020': 'eba_CT:x1'}
+l_02.00 dp201 19548000 {'c0010': 'SYNTHROGUBBB8AYN1B72', 'c0020': 'eba_CT:x2'}
+l_02.00 dp202 Synthetic text 9059 {'c0010': 'SYNTHROGUBBB8AYN1B72', 'c0020': 'eba_CT:x2'}
 ```
 
 Monetary amounts are multiples of 1,000, as `"decimals": {"m": -3}` asks,
 the share in row 0040 times the total gives the secured loans within the
 precision the package reports, and the item rule picked `eba_CT:x2`. Text
-cells and typed keys get visibly fictional LEI-shaped values starting with
-`SYNTH`; only `match` rules with the LEI or
-`dd/mm/yyyy` pattern ask for anything else.
+cells get `Synthetic text` and a number, and typed keys visibly fictional
+LEI-shaped values starting with `SYNTH`; a `match` rule with the LEI or
+`dd/mm/yyyy` pattern gets a value of that shape.
 
 The same file works from the command line:
 

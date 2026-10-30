@@ -269,3 +269,18 @@ def test_rules_that_cannot_be_evaluated(tmp_path: Path, capsys) -> None:
     template = write(tmp_path, document([cell("0010", "0010", 1)], warning))
     assert main(arguments) == 0
     assert main([*arguments, "--fail-on", "warning"]) == 1
+
+
+def test_size_and_fill(tmp_path: Path, sample: Path) -> None:
+    full, sparse = tmp_path / "full.zip", tmp_path / "sparse.zip"
+    assert main(["generate", str(sample), "-o", str(full)]) == 0
+    options = ["--size", "large", "--fill", "0.4"]
+    assert main(["generate", str(sample), "-o", str(sparse), *options]) == 0
+    assert len(read_report(sparse).facts) < len(read_report(full).facts)
+
+
+@pytest.mark.parametrize("option", [["--fill", "0"], ["--fill", "x"], ["--size", "xl"]])
+def test_bad_size_and_fill_are_usage_errors(tmp_path: Path, sample, option) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main(["generate", str(sample), "-o", str(tmp_path / "r.zip"), *option])
+    assert raised.value.code == 2

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
 from collections.abc import Iterator, Sequence
@@ -23,6 +24,7 @@ from ._version import __version__
 from .generator import (
     DEFAULT_ENTITY,
     MAX_OPEN_ROWS,
+    SIZES,
     STATUSES,
     GenerationResult,
     generate,
@@ -46,6 +48,7 @@ _IDENTIFIER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 _EPILOG = """examples:
   dpm-synth generate template.json -o report.zip
   dpm-synth generate template.json -o report.zip --seed 7 --open-rows 3
+  dpm-synth generate template.json -o report.zip --size large --fill 0.6
   dpm-synth generate template.json -o report.zip --json
   dpm-synth generate template.json -o report.zip --fail-on warning
   dpm-synth generate template.json -o big.zip --scale-rows 1000000
@@ -128,6 +131,18 @@ def _currency(text: str) -> str:
     return text
 
 
+def _ratio(text: str) -> float:
+    try:
+        value = float(text)
+    except ValueError:
+        value = math.nan
+    if not 0 < value <= 1:
+        raise argparse.ArgumentTypeError(
+            f"expected a number above 0 and at most 1, such as 0.6, got {text!r}"
+        )
+    return value
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="dpm-synth",
@@ -206,6 +221,20 @@ def _parser() -> argparse.ArgumentParser:
         help="reporting currency, an ISO 4217 code (default: the template's, else EUR)",
     )
     run.add_argument(
+        "--size",
+        choices=SIZES,
+        default="medium",
+        help="institution size that amounts are drawn for (default medium)",
+    )
+    run.add_argument(
+        "--fill",
+        type=_ratio,
+        default=1.0,
+        metavar="RATIO",
+        help="share of cells that start with a value; the others are left "
+        "out unless a rule needs them (default 1)",
+    )
+    run.add_argument(
         "--fail-on",
         choices=("error", "warning"),
         default="error",
@@ -243,6 +272,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         reporting_level=arguments.level,
         reference_date=arguments.reference_date,
         currency=arguments.currency,
+        size=arguments.size,
+        fill=arguments.fill,
     )
     try:
         if arguments.scale_rows is None:
