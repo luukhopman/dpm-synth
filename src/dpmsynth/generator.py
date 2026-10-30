@@ -1304,8 +1304,9 @@ def _order_by_depth(
     parsed.sort(key=lambda item: depth.get(item[0].code, 0))
 
 
-# A linear comparison ``constant + sum(coefficient * cell) op 0`` of one record.
-_Constraint = tuple[str, float, tuple[tuple[Slot, float], ...]]
+# A linear comparison ``constant + sum(coefficient * cell) op 0`` of one
+# record, and whether the record is null (an empty cell without a default).
+_Constraint = tuple[str, float, tuple[tuple[Slot, float], ...], bool]
 _LINEAR_OPS = {"=", "<", "<=", ">", ">="}
 
 
@@ -1387,30 +1388,49 @@ def _linear_constraints(
             data, evaluation, dict(zip(recordset.keys, key, strict=True))
         )
         left, right = repairer.value(node.left), repairer.value(node.right)
-        # A null side (an empty cell without a default) skips the record.
-        if not (isinstance(left, Number) and isinstance(right, Number)):
+        if not (isinstance(left, Number | None) and isinstance(right, Number | None)):
             continue
-        found.append(_linear(repairer, node.op, node.left, node.right))
+        # A null side (an empty cell without a default) makes the rule skip
+        # the record. A cell that fill left empty may take a value, so the
+        # record counts, its empty cells as 0; a cleared cell stays empty.
+        if (left is None or right is None) and any(
+            point.value is None and point.ref not in data._sparse
+            for side in (node.left, node.right)
+            for point in repairer.points(side)
+        ):
+            continue
+        null = left is None or right is None
+        found.append((*_linear(repairer, node.op, node.left, node.right), null))
         for call in signs:
             operand = call.args[0]
             negative = _value(repairer.value(operand)) < 0
-            found.append(_linear(repairer, "<=" if negative else ">=", operand, None))
+            op = "<=" if negative else ">="
+            found.append((*_linear(repairer, op, operand, None), null))
     return [constraint for constraint in found if constraint[2]]
 
 
 def _linear(
     repairer: _Repairer, op: str, left: Node, right: Node | None
-) -> _Constraint:
+) -> tuple[str, float, tuple[tuple[Slot, float], ...]]:
     """Return ``left - right op 0`` of one record as a linear constraint.
 
     Returns:
-        _Constraint: The comparison, its constant and its numeric cells.
+        tuple: The comparison, its constant and its numeric cells.
     """
-    terms = repairer.terms(left, Decimal(1))
-    constant = _value(repairer.value(left))
+
+    def side(node: Node, sign: Decimal) -> tuple[list[Any], Decimal]:
+        found = repairer.terms(node, sign)
+        value = repairer.value(node)
+        if value is None:
+            # A null side: its empty cells count as 0 (constants are lost).
+            return found, sum((c * seen for _s, c, seen in found), Decimal(0))
+        return found, sign * _value(value)
+
+    terms, constant = side(left, Decimal(1))
     if right is not None:
-        terms += repairer.terms(right, Decimal(-1))
-        constant -= _value(repairer.value(right))
+        more, other = side(right, Decimal(-1))
+        terms += more
+        constant += other
     coefficients: dict[Slot, Decimal] = {}
     for slot, coefficient, seen in terms:
         if repairer.data._numeric_slot(slot):
@@ -1467,10 +1487,11 @@ def _project(
             ]
         return found
 
-    equalities: list[tuple[float, tuple[tuple[Slot, float], ...]]] = []
+    # Equalities, each with whether its record is null.
+    equalities: list[tuple[float, tuple[tuple[Slot, float], ...], bool]] = []
     # Inequalities as constant + terms >= 0.
     inequalities: list[tuple[float, tuple[tuple[Slot, float], ...]]] = []
-    for op, constant, terms in constraints:
+    for op, constant, terms, null in constraints:
         if len(terms) == 1:
             ((slot, coefficient),) = terms
             value = -constant / coefficient
@@ -1482,7 +1503,7 @@ def _project(
             if op in {"=", "<=", "<"}:
                 bounds[1] = min(bounds[1], value)
         elif op == "=":
-            equalities.append((constant, terms))
+            equalities.append((constant, terms, null))
         else:
             # A strict inequality holds by one reporting step of its cells.
             margin = (
@@ -1498,14 +1519,14 @@ def _project(
     # A cleared cell (an isnull repair) stays cleared: it counts as 0. A cell
     # that fill left empty starts at 0 and takes a value if a rule needs one.
     sparse: set[Slot] = set()
-    for _op, _constant, terms in constraints:
+    for _op, _constant, terms, _null in constraints:
         for slot, _c in terms:
             if data.values.get(slot) is None:
                 if slot in data._sparse:
                     sparse.add(slot)
                 else:
                     limit(slot)[:] = [0.0, 0.0]
-    pivots = _eliminate(equalities)
+    pivots = _eliminate(equalities, sparse)
     for slot, bounds in limits.items():
         if slot in pivots:
             if bounds[0] > -math.inf:
@@ -1568,27 +1589,39 @@ def _project(
 
 
 def _eliminate(
-    equalities: list[tuple[float, tuple[tuple[Slot, float], ...]]],
+    equalities: list[tuple[float, tuple[tuple[Slot, float], ...], bool]],
+    sparse: set[Slot] | None = None,
 ) -> dict[Slot, _Expression]:
     """Solve equalities for one cell each, by Gauss-Jordan elimination.
 
     Each equality, with the earlier pivots substituted, takes as its pivot
     the cell that the fewest earlier pivots use, so the expressions stay
     short; a pivot is then substituted into the expressions that use it.
+    The equality of a null record (flagged) takes a cell in ``sparse`` first:
+    the record's empty cells take the value rather than its reported ones
+    becoming 0.
 
     Returns:
         dict[Slot, _Expression]: Each pivot as an expression in cells that
         are not pivots. An equality that is redundant, or contradicts the
         earlier ones, gets none.
     """
+    sparse = sparse or set()
     pivots: dict[Slot, _Expression] = {}
     # Cell -> the pivots whose expression uses it, as an ordered set.
     users: dict[Slot, dict[Slot, None]] = {}
-    for constant, terms in equalities:
+    for constant, terms, null in equalities:
         constant, row = _substitute(constant, terms, pivots)
         if not row:
             continue
-        pivot = min(row, key=lambda slot: (len(users.get(slot, ())), -abs(row[slot])))
+        pivot = min(
+            row,
+            key=lambda slot: (
+                null and slot not in sparse,
+                len(users.get(slot, ())),
+                -abs(row[slot]),
+            ),
+        )
         scale = -row.pop(pivot)
         solved = (constant / scale, {slot: c / scale for slot, c in row.items()})
         for user in users.pop(pivot, {}):

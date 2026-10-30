@@ -57,7 +57,7 @@ needs a value, and every table keeps at least one fact:
 ```console
 $ dpm-synth generate sample.json -o sparse.zip --seed 7 --fill 0.5
 rules: 9, passed: 8, failed: 0, unsupported: 1
-rounds: 3 (failing rules per round: 4, 1, 0)
+rounds: 2 (failing rules per round: 3, 0)
 history: unsupported: The rule compares with the previous reporting period (time_shift), which a single report does not include
 wrote sparse.zip (13 facts)
 ```

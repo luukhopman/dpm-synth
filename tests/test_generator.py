@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from dpmxl import CellQuery, Item, Number, evaluate_rule
+from dpmxl import CellQuery, Item, Number, evaluate_rule, parse
 
 from dpmsynth import (
     DEFAULT_ENTITY,
@@ -990,15 +990,35 @@ def test_sparse_cells_take_what_a_total_needs(seed) -> None:
 
 
 @pytest.mark.parametrize("seed", range(10))
-def test_null_records_of_rules_without_a_default_are_left_alone(seed) -> None:
-    # Without a default an empty cell makes the record null, not 0: the rule
-    # does not apply to it, so the solve does not move the other cells.
+def test_sparse_cells_of_rules_without_a_default_take_values(seed) -> None:
+    # An empty cell of a record without a default is not pinned at 0: the
+    # solve gives empty cells values rather than zeroing the reported ones.
     cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
     rules = ["{tT, r0010, c0010} = {tT, r0020, c0010} + {tT, r0030, c0010}"]
+    initial = run(cells, rules, seed=seed, fill=0.6, max_rounds=0)
     result = run(cells, rules, seed=seed, fill=0.6)
-    if result.statuses["r1"] == "not_applicable":
-        initial = run(cells, rules, seed=seed, fill=0.6, max_rounds=0)
-        assert result.data.values == initial.data.values
+    assert result.failed == []
+    for n in (1, 2, 3):
+        if value(initial, n) is not None:
+            assert value(result, n).value != 0
+
+
+def test_records_with_a_cleared_cell_are_left_out_of_the_solve() -> None:
+    # Without a default an empty cell makes the record null. A cleared cell
+    # stays empty, so the rule does not apply and the solve leaves the record
+    # out; a cell that fill left empty may take a value, so it counts as 0.
+    from dpmsynth.generator import _linear_constraints
+
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    data = run(cells, [], max_rounds=0).data
+    data.values["dp3", ()] = None
+    node = parse("{tT, r0010, c0010} = {tT, r0020, c0010} + {tT, r0030, c0010}")
+    evaluation = evaluate_rule(node, data).evaluation
+    assert evaluation is not None
+    assert _linear_constraints(node, evaluation, data) == []
+    data._sparse.add(("dp3", ()))
+    terms = ((("dp1", ()), 1.0), (("dp2", ()), -1.0), (("dp3", ()), -1.0))
+    assert _linear_constraints(node, evaluation, data) == [("=", 0.0, terms, True)]
 
 
 def test_the_second_pass_never_ends_worse_than_the_first(monkeypatch) -> None:
@@ -1032,7 +1052,7 @@ def test_the_solve_meets_small_violations_of_ratios() -> None:
     data = SyntheticData(load_template(document(cells, [])), random.Random(0), 1)
     data.values["dp1", ()] = Number(Decimal("0.3"))
     data.values["dp2", ()] = Number(Decimal("0.305"))
-    _project([(">=", 0.0, ((("dp1", ()), 1.0), (("dp2", ()), -1.0)))], data)
+    _project([(">=", 0.0, ((("dp1", ()), 1.0), (("dp2", ()), -1.0)), False)], data)
     first, second = data.values["dp1", ()], data.values["dp2", ()]
     assert isinstance(first, Number) and isinstance(second, Number)
     assert first.value >= second.value
