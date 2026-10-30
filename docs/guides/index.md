@@ -1,5 +1,5 @@
 ---
-description: Task-oriented recipes for dpm-synth - write a template, build one from a DPM release, load-test, reproduce reports and validate the output.
+description: Task-oriented recipes for dpm-synth - write a template, build one from a DPM release, shape a realistic report, load-test, reproduce reports and validate the output.
 ---
 
 # How-to guides
@@ -9,11 +9,42 @@ have generated a first report; the [getting started](../getting-started.md)
 tutorial covers the basics. Every example runs against the templates in
 [`docs/samples`](https://github.com/luukhopman/dpm-synth/tree/main/docs/samples).
 
-| Guide | Use it to |
-| --- | --- |
-| [Write a template by hand](write-a-template.md) | Describe your own tables, keys, data types and rules, and check the template. |
-| [Build a template from a DPM release](from-a-dpm-release.md) | Export a real module's template from a DPM release, choose its rules, generate and read the results. |
-| [Shape a realistic report](realistic-reports.md) | Draw amounts for an institution size, leave cells out, choose currencies, and grade rules as warnings or switch them off. |
-| [Load-test with scaled packages](load-testing.md) | Write packages with millions of open-table rows, and know which rules still hold. |
-| [Reproduce a report with seeds](reproducible-seeds.md) | Get the same bytes again, or different reports on purpose. |
-| [Validate the output with dpm-xbrl and dpm-xl](validate-output.md) | Check a package independently, as a downstream consumer would. |
+<div class="grid cards" markdown>
+
+-   :lucide-pencil-line:{ .lg .middle } [**Write a template by hand**](write-a-template.md)
+
+    ---
+
+    Describe your own tables, keys, data types and rules, and check the template.
+
+-   :lucide-database:{ .lg .middle } [**Build a template from a DPM release**](from-a-dpm-release.md)
+
+    ---
+
+    What an exporter of a real module must write, with a small one to adapt.
+
+-   :lucide-sliders-horizontal:{ .lg .middle } [**Shape a realistic report**](realistic-reports.md)
+
+    ---
+
+    Amounts for an institution size, sparse reports, currencies, warnings and inactive rules.
+
+-   :lucide-gauge:{ .lg .middle } [**Load-test with scaled packages**](load-testing.md)
+
+    ---
+
+    Write packages with millions of open-table rows, and know which rules still hold.
+
+-   :lucide-repeat:{ .lg .middle } [**Reproduce a report with seeds**](reproducible-seeds.md)
+
+    ---
+
+    Get the same bytes again, or different reports on purpose.
+
+-   :lucide-circle-check:{ .lg .middle } [**Validate the output with dpm-xbrl and dpm-xl**](validate-output.md)
+
+    ---
+
+    Check a package independently, as a downstream consumer would.
+
+</div>
