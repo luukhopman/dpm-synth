@@ -247,3 +247,25 @@ def test_failing_errors_fail_with_either_threshold(tmp_path: Path) -> None:
     arguments = ["generate", str(template), "-o", str(tmp_path / "report.zip")]
     assert main([*arguments, "--fail-on", "error"]) == 1
     assert main([*arguments, "--fail-on", "warning"]) == 1
+
+
+def test_rules_that_cannot_be_evaluated(tmp_path: Path, capsys) -> None:
+    # An error rule fails the run like a failing rule; unsupported never does.
+    rules = [
+        {"code": "bad", "expression": '{tT, r0010, c0010} + "a" > 0'},
+        {"code": "new", "expression": "unknownfn({tT, r0010, c0010}) > 0"},
+    ]
+    template = write(tmp_path, document([cell("0010", "0010", 1)], rules))
+    arguments = ["generate", str(template), "-o", str(tmp_path / "report.zip")]
+    assert main(arguments) == 1
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "rules: 2, passed: 0, failed: 0, error: 1, unsupported: 1"
+    assert "bad: error: + needs numbers, found string" in lines
+    del rules[0]
+    template = write(tmp_path, document([cell("0010", "0010", 1)], rules))
+    assert main(arguments) == 0
+    warning = [{"code": "bad", "expression": '{tT, r0010, c0010} + "a" > 0',
+                "severity": "warning"}]  # fmt: skip
+    template = write(tmp_path, document([cell("0010", "0010", 1)], warning))
+    assert main(arguments) == 0
+    assert main([*arguments, "--fail-on", "warning"]) == 1

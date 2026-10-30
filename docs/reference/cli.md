@@ -29,9 +29,9 @@ examples:
   dpm-synth generate template.json -o report.zip --fail-on warning
   dpm-synth generate template.json -o big.zip --scale-rows 1000000
 
-exit statuses: 0 every evaluable rule passes, 1 some rules at or above
---fail-on still fail (the package is written), 2 usage error, 3 unreadable or
-invalid template, or the package cannot be written.
+exit statuses: 0 every evaluable rule passes, 1 a rule at or above --fail-on
+fails or cannot be evaluated (error; the package is written), 2 usage error, 3
+unreadable or invalid template, or the package cannot be written.
 
 The template format: https://luukhopman.github.io/dpm-synth/reference/template-format/
 ```
@@ -71,7 +71,7 @@ options:
                         template's, else EUR)
   --fail-on {error,warning}
                         exit with status 1 when a rule of this severity or
-                        worse still fails (default: error)
+                        worse fails or is an error (default: error)
   --json                print a JSON summary
 ```
 
@@ -109,7 +109,7 @@ wrote sample.zip (20 facts)
 | `--entity LEI` | The reporting entity, letters and digits (`.`, `_` and `-` allowed). The entity identifier is `<LEI>.<level>` in the reporting-subject scheme, or the bare LEI in the LEI scheme before the reference date 2022-12-31 and for a module whose code has `_con` or `_ind` (EBA filing rule 3.6). |
 | `--level CON\|IND` | The reporting level, consolidated or individual. |
 | `--currency CODE` | The reporting currency, an ISO 4217 code such as `SEK`, written as `baseCurrency` when a monetary fact is reported. |
-| `--fail-on error\|warning` | The least [severity](template-format.md#rules) of a failing rule that makes [exit status](exit-statuses.md) 1. Default `error`: failing warnings are reported but do not fail the run. |
+| `--fail-on error\|warning` | The least [severity](template-format.md#rules) of a failed or `error` rule that makes [exit status](exit-statuses.md) 1. Default `error`: failing warnings are reported but do not fail the run. |
 | `--json` | Print the summary as JSON instead; see [JSON output](json-output.md). |
 | `--version` | Print the version and exit. |
 

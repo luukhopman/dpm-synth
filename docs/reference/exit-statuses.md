@@ -6,14 +6,15 @@ description: The exit statuses of dpm-synth generate - 0 all evaluable rules pas
 
 | Status | Meaning | Package written |
 | --- | --- | --- |
-| 0 | Every rule that could be evaluated passes, or only rules below `--fail-on` fail. Rules that are `unsupported` (such as `time_shift`), `error`, `not_applicable` or `skipped` do not count. | yes |
-| 1 | Some rules at or above `--fail-on` still fail; the summary names them. By default only rules of severity `error` count; `--fail-on warning` counts warnings too. | yes |
+| 0 | No rule at or above `--fail-on` fails or is an `error`. Rules that are `unsupported` (such as `time_shift`), `not_applicable` or `skipped` never count. | yes |
+| 1 | A rule at or above `--fail-on` still fails, or is an `error` (dpm-xl cannot evaluate it, such as `+` on a text cell); the summary names them. By default only rules of severity `error` count; `--fail-on warning` counts warnings too. | yes |
 | 2 | Usage error: an unknown option, a missing argument, or a bad option value, such as `--open-rows 0`, `--open-rows 5000`, a reference date not written as `YYYY-MM-DD` or an output not ending in `.zip`. argparse prints the usage and the error. | no |
 | 3 | The template cannot be read, is not JSON or is not a valid [template](template-format.md); or the package cannot be written. One line `error: ...` on standard error. | no |
 
 The statuses match the sibling commands: `dpm-xl eval` and `dpm-xbrl`
 also exit with 0 when nothing is wrong, 1 when the input was read and has
-problems (a failing rule, or a filing rule broken at or above `--fail-on`),
+problems (a failed or `error` rule, or a filing rule broken at or above
+`--fail-on`),
 2 for a usage error and 3 for unreadable or invalid input. With
 `--scale-rows`, the status is that of the unscaled report, since the scaled
 rows are not evaluated.

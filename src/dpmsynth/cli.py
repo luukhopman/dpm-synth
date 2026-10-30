@@ -1,9 +1,9 @@
 """Command-line interface: ``dpm-synth generate``.
 
-Exit statuses: 0 when every evaluable rule passes, 1 when some still fail
-at or above ``--fail-on`` (the package is written either way), 2 for a usage
-error, and 3 when the template cannot be read or is invalid, or the package
-cannot be written.
+Exit statuses: 0 when no rule at or above ``--fail-on`` fails or is an
+``error``, 1 when one does (the package is written either way), 2 for a
+usage error, and 3 when the template cannot be read or is invalid, or the
+package cannot be written. ``unsupported`` rules never change the status.
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ from .scale import _MAX_ROWS, write_scaled_package
 from .template import TemplateError, load_template
 
 RULES_FAILED = 1
-"""Exit status when the package is written but some rules still fail at or
-above ``--fail-on``."""
+"""Exit status when the package is written but a rule at or above
+``--fail-on`` still fails or is an ``error``."""
 
 INVALID_INPUT = 3
 """Exit status when the template is unreadable or invalid, or the package
@@ -50,9 +50,9 @@ _EPILOG = """examples:
   dpm-synth generate template.json -o report.zip --fail-on warning
   dpm-synth generate template.json -o big.zip --scale-rows 1000000
 
-exit statuses: 0 every evaluable rule passes, 1 some rules at or above
---fail-on still fail (the package is written), 2 usage error, 3 unreadable or
-invalid template, or the package cannot be written.
+exit statuses: 0 every evaluable rule passes, 1 a rule at or above --fail-on
+fails or cannot be evaluated (error; the package is written), 2 usage error, 3
+unreadable or invalid template, or the package cannot be written.
 
 The template format: https://luukhopman.github.io/dpm-synth/reference/template-format/"""
 
@@ -209,8 +209,8 @@ def _parser() -> argparse.ArgumentParser:
         "--fail-on",
         choices=("error", "warning"),
         default="error",
-        help="exit with status 1 when a rule of this severity or worse still "
-        "fails (default: error)",
+        help="exit with status 1 when a rule of this severity or worse fails "
+        "or is an error (default: error)",
     )
     run.add_argument("--json", action="store_true", help="print a JSON summary")
     return parser
@@ -224,9 +224,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             ``None``.
 
     Returns:
-        int: The exit status: 0 when every evaluable rule passes, 1 when some
-        still fail, 3 when the template or the package cannot be read or
-        written. Usage errors exit with status 2 through ``SystemExit``.
+        int: The exit status: 0 when every evaluable rule passes, 1 when a
+        rule at or above ``--fail-on`` fails or is an ``error``, 3 when the
+        template or the package cannot be read or written. Usage errors
+        exit with status 2 through ``SystemExit``.
     """
     arguments = _parser().parse_args(argv)
     try:
@@ -262,9 +263,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"wrote {arguments.output} ({facts} facts)")
     failing = {"error"} if arguments.fail_on == "error" else {"error", "warning"}
     severity = _severities(result)
-    return (
-        RULES_FAILED if any(severity[code] in failing for code in result.failed) else 0
+    problems = any(
+        status in {"failed", "error"} and severity[code] in failing
+        for code, status in result.statuses.items()
     )
+    return RULES_FAILED if problems else 0
 
 
 def _fail(error: object) -> int:

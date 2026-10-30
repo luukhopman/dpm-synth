@@ -33,6 +33,8 @@ All notable changes to this project are documented here. The project follows
 - Rules take an optional `severity`, `error` (the default) or `warning`,
   shown in the output; `--fail-on warning` makes failing warnings exit
   with status 1.
+- A rule that is an `error` (dpm-xl cannot evaluate it) exits with status
+  1, as a failing rule does; `unsupported` rules never change the status.
 - Rules with `"active": false` are neither repaired nor evaluated, and are
   reported as `skipped`.
 - `generate` solves the linear rules jointly before the repair loop, and
