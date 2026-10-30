@@ -109,6 +109,10 @@ evaluate_rule("{tS_01.00, r0010, c0010} >= 0", result.data).status
 - [Getting started](getting-started.md) for a guided first use.
 - [Template format](reference/template-format.md) to write or check a
   template.
+- [Shape a realistic report](guides/realistic-reports.md) for `size`,
+  `fill`, `currency`, rule `severity` and `active`.
+- [Standards and conformance](reference/standards.md) for the filing
+  rules and format versions the reports follow.
 - [Python API](reference/api.md) for every signature, and
   [CLI](reference/cli.md), [exit statuses](reference/exit-statuses.md) and
   [JSON output](reference/json-output.md).
