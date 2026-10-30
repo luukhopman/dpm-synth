@@ -72,8 +72,8 @@ All of these must pass before a commit.
   an `error`, 1 some do, 2 usage error, 3 invalid input or unwritable output.
 - A change to the values generated for a seed goes in the changelog.
 - Docs examples: a `text` block directly after a `python` block is its
-  expected output; `console` blocks run `dpm-synth` commands (`$ echo $?`
-  prints the exit status); `<!-- docs: skip -->` before a block skips it.
+  expected output; `console` blocks run `dpm-synth` and `unzip` commands
+  (`$ echo $?` prints the exit status); `<!-- docs: skip -->` before a block skips it.
   Show real output, never invented output.
 - Code annotations (`# (1)!` comments with a numbered list right after
   the block) may stand between a `python` block and its `text` output,

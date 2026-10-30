@@ -1,30 +1,29 @@
 ---
-description: Tutorial - install dpm-synth, read a template, generate a first synthetic report from the command line and from Python, read the package back and check its rules.
+description: Tutorial - install dpm-synth, read a template file, generate a first synthetic report, look inside the package, read it back with dpm-xbrl and check a rule with dpm-xl.
 icon: lucide/graduation-cap
 ---
 
 # Getting started
 
-This tutorial generates a synthetic report for a small template, reads the
-package back with dpm-xbrl and checks the rules with dpm-xl. It takes about
-ten minutes.
+This tutorial generates a synthetic report from a small template file,
+looks at the files inside it, reads it back with dpm-xbrl and checks a rule
+with dpm-xl. It takes about ten minutes.
 
-!!! info "Before you start"
-
-    You need Python 3.11 or newer and a terminal. No knowledge of XBRL or
-    DPM-XL is assumed: each step says what the output means, and terms
-    with a dotted underline, such as datapoint, show a definition when you
-    point at them. The [glossary](reference/glossary.md) lists them all.
+You need Python 3.11 or newer and a terminal. No knowledge of XBRL or
+DPM-XL is assumed: each step says what the output means, and terms with a
+dotted underline, such as datapoint, show a definition when you point at
+them. The [glossary](reference/glossary.md) lists them all.
 
 You will:
 
 1. install dpm-synth;
-2. read a template;
+2. read a template file;
 3. generate a report on the command line;
-4. read the package back;
-5. generate from Python;
-6. evaluate a rule on the generated values;
-7. try a bigger template.
+4. look inside the package;
+5. read the package back;
+6. generate from Python;
+7. evaluate a rule on the generated values;
+8. try a bigger template file.
 
 ## 1. Install
 
@@ -48,13 +47,16 @@ installed version:
 dpm-synth --version
 ```
 
-## 2. Read a template
+## 2. Read a template file
 
-A template describes one module: its tables, the cells of each table, and
-the rules a report must satisfy. It is a JSON document in the
-`dpm-synth-template/1` format. This is
-[`minimal.json`](samples/minimal.json); save it in an empty folder to
-follow along:
+dpm-synth's input is a *template file*: a JSON document that describes one
+module, with its tables, the cells of each table, and the rules a report
+must satisfy. In EBA reporting, a *template* is a reporting form such as
+`C_07.00`, made of one or more *tables* such as `C_07.00.a`; the template
+file lists tables, and rules and reports name them.
+
+This is [`minimal.json`](samples/minimal.json); save it in an empty folder
+to follow along:
 
 ```json
 --8<-- "docs/samples/minimal.json"
@@ -66,10 +68,10 @@ follow along:
 - Rule `v1` says row 0010 is the sum of rows 0020 and 0030; rule `v2` says
   both components are zero or more.
 
-For a real module the template has thousands of cells and rules and is
-exported from a DPM release; see
-[get a template from a DPM release](guides/from-a-dpm-release.md). To write
-your own, see [write a template by hand](guides/write-a-template.md).
+For a real module the template file has thousands of cells and rules. It
+is the module file that `dpm-xl export-module` writes from an EBA DPM
+release; see [get a template from a DPM release](guides/from-a-dpm-release.md).
+To write your own, see [write a template by hand](guides/write-a-template.md).
 
 ## 3. Generate on the command line
 
@@ -82,18 +84,56 @@ $ echo $?
 0
 ```
 
-1. `-o` names the report package to write; `--seed` picks the random
-   values, so the same seed gives the same report.
+1. `-o` names the report package (a ZIP) to write; `--seed` picks the
+   random values, so the same seed gives the same report.
 
-The summary counts the rules by status. `rounds` lists how many rules
-failed at the start of each evaluate-and-repair round: here none, because
-the joint solve of the linear rules had already settled them. Exit status
-0 means no rule fails; 1 would mean some still fail, and the package is
-written either way.
+`rules` counts the checks the report must pass; both pass. `rounds` is how
+many fix-up passes dpm-synth made, with the number of rules failing at the
+start of each; you can ignore it unless rules still fail
+([how it works](concepts/repair-loop.md)). Exit status 0 means nothing
+failed; the [exit statuses](reference/exit-statuses.md) list the others.
 
-## 4. Read the package back
+## 4. Look inside the package
 
-`report.zip` is an EBA xBRL-CSV report package. Read it with dpm-xbrl:
+`report.zip` is an EBA xBRL-CSV report package: a ZIP of a few JSON and
+CSV files.
+
+```console
+$ unzip -l report.zip
+Archive:  report.zip
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+       87  1980-01-01 00:00   report/META-INF/reportPackage.json
+      289  1980-01-01 00:00   report/reports/report.json
+      118  1980-01-01 00:00   report/reports/parameters.csv
+       35  1980-01-01 00:00   report/reports/FilingIndicators.csv
+       68  1980-01-01 00:00   report/reports/t_01.00.csv
+---------                     -------
+      597                     5 files
+```
+
+- `reportPackage.json` marks the ZIP as a report package.
+- `report.json` names the module's taxonomy entry point.
+- `parameters.csv` holds the entity, the reference date, the currency and
+  the decimals the values are reported with.
+- `FilingIndicators.csv` says which templates the report includes.
+- Each other CSV file is one table, named by its code in lower case. It
+  has one row per fact:
+
+```console
+$ unzip -p report.zip report/reports/t_01.00.csv
+datapoint,factValue
+dp1001,9253000
+dp1002,283000
+dp1003,8970000
+```
+
+A datapoint code identifies a cell of the table, here rows 0010 to 0030;
+the template file maps each code to its row and column.
+
+## 5. Read the package back
+
+Read the package with dpm-xbrl, as a consumer of the report would:
 
 ```python
 from dpmxbrl import read_report
@@ -116,13 +156,15 @@ t_01.00 dp1003 8970000
 ```
 
 The entity is the fictional LEI `SYNTHETICDPMXL000002` at the consolidated
-level. The only EBA filing rule the package breaks is the file name, which
+level. `{'T_01.00': True}` is the filing indicator: the report declares that
+it includes template `T_01.00`. `fact.template` is the code of the table a
+fact is in. The only EBA filing rule the package breaks is the file name, which
 for a real submission encodes the entity, module and dates; name the output
 accordingly if that matters to you. [Standards and
 conformance](reference/standards.md) lists the filing rules the reports
 follow.
 
-## 5. Generate from Python
+## 6. Generate from Python
 
 The same from Python, with the result of the repair loop:
 
@@ -147,7 +189,7 @@ write_xbrl_csv(result.report, "report.zip")
 rounds: 1, failing per round: [0]
 ```
 
-## 6. Evaluate a rule on the values
+## 7. Evaluate a rule on the values
 
 `result.report` is a `dpmxbrl.Report`; `result.data` holds the generated
 values and is a dpm-xl data provider, so you can evaluate any rule on it:
@@ -163,7 +205,7 @@ print(evaluate_rule(rule, result.data).status)
 passed
 ```
 
-## 7. Try a bigger template
+## 8. Try a bigger template file
 
 [`sample.json`](samples/sample.json) has a closed table with row and column
 totals, a ratio and an enumerated cell, an open table keyed by an
@@ -178,14 +220,16 @@ rule prior-period (unsupported): The rule compares with the previous reporting p
 wrote sample.zip (20 facts)
 ```
 
-Three rules failed at the start of the first round and none at the start
-of the second. The `time_shift` rule is `unsupported`: a single report has
-no previous period, and the summary says so. It does not change the exit
-status.
+Three rules failed at the start of the first pass and none at the start
+of the second. Rule `prior-period` compares with last year's report, which
+a single report does not have, so it is `unsupported`; the line starting
+with `rule prior-period` gives the reason. An `unsupported` rule does not
+change the exit status.
 
 ## What you learned
 
-- A template lists a module's tables, cells and rules.
+- A template file lists a module's tables, cells and rules.
+- The package is a ZIP with one CSV file per table.
 - `dpm-synth generate` and [`generate`][dpmsynth.generate] fill every
   cell, repair the values until the rules pass, and report each rule's
   status.

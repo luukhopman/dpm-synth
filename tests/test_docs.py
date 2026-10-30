@@ -8,7 +8,8 @@ directory holding the sample templates from ``docs/samples``:
   match what the code prints.
 * ``console`` blocks hold ``$ dpm-synth ...`` commands, each followed by its
   expected output (stdout and stderr, as a terminal shows them);
-  ``$ echo $?`` prints the previous command's exit status.
+  ``$ echo $?`` prints the previous command's exit status, and
+  ``$ unzip ...`` runs ``unzip`` to show what a package holds.
 
 A block may carry code annotations: ``# (1)!`` comments, explained by the
 numbered list right after the block. The list may stand between a ``python``
@@ -32,6 +33,7 @@ import os
 import re
 import shlex
 import shutil
+import subprocess
 from dataclasses import dataclass
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -163,6 +165,15 @@ def _run_cli(command: str) -> tuple[int, str]:
     return status, output.getvalue()
 
 
+def _run_unzip(command: str) -> tuple[int, str]:
+    if shutil.which("unzip") is None:
+        pytest.skip("unzip is not installed")
+    done = subprocess.run(
+        shlex.split(command), capture_output=True, text=True, check=False
+    )
+    return done.returncode, done.stdout + done.stderr
+
+
 def _check_console(block: Block, where: str) -> None:
     status = 0
     commands: list[tuple[str, list[str]]] = []
@@ -178,8 +189,10 @@ def _check_console(block: Block, where: str) -> None:
             output = f"{status}\n"
         elif command.startswith("dpm-synth"):
             status, output = _run_cli(command)
+        elif command.startswith("unzip "):
+            status, output = _run_unzip(command)
         else:
-            pytest.fail(f"{where}: only dpm-synth commands run in console blocks")
+            pytest.fail(f"{where}: only dpm-synth and unzip run in console blocks")
         assert _normalize(output) == _normalize("\n".join(expected)), (
             f"{where}: output of {command!r} differs"
         )
