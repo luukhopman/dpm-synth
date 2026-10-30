@@ -32,6 +32,7 @@ nav = [
   ] },
   { "Reference" = [
     "reference/index.md",
+    { "Standards and conformance" = "reference/standards.md" },
     { "Template format" = "reference/template-format.md" },
     { "CLI" = "reference/cli.md" },
     { "Exit statuses" = "reference/exit-statuses.md" },
