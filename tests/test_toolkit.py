@@ -57,7 +57,7 @@ SHARED_SHA256 = {
         "f572c58838cbcf76aa563a97484438d8c96fdad4c1c27b8b701ffd5523afde97"
     ),
     "docs/toolkit.md": (
-        "5fde52999e2c72169c4a526bd1c180bff3e67a343480a86912159c4f1860baf0"
+        "ce8cf8affd61ad2caa6319c468beb04a31ca0506fdd6ec516f1da0adfd018267"
     ),
     "docs/stylesheets/toolkit.css": (
         "3f231d0fc3d385f888c2dd44cf00266c37126322bf78d0acef79654d4dce39cf"

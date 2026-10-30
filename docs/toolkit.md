@@ -64,8 +64,10 @@ data. Read dpm-synth's
 
 ## Which versions work together
 
-Use the same major version of the three packages. dpm-xl's
-`check-report` needs the `xbrl` extra: `pip install "dpm-xl[xbrl]"`.
+Use the latest release of each package. dpm-synth reads the module files
+that dpm-xl's `export-module` writes, and dpm-xl's `check-report` needs its
+`xbrl` extra, which installs a compatible dpm-xbrl:
+`pip install "dpm-xl[xbrl]"`.
 
 ## How a report flows through the toolkit
 
