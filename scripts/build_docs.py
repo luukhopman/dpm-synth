@@ -35,6 +35,11 @@ LINKS = DOCS / ".snippets" / "links.md"
 MEMBERS = re.compile(r"^ {6}- (\w+)$", re.MULTILINE)
 MARKER = re.compile(r"^<!-- docs: [\w-]+ -->\n", re.MULTILINE)
 FRONT_MATTER = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
+ICON = re.compile(
+    r":(?:lucide|material|fontawesome|octicons|simple)-[\w-]+:(?:\{[^}\n]*\})? ?"
+)
+ATTRIBUTES = re.compile(r"(?<=\))\{ [^}\n]*\}")
+HTML_BLOCK = re.compile(r"^</?div\b[^>\n]*>\n\n?", re.MULTILINE)
 TOOLKIT = {
     "dpm-xl": "Parse and evaluate DPM-XL validation rules.",
     "dpm-xbrl": "Read, write and check xBRL-CSV and XBRL-XML reports.",
@@ -209,6 +214,17 @@ def render_directive(directive: str, package: griffe.Module) -> str:
     return "\n".join(parts) + "\n"
 
 
+def plain(text: str) -> str:
+    """Remove the site's presentation markup: icons, attribute lists, divs.
+
+    Returns:
+        str: The text with card grids, buttons and badges as plain Markdown.
+    """
+    text = ICON.sub("", text)
+    text = ATTRIBUTES.sub("", text)
+    return HTML_BLOCK.sub("", text)
+
+
 def markdown_copy(text: str, package: griffe.Module) -> str:
     """Turn a source page into plain Markdown for agents.
 
@@ -226,6 +242,7 @@ def markdown_copy(text: str, package: griffe.Module) -> str:
     text = DIRECTIVE.sub(lambda match: render_directive(match[0], package), text)
     text = MARKER.sub("", text)
     text = CROSS_REFERENCE.sub(r"\1", text)
+    text = plain(text)
     # Reference-style links such as [dpm-xl][dpm-xl] resolve against the
     # shared link list, which the site appends to every page.
     return text.rstrip("\n") + "\n\n" + LINKS.read_text(encoding="utf-8")
