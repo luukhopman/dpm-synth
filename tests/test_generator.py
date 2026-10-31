@@ -1059,6 +1059,22 @@ def test_records_with_a_cleared_cell_are_left_out_of_the_solve() -> None:
     assert _linear_constraints(node, evaluation, data) == [("=", 0.0, terms, True)]
 
 
+def test_the_solve_takes_the_branch_an_if_picks() -> None:
+    # The condition holds, so the then branch joins the linear constraints;
+    # a branch the condition does not pick adds none.
+    from dpmsynth.generator import _linear_constraints
+
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    data = run(cells, [], max_rounds=0).data
+    data.values["dp1", ()] = Number(Decimal(5))
+    total = "{tT, r0020, c0010} = {tT, r0030, c0010}"
+    for condition, expected in (("> 0", 1), ("< 0", 0)):
+        node = parse(f"if {{tT, r0010, c0010}} {condition} then {total} endif")
+        evaluation = evaluate_rule(node, data).evaluation
+        assert evaluation is not None
+        assert len(_linear_constraints(node, evaluation, data)) == expected
+
+
 def test_the_second_pass_never_ends_worse_than_the_first(monkeypatch) -> None:
     # A second pass that breaks a rule the first pass met is undone.
     from dpmsynth import generator

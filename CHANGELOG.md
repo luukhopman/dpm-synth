@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The project follows
 
 ## Unreleased
 
+- The joint solve of linear rules includes the comparison of the `if`
+  branch whose condition holds, so a total that one rule sums and another
+  compares under a condition is solved with both. This changes the values
+  generated for every seed.
 - The text summary gives the reason for an `error` or `unsupported` rule
   as `rule CODE (status): reason`, so a rule code cannot read as a heading.
 - Typed open keys take the same identifiers in every table keyed by the

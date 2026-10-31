@@ -1390,7 +1390,10 @@ def _is_linear(node: Node) -> bool:
 
 
 def _linear_constraints(
-    node: Node, evaluation: Evaluation, data: SyntheticData
+    node: Node,
+    evaluation: Evaluation,
+    data: SyntheticData,
+    conditions: tuple[tuple[Node, bool], ...] = (),
 ) -> list[_Constraint]:
     """Return the linear comparison of every record of a rule's part.
 
@@ -1399,11 +1402,28 @@ def _linear_constraints(
     operand or its negation, by the operand's sign, which a further
     constraint keeps.
 
+    An ``if`` contributes the comparison of the branch its condition
+    currently picks, for the records where it picks it: that comparison
+    holding makes the rule hold.
+
     Returns:
         list[_Constraint]: The constraints of every record; empty for
         anything else.
     """
     node = _unwrap(node)
+    if isinstance(node, If):
+        found: list[_Constraint] = []
+        for branch, verdict in ((node.then, True), (node.otherwise, False)):
+            if branch is not None:
+                found.extend(
+                    _linear_constraints(
+                        branch,
+                        evaluation,
+                        data,
+                        (*conditions, (node.condition, verdict)),
+                    )
+                )
+        return found
     if not (
         isinstance(node, Binary)
         and node.op in _LINEAR_OPS
@@ -1422,6 +1442,11 @@ def _linear_constraints(
         repairer = _Repairer(
             data, evaluation, dict(zip(recordset.keys, key, strict=True))
         )
+        if any(
+            repairer.value(condition) is not verdict
+            for condition, verdict in conditions
+        ):
+            continue
         left, right = repairer.value(node.left), repairer.value(node.right)
         if not (isinstance(left, Number | None) and isinstance(right, Number | None)):
             continue
