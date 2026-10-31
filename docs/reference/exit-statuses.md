@@ -1,5 +1,5 @@
 ---
-description: The exit statuses of dpm-synth generate - 0 all evaluable rules pass, 1 some fail, 2 usage error, 3 unreadable or invalid input - the same as dpm-xl and dpm-xbrl.
+description: The exit statuses of dpm-synth generate - 0 no rule at or above --fail-on fails or is an error, 1 one does, 2 usage error, 3 unreadable or invalid template or unwritable package - as in dpm-xl and dpm-xbrl.
 ---
 
 # Exit statuses

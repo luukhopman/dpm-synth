@@ -124,8 +124,11 @@ differently from the specification, are on dpm-xl's
   That measurement is run by hand: it needs a module file exported from
   the DPM release with `dpm-xl export-module`, which is not in the
   repository, so the test suite does not repeat it.
-- **Documentation examples.** Every Python and command-line example on
-  these pages runs in the test suite and must print what the page shows.
+- **Documentation examples.** Every Python example and every `dpm-synth`
+  command on these pages runs in the test suite and must print what the
+  page shows, except the `dpmxl.xbrl.ReportProvider` example in
+  [validate the output](../guides/validate-output.md). Output of `dpm-xl`
+  commands and of real EBA modules is copied from a run by hand.
 
 Named as the EBA naming pattern asks, a generated package reads back with
 no filing finding at all:

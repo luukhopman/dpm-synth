@@ -22,7 +22,7 @@ uv sync
 ## Check a change
 
 ```text
-uv run pytest                        # tests, including every docs example
+uv run pytest                        # tests, including the docs examples
 uv run ruff check
 uv run ruff format --check
 uv run ty check

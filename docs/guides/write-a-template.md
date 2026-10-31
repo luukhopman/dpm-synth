@@ -33,8 +33,9 @@ template = {
 A closed table has a fixed set of cells. Give each cell an `id`, its row and
 column codes (without the `r` and `c`), the `datapoint` that carries its
 value in the package, and its data type: `m` monetary, `p` percentage, `i`
-integer, `r` decimal, `e` enumerated, `b` boolean, `d` date, anything else
-text.
+integer, `r` decimal, `o` ordinal, `e` enumerated, `b` boolean, `t` true,
+`d` date, `dt` date and time, `u` URI, and anything else text (see
+[data types](../reference/template-format.md#data-types)).
 
 ```python
 def cell(table, row, column, datapoint, data_type, **more):
@@ -74,8 +75,8 @@ template["tables"].append(
 An open table has one row per key value. Each `open_keys` entry becomes a
 column of the table's file. A key with `items` is enumerated and takes its
 items in order; a key without is typed, and gets generated values: integers
-for `"data_type": "i"`, dates for `"d"`, and LEI-shaped identifiers
-otherwise. The open axis is written `*`: here the rows, one per key value,
+for `"data_type": "i"` or `"o"`, dates for `"d"` or `"dt"`, and LEI-shaped
+identifiers otherwise. The open axis is written `*`: here the rows, one per key value,
 so the cells have row `*`. See
 [open tables](../reference/template-format.md#open-tables) for tables whose
 sheets are open instead.

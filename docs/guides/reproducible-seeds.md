@@ -45,7 +45,8 @@ In detail, the package is a function of:
 
 - the template, including the order of its tables, cells and rules;
 - the seed and the other options: `--open-rows`, `--max-rounds`,
-  `--entity`, `--level`, `--reference-date` and `--scale-rows`;
+  `--entity`, `--level`, `--reference-date`, `--currency`, `--size`,
+  `--fill` and `--scale-rows`;
 - the package's file name, which names its root folder (the example
   writes each package as `report.zip`, in its own folder);
 - the versions of dpm-synth, dpm-xl and dpm-xbrl.
