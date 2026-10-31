@@ -71,7 +71,6 @@ for the options and exit statuses.
 dpm-xbrl in the template file's tables, so any rule can be evaluated on
 them:
 
-<!-- docs: skip -->
 ```python
 from collections import Counter
 
