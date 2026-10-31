@@ -16,7 +16,7 @@ $ dpm-synth generate sample.json -o sample.zip --seed 7 --json
 {
   "schema_version": 2,
   "tool": "dpm-synth",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "summary": {
     "rules": 9,
     "passed": 8,
