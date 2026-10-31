@@ -337,6 +337,14 @@ _DELETE = object()
             _set(["tables", 0, "open_keys", 0, "column"], "factValue"),
             "tables[0].open_keys[0].column: 'factValue' is a fact column of the table",
         ),
+        (
+            _set(
+                ["tables", 0, "open_keys", 0],
+                {"code": "qAB", "data_type": "e", "items": []},
+            ),
+            "tables[0].open_keys[0].items: required for an enumerated key "
+            "(data type 'e')",
+        ),
         (_set(["rules"], {"v1": "x"}), "rules: expected an array, got an object"),
         (_set(["rules", 0, "expression"], _DELETE), "rules[0].expression: required"),
         (

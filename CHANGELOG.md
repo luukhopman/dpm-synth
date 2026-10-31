@@ -44,8 +44,8 @@ All notable changes to this project are documented here. The project follows
   and `dt` keys count like `i` and `d` keys.
 - `load_template` reads a dpm-xl module file (`"format": "dpm-module/1"`),
   so the file `dpm-xl export-module` writes serves both tools.
-- `load_template` rejects an enumerated cell without `items`, which used to
-  get the invalid value `eba_qx:qx0`.
+- `load_template` rejects an enumerated cell or open key without `items`;
+  a cell used to get the invalid value `eba_qx:qx0`.
 - A template's optional `filing_indicators` lists every template of the
   module; those without tables are reported with a negative filing
   indicator.

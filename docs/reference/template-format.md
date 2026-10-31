@@ -75,7 +75,7 @@ counterparty. Each key becomes a column of the table's file.
 | --- | --- | --- | --- |
 | `code` | string | yes | The key's property code, as rules name it, such as `"qEBB"` in `[where qEBB = …]`. |
 | `column` | string or null | no | The key's column in the table's file. Default: the code. Unique within the table, and not `datapoint` or `factValue`. |
-| `items` | array of strings or null | no | The allowed item qnames of an enumerated key, such as `"eba_qEC:qx16"`. Null or empty for a typed key, whose values are generated. |
+| `items` | array of strings or null | no | The allowed item qnames of an enumerated key, such as `"eba_qEC:qx16"`. Null or empty for a typed key, whose values are generated; required for a key with data type `e`. |
 | `data_type` | string or null | no | The data type of a typed key: `i` or `o` gives integers 1, 2, 3 and so on; `d` or `dt` gives dates counting back from the reference date; any other code, or null, gives LEI-shaped identifiers starting with `SYNTH`. |
 
 The generator gives every open table `open_rows` key rows (default 2).

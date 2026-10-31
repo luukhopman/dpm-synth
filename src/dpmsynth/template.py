@@ -430,11 +430,18 @@ class _Loader:
     def open_key(self, value: object, path: str) -> OpenKey:
         key = self.mapping(value, path)
         code = self.text(key, "code", path)
+        data_type = self.optional_text(key, "data_type", path)
+        items = self.items(key, path)
+        if data_type in _ENUMERATED_TYPES and not items:
+            raise TemplateError(
+                f"{path}.items: required for an enumerated key "
+                f"(data type {data_type!r})"
+            )
         return OpenKey(
             code=code,
             column=self.optional_text(key, "column", path) or code,
-            items=self.items(key, path),
-            data_type=self.optional_text(key, "data_type", path),
+            items=items,
+            data_type=data_type,
         )
 
     def cell(self, value: object, path: str) -> TemplateCell:
