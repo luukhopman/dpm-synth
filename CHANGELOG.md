@@ -92,6 +92,8 @@ All notable changes to this project are documented here. The project follows
 - `fill` (`--fill RATIO`) leaves a share of the cells out, for sparse
   reports that still satisfy the rules.
 - The starting values above change the values generated for every seed.
+- The documentation site has sitemap dates, social preview tags and a 404
+  page that links home.
 
 ### Known issues
 

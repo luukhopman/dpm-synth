@@ -4,7 +4,7 @@
 
 [project]
 site_name = "dpm-synth"
-site_description = "Generate synthetic EBA xBRL-CSV reports that satisfy a module's DPM-XL validation rules"
+site_description = "Generate synthetic EBA xBRL-CSV test reports that pass Data Point Model (DPM 2.0) rules"
 site_url = "https://luukhopman.github.io/dpm-synth/"
 site_author = "Luuk Hopman"
 repo_url = "https://github.com/luukhopman/dpm-synth"
@@ -58,6 +58,7 @@ nav = [
 ]
 
 [project.theme]
+custom_dir = "overrides"
 language = "en"
 logo = "assets/logo-header.svg"
 favicon = "assets/favicon.svg"

@@ -29,6 +29,8 @@ tests/
 docs/              documentation site (Zensical), nav in zensical.toml
 docs/samples/      sample templates; the docs and the tests use them
 scripts/build_docs.py  strict site build plus llms.txt and llms-full.txt
+scripts/seo.py     sitemap dates, robots.txt and JSON-LD for the built site
+overrides/         site templates: social tags, home page title, 404 page
 ```
 
 ## Commands
@@ -88,7 +90,11 @@ All of these must pass before a commit.
   tested belong on `docs/reference/standards.md`; other pages link there.
 - The toolkit cards, the toolkit page, the glossary and
   `docs/stylesheets/toolkit.css` are the same in dpm-xl, dpm-xbrl and
-  dpm-synth; `tests/test_toolkit.py` pins their hashes.
+  dpm-synth; `tests/test_toolkit.py` pins their hashes. So are the
+  search and social metadata: `overrides/` (Open Graph and Twitter tags,
+  home page title, 404 page), `scripts/seo.py` (sitemap dates,
+  `robots.txt`, JSON-LD) and `tests/test_site.py`, which also checks that
+  every docs page has its own `description`.
 - Never use a real company's LEI in code, tests or docs; use the fictional
   `SYNTHETICDPMXL000002` (`DEFAULT_ENTITY`) or another checksum-valid
   fictional one.
