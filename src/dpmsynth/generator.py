@@ -9,7 +9,8 @@ evaluate-and-repair loop; it is not a complete constraint solver:
    single-cell side defines that cell, and every comparison of sums of
    cells times constants (``abs`` included) becomes a linear constraint.
 3. The linear constraints are solved together: Gaussian elimination for the
-   equalities, then projections for the inequalities and bounds.
+   equalities, then projections for the inequalities and bounds, finished
+   exactly by the simplex method.
 4. All rules are evaluated with dpm-xl. For each failing record the first
    failing comparison is found through the evaluation trace and one cell is
    changed so the comparison holds. ``isnull``, ``in`` and ``match`` failures
@@ -17,8 +18,10 @@ evaluate-and-repair loop; it is not a complete constraint solver:
    identifier.
 5. Step 4 repeats until no rule fails, a round changes nothing, or the
    failing count stops improving; if rules still fail, steps 3 and 4 run
-   once more, and the pass with fewer failing rules is kept. Values are
-   rounded to the reporting decimals before every rule is evaluated.
+   once more, with the constraints read again at the repaired values. The
+   state with the fewest failing rules is kept, whether the solve or the
+   repairs reached it. Values are rounded to the reporting decimals before
+   every rule is evaluated.
 
 How the loop works, and where it stops, is explained at
 https://luukhopman.github.io/dpm-synth/concepts/repair-loop/.
@@ -1171,13 +1174,18 @@ def generate(
     # The linear rules are solved jointly, then the loop repairs the rest;
     # when rules still fail, a second solve restores the linear rules its
     # repairs broke, and the loop runs again.
-    for _phase in range(2):
+    for phase in range(2):
         if len(history) >= max_rounds:
             break
+        if phase:
+            # Read again at the repaired values: the branch each if picks,
+            # the sign in each abs and the side of each or may have changed.
+            constraints = _constraints(parsed, data)
         _project(constraints, data)
         # The loop repairs what rounding to the reporting decimals breaks.
         data._round_all()
         start = len(history)
+        solved = dict(data.values)
         # The second pass starts close to its end: it stalls sooner.
         changes, _failing = _repair(
             parsed, data, owners, max_rounds - start, history, 6 if not start else 3
@@ -1185,19 +1193,25 @@ def generate(
         repairs += changes
         unrounded = dict(data.values)
         data._round_all()
-        results = _results(parsed, data)
-        failing = [
-            code for code, result in results.items() if result.status == "failed"
-        ]
-        count = (
-            sum(severity[code] == "error" for code in failing),
-            sum(severity[code] == "warning" for code in failing),
-        )
-        # A second pass can end worse than the first: keep the earlier state.
-        # Fewer failing errors is better, then fewer failing warnings.
-        if best is None or count < best[0]:
-            best = (count, dict(data.values), results)
-        if not failing:
+        candidates = [(data.values, _results(parsed, data))]
+        if history[start]:
+            # Repairs can end worse than the solve they started from.
+            data.values = solved
+            candidates.insert(0, (solved, _results(parsed, data)))
+        # A second pass can end worse than the first, too: the best state is
+        # kept. Fewer failing errors is better, then fewer failing warnings;
+        # the earlier state wins a tie.
+        for state, results in candidates:
+            failing = [
+                code for code, result in results.items() if result.status == "failed"
+            ]
+            count = (
+                sum(severity[code] == "error" for code in failing),
+                sum(severity[code] == "warning" for code in failing),
+            )
+            if best is None or count < best[0]:
+                best = (count, dict(state), results)
+        if not best or best[0] == (0, 0):
             break
         data.values = unrounded
     rounds = len(history)
@@ -1357,6 +1371,26 @@ def _definitions(
     return owners
 
 
+def _constraints(
+    parsed: list[tuple[Any, Node, str | None]], data: SyntheticData
+) -> list[_Constraint]:
+    """Return the linear constraints of every rule at the current values.
+
+    Returns:
+        list[_Constraint]: The constraints, rule by rule.
+    """
+    found: list[_Constraint] = []
+    for _rule, node, precondition in parsed:
+        evaluation = evaluate_rule(node, data, precondition=precondition).evaluation
+        if evaluation is None:
+            continue
+        try:
+            found.extend(_linear_constraints(node, evaluation, data))
+        except RecursionError:
+            continue
+    return found
+
+
 def _order_by_depth(
     parsed: list[tuple[Any, Node, str | None]],
     owners: dict[Any, set[str]],
@@ -1453,13 +1487,26 @@ def _linear_constraints(
 
     An ``if`` contributes the comparison of the branch its condition
     currently picks, for the records where it picks it: that comparison
-    holding makes the rule hold.
+    holding makes the rule hold. Likewise ``and`` contributes both sides,
+    ``or`` the first side that holds (the last where none does), and ``!=``
+    the strict comparison on the side its sides are on now.
 
     Returns:
         list[_Constraint]: The constraints of every record; empty for
         anything else.
     """
     node = _unwrap(node)
+    if isinstance(node, Binary) and node.op in {"and", "or"}:
+        found = []
+        operands = _operands(node, node.op)
+        for number, operand in enumerate(operands):
+            picked = conditions
+            if node.op == "or":
+                picked = (*picked, *((earlier, False) for earlier in operands[:number]))
+                if number < len(operands) - 1:
+                    picked = (*picked, (operand, True))
+            found.extend(_linear_constraints(operand, evaluation, data, picked))
+        return found
     if isinstance(node, If):
         found: list[_Constraint] = []
         for branch, verdict in ((node.then, True), (node.otherwise, False)):
@@ -1475,7 +1522,7 @@ def _linear_constraints(
         return found
     if not (
         isinstance(node, Binary)
-        and node.op in _LINEAR_OPS
+        and (node.op in _LINEAR_OPS or node.op == "!=")
         and _is_linear(node.left)
         and _is_linear(node.right)
     ):
@@ -1509,7 +1556,14 @@ def _linear_constraints(
         ):
             continue
         null = left is None or right is None
-        found.append((*_linear(repairer, node.op, node.left, node.right), null))
+        op = node.op
+        if op == "!=":
+            # Kept on the side it is on; a difference of 0 is left to repair.
+            difference = _value(left) - _value(right)
+            if not difference:
+                continue
+            op = ">" if difference > 0 else "<"
+        found.append((*_linear(repairer, op, node.left, node.right), null))
         for call in signs:
             operand = call.args[0]
             negative = _value(repairer.value(operand)) < 0
@@ -1607,10 +1661,12 @@ def _project(
             if op != "=" and coefficient < 0:
                 op = _MIRRORED[op]
             bounds = limit(slot)
+            # A strict bound is one reporting step past the value.
+            step = float(data._quantum(data._cell(slot))) if op in {">", "<"} else 0
             if op in {"=", ">=", ">"}:
-                bounds[0] = max(bounds[0], value)
+                bounds[0] = max(bounds[0], value + step)
             if op in {"=", "<=", "<"}:
-                bounds[1] = min(bounds[1], value)
+                bounds[1] = min(bounds[1], value - step)
         elif op == "=":
             equalities.append((constant, terms, null))
         else:
@@ -1675,14 +1731,19 @@ def _project(
     for slot in [*limits, *pivots]:
         start(slot)
     original = {slot: float(_value(data.values.get(slot))) for slot in values}
-    _feasible(
-        rows,
-        values,
-        {s: b for s, b in limits.items() if s not in pivots},
-        passes,
-        relaxation,
-        sparse,
-    )
+    free = {s: b for s, b in limits.items() if s not in pivots}
+    _feasible(rows, values, free, passes, relaxation, sparse)
+    # On reporting steps, the simplex keeps whole-coefficient rows on them,
+    # so rounding at the end breaks none of the rows it meets.
+    for slot, value in values.items():
+        if slot not in pivots:
+            step = float(data._quantum(data._cell(slot)))
+            value = round(value / step) * step
+            bounds = free.get(slot)
+            if bounds is not None and bounds[0] <= bounds[1]:
+                value = min(max(value, bounds[0]), bounds[1])
+            values[slot] = value
+    _simplex(rows, values, free, sparse)
     for slot, (constant, expression) in pivots.items():
         values[slot] = constant + sum(values[s] * c for s, c in expression.items())
     for slot, value in values.items():
@@ -1829,6 +1890,275 @@ def _feasible(
                     if not queued[other]:
                         queued[other] = True
                         queue.append(other)
+
+
+# Entries below this are zeros of the simplex's sparse vectors; pivots below
+# _PIVOT are not taken; the eta file is rebuilt after _REFACTOR pivots.
+_ZERO = 1e-11
+_PIVOT = 1e-9
+_REFACTOR = 100
+# A cell left empty enters the basis as if it helped this much less.
+_SPARSE = 0.25
+
+
+def _simplex(
+    rows: list[tuple[float, tuple[tuple[Slot, float], ...], float]],
+    values: dict[Slot, float],
+    limits: dict[Slot, list[float]],
+    sparse: set[Slot] | None = None,
+    iterations: int | None = None,
+) -> float:
+    """Meet every ``constant + terms >= -tolerance`` exactly, if the rows allow it.
+
+    Projections approach a solution without reaching it when rows chain
+    (``a <= b <= c`` with little room); this finishes the job with the
+    primal simplex method, phase 1: it minimises the total amount by which
+    rows fall short, from the current values. Each row has a slack variable,
+    first in the basis; an iteration moves the one cell (or slack) that
+    reduces the shortfall fastest, keeping every cell within its bounds,
+    until rows stop falling short (all hold, or the shortfall is the least
+    the rows allow). The basis inverse is a product of sparse elementary
+    matrices, rebuilt every ``_REFACTOR`` pivots. Cells in ``sparse`` (left
+    empty) are chosen as if they helped ``_SPARSE`` times less. Cells that
+    start on their reporting steps stay on them when the rows' coefficients
+    are whole. At most ``iterations`` steps are taken (by default half the
+    number of rows plus 1,000), so a large shortfall is left to the repairs.
+
+    Returns:
+        float: The remaining shortfall, 0 when every row holds.
+    """
+    m = len(rows)
+    if not m:
+        return 0.0
+    index: dict[Slot, int] = {}
+    slots: list[Slot] = []
+    row_terms: list[dict[int, float]] = []
+    for _constant, terms, _tolerance in rows:
+        found: dict[int, float] = {}
+        for slot, c in terms:
+            j = index.setdefault(slot, len(slots))
+            if j == len(slots):
+                slots.append(slot)
+            found[j] = found.get(j, 0.0) + c
+        row_terms.append(found)
+    # Variables: the cells 0..n-1, then the slack of each row n..n+m-1.
+    n = len(slots)
+    columns: list[dict[int, float]] = [{} for _ in range(n)]
+    for i, found in enumerate(row_terms):
+        for j, c in found.items():
+            columns[j][i] = c
+    lower = [-math.inf] * n + [0.0] * m
+    upper = [math.inf] * (n + m)
+    value = [values[slot] for slot in slots] + [0.0] * m
+    tolerance = [1e-9] * n + [max(t, 1e-9) for _c, _t, t in rows]
+    for j, slot in enumerate(slots):
+        bounds = limits.get(slot)
+        if bounds is not None and bounds[0] <= bounds[1]:
+            lower[j], upper[j] = bounds
+    constants = [constant for constant, _terms, _tolerance in rows]
+    for i, found in enumerate(row_terms):
+        value[n + i] = constants[i] + sum(c * value[j] for j, c in found.items())
+    preferred = [True] * n
+    for slot in sparse or ():
+        if slot in index:
+            preferred[index[slot]] = False
+    # The basic variable at each position, and the position of each.
+    basis = [n + i for i in range(m)]
+    position = {n + i: i for i in range(m)}
+    etas: list[tuple[int, dict[int, float]]] = []
+
+    def column(q: int) -> dict[int, float]:
+        # Row i reads -sum(c * cell) + slack = constant.
+        if q >= n:
+            return {q - n: 1.0}
+        return {i: -c for i, c in columns[q].items()}
+
+    def ftran(vector: dict[int, float]) -> dict[int, float]:
+        for p, eta in etas:
+            t = vector.get(p)
+            if t:
+                for i, e in eta.items():
+                    if i != p:
+                        v = vector.get(i, 0.0) + e * t
+                        if abs(v) > _ZERO:
+                            vector[i] = v
+                        else:
+                            vector.pop(i, None)
+                vector[p] = eta[p] * t
+        return vector
+
+    def btran(vector: dict[int, float]) -> dict[int, float]:
+        for p, eta in reversed(etas):
+            if len(vector) < len(eta):
+                total = sum(y * eta.get(i, 0.0) for i, y in vector.items())
+            else:
+                total = sum(vector.get(i, 0.0) * e for i, e in eta.items())
+            if abs(total) > _ZERO:
+                vector[p] = total
+            else:
+                vector.pop(p, None)
+        return vector
+
+    def pivot(alpha: dict[int, float], leave: int, q: int) -> None:
+        a = alpha[leave]
+        eta = {i: -v / a for i, v in alpha.items() if i != leave}
+        eta[leave] = 1.0 / a
+        etas.append((leave, eta))
+        del position[basis[leave]]
+        basis[leave] = q
+        position[q] = leave
+
+    def refactor() -> None:
+        # Pivot the basic cells into the slack basis again, at positions
+        # whose slacks are not basic, and recompute the basic values.
+        cells = [q for q in basis if q < n]
+        free = {p for p in range(m) if n + p not in position}
+        etas.clear()
+        basis[:] = range(n, n + m)
+        position.clear()
+        position.update((n + p, p) for p in range(m))
+        for q in cells:
+            alpha = ftran(column(q))
+            best, size = -1, _PIVOT
+            for p, a in alpha.items():
+                if p in free and abs(a) > size:
+                    best, size = p, abs(a)
+            if best >= 0:
+                pivot(alpha, best, q)
+                free.discard(best)
+        rhs: dict[int, float] = {}
+        for i, found in enumerate(row_terms):
+            v = constants[i] + sum(
+                c * value[j] for j, c in found.items() if j not in position
+            )
+            if n + i not in position:
+                v -= value[n + i]
+            if v:
+                rhs[i] = v
+        solved = ftran(rhs)
+        for p, q in enumerate(basis):
+            value[q] = solved.get(p, 0.0)
+
+    def cost(p: int) -> float:
+        # The derivative of the shortfall in the basic variable at p.
+        k = basis[p]
+        if value[k] < lower[k] - tolerance[k]:
+            return -1.0
+        if value[k] > upper[k] + tolerance[k]:
+            return 1.0
+        return 0.0
+
+    def shortfall() -> dict[int, float]:
+        return {p: c for p in range(m) if (c := cost(p))}
+
+    infeasible = shortfall()
+    limit = iterations if iterations is not None else m // 2 + 1000
+    least, stalled, since = math.inf, 0, 0
+    for _iteration in range(limit):
+        if not infeasible:
+            break
+        total = sum(
+            max(lower[k] - value[k], value[k] - upper[k])
+            for k in (basis[p] for p in infeasible)
+        )
+        if total < least - 1e-9 * max(1.0, least):
+            least, stalled = total, 0
+        else:
+            stalled += 1
+        # Degenerate steps can cycle: then the lowest index enters (Bland).
+        bland = stalled > 30
+        y = btran(dict(infeasible))
+        reduced: dict[int, float] = {}
+        for i, yi in y.items():
+            for j, c in row_terms[i].items():
+                reduced[j] = reduced.get(j, 0.0) + yi * c
+            reduced[n + i] = reduced.get(n + i, 0.0) - yi
+        entering, best = -1, 0.0
+        for q, d in reduced.items():
+            if q in position:
+                continue
+            if d < -1e-9 and value[q] < upper[q] - tolerance[q]:
+                score = -d
+            elif d > 1e-9 and value[q] > lower[q] + tolerance[q]:
+                score = d
+            else:
+                continue
+            if bland:
+                if entering < 0 or q < entering:
+                    entering = q
+                continue
+            if q < n and not preferred[q]:
+                score *= _SPARSE
+            if score > best or (score == best and q < entering):
+                entering, best = q, score
+        if entering < 0:
+            break  # the least shortfall the rows allow
+        q = entering
+        d = reduced[q]
+        sign = 1.0 if d < 0 else -1.0
+        alpha = ftran(column(q))
+        # Breakpoints where a basic variable reaches a bound; the step goes
+        # past them while the shortfall still falls.
+        points = []
+        for p, a in alpha.items():
+            if abs(a) < _PIVOT:
+                continue
+            k = basis[p]
+            rate = -sign * a
+            v, lo, hi = value[k], lower[k], upper[k]
+            # Below its lower bound and rising, the variable stops falling
+            # short at one bound and starts at the other; within its bounds,
+            # it starts at the bound it moves to; moving away, it has none.
+            if rate > 0:
+                if v < lo - tolerance[k]:
+                    points.append(((lo - v) / rate, p, rate))
+                    if hi < math.inf:
+                        points.append(((hi - v) / rate, p, rate))
+                elif v <= hi + tolerance[k] and hi < math.inf:
+                    points.append((max(hi - v, 0.0) / rate, p, rate))
+            elif v > hi + tolerance[k]:
+                points.append(((hi - v) / rate, p, -rate))
+                if lo > -math.inf:
+                    points.append(((lo - v) / rate, p, -rate))
+            elif v >= lo - tolerance[k] and lo > -math.inf:
+                points.append((max(v - lo, 0.0) / -rate, p, -rate))
+        room = upper[q] - value[q] if sign > 0 else value[q] - lower[q]
+        points.sort(key=lambda point: (point[0], -abs(alpha[point[1]]), point[1]))
+        slope, step, leave = -abs(d), -1.0, -1
+        for t, p, rise in points:
+            if room <= t:
+                break
+            step, leave = t, p
+            slope += rise
+            if slope >= -1e-12:
+                break
+        if step < 0 or room <= step:
+            if room == math.inf:
+                break
+            step, leave = room, -1  # the entering cell reaches its bound
+        if step:
+            value[q] += sign * step
+            for p, a in alpha.items():
+                value[basis[p]] -= sign * a * step
+        if leave >= 0:
+            pivot(alpha, leave, q)
+            since += 1
+            if since >= _REFACTOR:
+                refactor()
+                since = 0
+                infeasible = shortfall()
+                continue
+        for p in alpha:
+            if c := cost(p):
+                infeasible[p] = c
+            else:
+                infeasible.pop(p, None)
+    for j, slot in enumerate(slots):
+        values[slot] = value[j]
+    return sum(
+        max(0.0, -sum(c * value[j] for j, c in found.items()) - constants[i])
+        for i, found in enumerate(row_terms)
+    )
 
 
 def _record_bounds(node: Node, evaluation: Evaluation, data: SyntheticData) -> None:

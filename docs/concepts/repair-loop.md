@@ -70,8 +70,10 @@ Before the first round, the rules are read once:
 - **Linear rules.** Each record of a comparison whose sides are sums of
   cells times constants, such as `{c0010} * 12.5 = {c0020}` or
   `abs({r0010}) >= abs({r0020}) + abs({r0030})`, becomes a linear
-  constraint. An `abs` keeps the sign its operand starts with, and an
-  `if` contributes the branch its condition picks at the start.
+  constraint. An `abs` keeps the sign its operand starts with, an
+  `if` contributes the branch its condition picks at the start, `and`
+  both sides, `or` the first side that holds, and `!=` the strict
+  comparison on the side its cells are on.
 
 ## 3. Solving the linear rules
 
@@ -86,13 +88,21 @@ the linear constraints are solved together before the first round:
    by projections: a violated one moves its cells as little as possible
    together, within their bounds, until all hold or a limit of steps is
    reached.
-3. Values are rounded to their reporting decimals, and the rounds repair
+3. Projections approach a solution without reaching it when inequalities
+   chain, such as `a <= b <= c` with little room. From their values,
+   rounded to the reporting steps, the simplex method then minimises the
+   total amount by which inequalities and bounds fall short, which is 0
+   when they can all hold. It keeps values on their reporting steps when
+   the coefficients are whole, as in sums.
+4. Values are rounded to their reporting decimals, and the rounds repair
    what rounding and the other rules still need.
 
-When rules still fail after the rounds, the linear rules are solved once
-more from the repaired values, and the rounds run again. The pass that
-ends with fewer failing rules of severity `error` is kept, and with as
-many, the one with fewer failing warnings; the first pass wins a tie.
+When rules still fail after the rounds, the linear constraints are read
+again at the repaired values (an `if` may pick the other branch now) and
+solved once more, and the rounds run again. Of the states after each solve
+and after each pass of rounds, the one with the fewest failing rules of
+severity `error` is kept, and with as many, the one with fewer failing
+warnings; the earlier state wins a tie.
 
 ## 4. Repairs
 

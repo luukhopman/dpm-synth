@@ -3,6 +3,22 @@
 All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org).
 
+## Unreleased
+
+### Changed
+
+- The joint solve finishes with the simplex method, so linear rules that
+  projections only approached now hold exactly; FINREP9 goes from 45 to
+  110 failing rules per seed to none on most seeds.
+- The joint solve includes both sides of `and`, the side of `or` that
+  holds and `!=` on its current side.
+- A strict single-cell constraint in the joint solve is met by one
+  reporting step, as sign rules are.
+- The second solve reads the linear constraints again at the repaired
+  values.
+- The state right after a solve is kept when repairs end worse.
+- Values generated for a seed change.
+
 ## 1.1.0 - 2026-10-31
 
 ### Breaking

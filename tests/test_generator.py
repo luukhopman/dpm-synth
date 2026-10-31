@@ -1,3 +1,4 @@
+import math
 import random
 import subprocess
 import sys
@@ -1075,6 +1076,54 @@ def test_the_solve_takes_the_branch_an_if_picks() -> None:
         assert len(_linear_constraints(node, evaluation, data)) == expected
 
 
+def test_the_solve_takes_the_side_of_or_that_holds() -> None:
+    # dp1 > 0 holds, so only its comparison joins; when neither holds, the
+    # last side does; and joins both sides.
+    from dpmsynth.generator import _linear_constraints
+
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    data = run(cells, [], max_rounds=0).data
+    data.values["dp1", ()] = Number(Decimal(5))
+    data.values["dp2", ()] = Number(Decimal(-5))
+    one, two = ("dp1", ()), ("dp2", ())
+    for expression, expected in (
+        (
+            "{tT, r0010, c0010} > 0 or {tT, r0020, c0010} > 0",
+            [(">", 0.0, ((one, 1.0),))],
+        ),
+        (
+            "{tT, r0010, c0010} < 0 or {tT, r0020, c0010} > 0",
+            [(">", 0.0, ((two, 1.0),))],
+        ),
+        (
+            "{tT, r0010, c0010} > 0 and {tT, r0020, c0010} < 0",
+            [(">", 0.0, ((one, 1.0),)), ("<", 0.0, ((two, 1.0),))],
+        ),
+    ):
+        node = parse(expression)
+        evaluation = evaluate_rule(node, data).evaluation
+        assert evaluation is not None
+        found = _linear_constraints(node, evaluation, data)
+        assert [constraint[:3] for constraint in found] == expected
+
+
+@pytest.mark.parametrize("seed", range(3))
+def test_the_solve_keeps_cells_on_their_side_of_not_equal(seed) -> None:
+    # A total of at most 100 pulls its parts to 0, which != 0 forbids: the
+    # solve meets both, so the first round finds nothing to repair.
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    rules = [
+        "{tT, r0010-0030, c0010} >= 0",
+        "{tT, r0010, c0010} = {tT, r0020, c0010} + {tT, r0030, c0010}",
+        "{tT, r0010, c0010} <= 100",
+        "{tT, r0020, c0010} != 0 and {tT, r0030, c0010} != 0",
+    ]
+    result = run(cells, rules, seed=seed)
+    assert result.failed == []
+    assert result.history == [0]
+    assert value(result, 2).value > 0 and value(result, 3).value > 0
+
+
 def test_the_second_pass_never_ends_worse_than_the_first(monkeypatch) -> None:
     # A second pass that breaks a rule the first pass met is undone.
     from dpmsynth import generator
@@ -1096,6 +1145,31 @@ def test_the_second_pass_never_ends_worse_than_the_first(monkeypatch) -> None:
     assert len(calls) == 2
     assert result.failed == ["r2"]
     assert value(result, 1).value >= 0
+
+
+def test_the_solved_state_is_kept_when_repairs_end_worse(monkeypatch) -> None:
+    # The solve meets the first two rules (the third cannot hold); repairs
+    # that then break one are undone.
+    from dpmsynth import generator
+
+    original = generator._repair
+
+    def repair(parsed, data, *args, **kwargs):
+        found = original(parsed, data, *args, **kwargs)
+        data.values["dp1", ()] = Number(Decimal(-5))
+        return found
+
+    monkeypatch.setattr(generator, "_repair", repair)
+    cells = [cell("0010", "0010", 1), cell("0020", "0010", 2)]
+    rules = [
+        "{tT, r0010, c0010} >= 0",
+        "{tT, r0020, c0010} = {tT, r0010, c0010}",
+        "{tT, r0020, c0010} > {tT, r0020, c0010}",
+    ]
+    result = run(cells, rules)
+    assert result.failed == ["r3"]
+    assert value(result, 1).value >= 0
+    assert value(result, 1) == value(result, 2)
 
 
 def test_the_pass_kept_has_the_fewest_failing_errors(monkeypatch) -> None:
@@ -1126,6 +1200,41 @@ def test_the_pass_kept_has_the_fewest_failing_errors(monkeypatch) -> None:
     assert len(calls) == 2
     assert result.failed == ["r2", "r3"]
     assert value(result, 1).value >= 0
+
+
+@pytest.mark.parametrize("seed", range(3))
+def test_the_solve_meets_a_chain_of_inequalities_exactly(seed) -> None:
+    # One solution, 0, 1, ..., 7: projections only approach it, so the
+    # solve must finish exactly, and the first round finds nothing to repair.
+    cells = [cell(f"{n:04d}", "0010", n) for n in range(1, 9)]
+    rules = ["{tT, r0001, c0010} >= 0", "{tT, r0008, c0010} <= 7"] + [
+        f"{{tT, r{n + 1:04d}, c0010}} >= {{tT, r{n:04d}, c0010}} + 1"
+        for n in range(1, 8)
+    ]
+    result = run(cells, rules, seed=seed)
+    assert result.failed == []
+    assert result.history == [0]
+    assert [value(result, n).value for n in range(1, 9)] == list(range(8))
+
+
+def test_the_simplex_meets_rows_or_reports_the_shortfall() -> None:
+    from dpmsynth.generator import Slot, _simplex
+
+    a: Slot = ("a", ())
+    b: Slot = ("b", ())
+    # a - b >= 3 and b >= 10 with a <= 20: a whole solution from whole values.
+    rows: list[tuple[float, tuple[tuple[Slot, float], ...], float]] = [
+        (-3.0, ((a, 1.0), (b, -1.0)), 0.01),
+        (-10.0, ((b, 1.0),), 0.01),
+    ]
+    values: dict[Slot, float] = {a: 0.0, b: 0.0}
+    assert _simplex(rows, values, {a: [-math.inf, 20.0]}) == 0
+    assert values[a] - values[b] >= 3 and values[b] >= 10 and values[a] <= 20
+    assert all(float(v).is_integer() for v in values.values())
+    # With a <= 12 the rows fall 1 short together, which is the least.
+    values = {a: 0.0, b: 0.0}
+    assert _simplex(rows, values, {a: [-math.inf, 12.0]}) == pytest.approx(1)
+    assert values[a] == 12
 
 
 def test_the_solve_meets_small_violations_of_ratios() -> None:
