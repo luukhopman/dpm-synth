@@ -164,6 +164,7 @@ def test_rules_filtered_on_enumerated_keys_hold_on_scaled_rows(tmp_path: Path) -
             "format": "dpm-synth-template/1",
             "release": "1",
             "module": "M",
+            "entry_point": "https://example.com/taxonomy/m/1/mod/m.json",
             "tables": [
                 {
                     "code": "T",

@@ -73,7 +73,8 @@ explains each failing rule; see
 Only for a DPM source that `dpm-xl export-module` does not read: write the
 fields of the [template format](../reference/template-format.md) yourself.
 dpm-xl's [module file](https://luukhopman.github.io/dpm-xl/reference/module-file/)
-reference says where each field comes from in the DPM. Leave out abstract
+reference says where each field comes from in the DPM. Write the module's
+`entry_point`, without which the package names no taxonomy. Leave out abstract
 tables, cells without a variable and rules of other modules, and write
 item qnames as they appear in a report, such as `eba_qEC:qx16`; dpm-synth
 writes them back unchanged.
@@ -124,6 +125,7 @@ template = {
     "format": "dpm-synth-template/1",
     "release": "1.0",
     "module": "X",
+    "entry_point": "https://example.com/taxonomy/x/1.0/mod/x.json",
     "reference_date": "2026-12-31",
     "tables": [
         {

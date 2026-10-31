@@ -22,6 +22,7 @@ def document():
         "format": TEMPLATE_FORMAT,
         "release": "1.0",
         "module": "DEMO",
+        "entry_point": "https://example.com/taxonomy/demo/1.0/mod/demo.json",
         "tables": [
             {
                 "code": "T_01.00",
@@ -44,7 +45,10 @@ def test_loads_a_file_a_path_string_and_a_mapping() -> None:
 
 
 def test_defaults() -> None:
-    template = load_template(document())
+    raw = document()
+    del raw["entry_point"]
+    with pytest.warns(UserWarning, match="entry_point"):
+        template = load_template(raw)
     table = template.tables[0]
     assert table.filing_indicator == "T_01.00"
     assert table.open_keys == (OpenKey("qAB", "qAB", ("eba_AB:x1",)),)
@@ -105,6 +109,19 @@ def test_loads_a_dpm_xl_module_file() -> None:
     raw = document()
     raw["format"] = "dpm-module/1"
     assert load_template(raw) == load_template(document())
+
+
+def test_a_template_without_an_entry_point_warns() -> None:
+    # Without extends, the package names no taxonomy and processors reject it.
+    raw = document()
+    raw["entry_point"] = None
+    with pytest.warns(UserWarning) as caught:
+        load_template(raw)
+    assert str(caught[0].message) == (
+        "entry_point: null, so reports/report.json is written without "
+        "'extends' and names no taxonomy; xBRL-CSV processors reject such a "
+        "package (dpm-xbrl inspect reports inappropriateTaxonomyRef)"
+    )
 
 
 def test_es_cells_need_no_items() -> None:

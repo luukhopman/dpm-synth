@@ -52,6 +52,7 @@ def document(cells, rules, *, open_keys=(), decimals=None, more_tables=()):
         "format": TEMPLATE_FORMAT,
         "release": "1.0",
         "module": "TEST",
+        "entry_point": "https://example.com/taxonomy/test/1.0/mod/test.json",
         "reference_date": "2026-12-31",
         "tables": [
             {"code": "T", "open_keys": list(open_keys), "cells": list(cells)},

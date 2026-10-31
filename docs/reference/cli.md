@@ -107,6 +107,9 @@ wrote sample.zip (20 facts)
   `rule CODE (status): reason`, for up to 20 rules; `and N more rules`
   counts the others.
 - `wrote` names the package and the facts in it.
+- A template without `entry_point` gives a line `warning: entry_point:
+  null, ...` on standard error, also with `--json`: the package has no
+  `extends`, so xBRL-CSV processors reject it.
 
 | Option | Effect |
 | --- | --- |

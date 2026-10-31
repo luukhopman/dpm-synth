@@ -43,6 +43,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import warnings
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date
@@ -68,6 +69,11 @@ _MIN_DECIMALS = {"m": -6, "p": 4}
 _CURRENCY = re.compile(r"[A-Z]{3}")
 _ENUMERATED_TYPES = frozenset({"e"})
 _SEVERITIES = ("error", "warning")
+_NO_ENTRY_POINT = (
+    "entry_point: null, so reports/report.json is written without 'extends' "
+    "and names no taxonomy; xBRL-CSV processors reject such a package "
+    "(dpm-xbrl inspect reports inappropriateTaxonomyRef)"
+)
 
 
 class TemplateError(ValueError):
@@ -245,6 +251,10 @@ def load_template(
         TemplateError: If the file cannot be read, is not JSON, or the
             document is not a valid template.
 
+    Warns:
+        UserWarning: If the template has no ``entry_point``: the package
+            would have no ``extends``, which xBRL-CSV processors reject.
+
     Examples:
         >>> template = load_template("minimal.json")
         >>> template.module, len(template.tables), len(template.rules)
@@ -345,6 +355,8 @@ class _Loader:
                 self.rule_tables(
                     rule.precondition, f"rules[{index}].precondition", known, absent
                 )
+        if entry_point is None:
+            warnings.warn(_NO_ENTRY_POINT, UserWarning, stacklevel=3)
         return ModuleTemplate(
             release=release,
             module=module,

@@ -35,6 +35,9 @@ All notable changes to this project are documented here. The project follows
   the template does not have, instead of reporting it as not evaluated; a
   rule on a template in `filing_indicators` without tables is
   `not_applicable`.
+- `load_template` warns about a template without `entry_point`, and
+  `dpm-synth generate` prints the warning: the package is written without
+  `extends`, which xBRL-CSV processors reject.
 - Typed open keys take an optional `data_type`: `i` keys get integers and
   `d` keys get dates instead of LEI-shaped identifiers.
 - `es` cells are text that may be empty, as the DPM defines them, and need

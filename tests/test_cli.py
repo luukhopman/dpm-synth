@@ -34,6 +34,20 @@ def test_generate_writes_the_package(tmp_path: Path, sample: Path, capsys) -> No
     assert report.entity_id == "SYNTHETICDPMXL000002.CON"
 
 
+def test_warns_about_a_missing_entry_point(tmp_path: Path, capsys) -> None:
+    raw = document([cell("0010", "0010", 1)], [])
+    raw["entry_point"] = None
+    output = tmp_path / "report.zip"
+    assert main(["generate", str(write(tmp_path, raw)), "-o", str(output)]) == 0
+    captured = capsys.readouterr()
+    assert captured.err.splitlines() == [
+        "warning: entry_point: null, so reports/report.json is written without "
+        "'extends' and names no taxonomy; xBRL-CSV processors reject such a "
+        "package (dpm-xbrl inspect reports inappropriateTaxonomyRef)"
+    ]
+    assert captured.out.splitlines()[-1] == f"wrote {output} (1 facts)"
+
+
 def test_options(tmp_path: Path, sample: Path) -> None:
     output = tmp_path / "report.zip"
     arguments = ["generate", str(sample), "-o", str(output)]

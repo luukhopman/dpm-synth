@@ -49,7 +49,7 @@ the `dpm-synth-template/1` format. See
 | `format` | string | yes | `"dpm-module/1"` for a [dpm-xl module file](https://luukhopman.github.io/dpm-xl/reference/module-file/), or `"dpm-synth-template/1"`; both have the fields on this page. |
 | `release` | string | yes | The DPM release, such as `"4.3"`. Informative. |
 | `module` | string | yes | The module code, such as `"COREP_OF"`. Named in error messages and the JSON output. |
-| `entry_point` | string or null | no | The module's xBRL-CSV entry point, written to `reports/report.json` as `extends`. |
+| `entry_point` | string or null | no | The module's xBRL-CSV entry point, written to `reports/report.json` as `extends`. Without it the package names no taxonomy and xBRL-CSV processors reject it, so `load_template` warns (`UserWarning`) and `dpm-synth generate` prints a warning. |
 | `reference_date` | string or null | no | The reference date, `YYYY-MM-DD`; it is the `refPeriod` parameter and the rules' `{refPeriod}`, and `d` cells start in the ten years up to it. Before 2022-12-31 the entity is identified by its bare LEI (EBA filing rule 3.6). Default `2026-12-31`; the `--reference-date` option overrides it. |
 | `currency` | string or null | no | The reporting currency, an ISO 4217 code such as `"SEK"`; the report's `baseCurrency`, written only when a monetary fact is reported. Default `"EUR"`; the `--currency` option overrides it. |
 | `decimals` | object | no | Reporting decimals by data type code, such as `{"m": -3}`; whole numbers from -20 to 20. Unlisted types keep the defaults `m` 0, `p` 4, `i` 0, `r` 2. EBA filing rule 2.18 sets the least accuracy: `p` 4 or more, `i` exactly 0, and `m` -4 or more, or -6 for the FP, ESG, Pillar 3 and REM_DBM modules; `m` below -6 is rejected. |

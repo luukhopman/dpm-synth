@@ -13,6 +13,7 @@ import json
 import math
 import re
 import sys
+import warnings
 from collections.abc import Iterator, Sequence
 from datetime import date
 from pathlib import Path
@@ -268,9 +269,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     """
     arguments = _parser().parse_args(argv)
     try:
-        template = load_template(arguments.template)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            template = load_template(arguments.template)
     except TemplateError as error:
         return _fail(error)
+    for warning in caught:
+        print(f"warning: {warning.message}", file=sys.stderr)
     result = generate(
         template,
         seed=arguments.seed,
