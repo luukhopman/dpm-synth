@@ -44,17 +44,17 @@ dpm-synth generate corep_of.json -o report.zip --seed 7
 ```
 
 ```text
-rules: 1418, passed: 1146, failed: 5, not applicable: 54, skipped: 213
-rounds: 14 (failing rules per round: 69, 32, 22, 14, 14, 14, 14, 14, 14, 14, 7, 11, 10, 10)
-still failing: e4891_n (warning), v4810_m (warning), v6050_m (warning), v6052_m (warning), v6290_m
-wrote report.zip (25486 facts)
+rules: 1418, passed: 1150, failed: 1, not applicable: 54, skipped: 213
+rounds: 14 (failing rules per round: 69, 33, 22, 11, 11, 11, 11, 11, 11, 11, 1, 2, 2, 2)
+still failing: v4810_m (warning)
+wrote report.zip (25483 facts)
 ```
 
 The 213 skipped rules are those the EBA deactivated. Expect a few rules to
 stay failing on a real module: [limits of the loop](../concepts/limits.md)
-explains why. Here `v6290_m` is of severity `error`, so the exit status is
-1; the package is written either way. Another seed can leave other rules
-failing.
+explains why. Here `v4810_m` is a warning, so the exit status is 0; a
+failing `error` rule makes it 1, and the package is written either way.
+Another seed can leave other rules failing.
 
 ## 4. Check the report
 

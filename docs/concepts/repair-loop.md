@@ -70,7 +70,8 @@ Before the first round, the rules are read once:
 - **Linear rules.** Each record of a comparison whose sides are sums of
   cells times constants, such as `{c0010} * 12.5 = {c0020}` or
   `abs({r0010}) >= abs({r0020}) + abs({r0030})`, becomes a linear
-  constraint. An `abs` keeps the sign its operand starts with.
+  constraint. An `abs` keeps the sign its operand starts with, and an
+  `if` contributes the branch its condition picks at the start.
 
 ## 3. Solving the linear rules
 
@@ -101,12 +102,12 @@ construct:
 
 | Construct | Repair |
 | --- | --- |
-| `a = b`, `a <= b`, `a > b`, ... on numbers | Expand `a - b` into terms `coefficient × cell`: sums, differences, unary minus, constants, `sum(...)`, `abs` (at its current sign), a product of two cells (each at the other's current value) and division by a constant or cell. One cell absorbs the whole difference, the first that no other rule defines and whose new value respects its bounds; when none can, the cells move in turn as far as their bounds allow. Strict comparisons are met by one reporting step. |
+| `a = b`, `a <= b`, `a > b`, ... on numbers | Expand `a - b` into terms `coefficient × cell`: sums, differences, unary minus, constants, `sum(...)`, `abs` (at its current sign), `max` and `min` of several values (the argument that gives the value), a product of two cells (each at the other's current value) and division by a constant or cell. One cell absorbs the whole difference, the first that no other rule defines and whose new value respects its bounds; when none can, the cells move in turn as far as their bounds allow. Strict comparisons are met by one reporting step. |
 | `a < b`, `a >= b`, ... on dates | Move the earlier side: `a < b` sets `a` to the day before `b`. |
 | `a = b` on items, text or dates | Copy the known side into the cells of the other. |
 | `and`, `or`, `not` | Repair both sides of `and`; the first side of `or` that can be changed; `not` repairs its operand towards the opposite. |
 | `if c then a else b endif` | Repair the branch that the condition selects. |
-| `isnull(x)` | Clear `x`; `not isnull(x)` gives a cleared cell a starting value again. |
+| `isnull(x)` | Clear `x`; `not isnull(x)` gives a cleared cell a starting value again. Other repairs leave a cleared cell empty. |
 | `x in {…}` or `x in s` | Set `x` to the first member of the set that fits its cell: a number for a numeric cell, an item for an enumerated one. Any set works: a literal, a `set-*` parameter, `union(...)`, or a selection of cells. |
 | `match(x, pattern)` | For the LEI pattern `[A-Z0-9]{18}[0-9]{2}`, a checksum-valid LEI-shaped identifier starting with `SYNTH`; for `dd/mm/yyyy`, the reference date. |
 
@@ -149,8 +150,9 @@ passes on the package; the
 
 ## Why not a complete solver
 
-The joint solve is linear: it keeps the signs inside `abs` and leaves
-products of cells, `max` and `if` to the rounds. A mixed-integer solver
-could also choose those, or prove that rules contradict each other, but
-needs a dependency and much longer for a module of thousands of rules.
+The joint solve is linear: it keeps the signs inside `abs` and the branch
+of each `if`, and leaves products of cells and `max` to the rounds. A
+mixed-integer solver could also choose those, or prove that rules
+contradict each other, but needs a dependency and much longer for a module
+of thousands of rules.
 [Limits of the loop](limits.md) shows what remains.
