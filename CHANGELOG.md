@@ -15,6 +15,17 @@ All notable changes to this project are documented here. The project follows
 - Values generated for a seed change: rounding, filing indicators,
   currencies, typed keys, realism options and the joint solve all affect
   them.
+- The exit status follows the rules' severity: failing warnings exit 0
+  unless `--fail-on warning`, and a rule of severity `error` that fails or
+  is an `error` (dpm-xl cannot evaluate it) exits 1; `unsupported` rules
+  never change it. 1.0 exited 1 on any failing rule and ignored rules it
+  could not evaluate.
+- `load_template` rejects a rule that does not parse or selects a table
+  the template does not have, which 1.0 reported as not evaluated.
+- `load_template` rejects an enumerated cell or open key without `items`;
+  1.0 gave such a cell the invalid value `eba_qx:qx0`.
+- `load_template` rejects decimals below the minimums of EBA filing rule
+  2.18, which 1.0 accepted: `p` below 4, `i` other than 0 and `m` below -6.
 
 ### Changed
 
@@ -31,9 +42,7 @@ All notable changes to this project are documented here. The project follows
   as `rule CODE (status): reason`, so a rule code cannot read as a heading.
 - Typed open keys take the same identifiers in every table keyed by the
   same property, so rules that join such tables find matching rows.
-- `load_template` rejects a rule that does not parse or selects a table
-  the template does not have, instead of reporting it as not evaluated; a
-  rule on a template in `filing_indicators` without tables is
+- A rule on a template in `filing_indicators` without tables is
   `not_applicable`.
 - A rule may select an abstract table, such as `C_02.00`, by the filing
   indicator of the tables it was split into; it reads their cells together.
@@ -49,8 +58,6 @@ All notable changes to this project are documented here. The project follows
   and `dt` keys count like `i` and `d` keys.
 - `load_template` reads a dpm-xl module file (`"format": "dpm-module/1"`),
   so the file `dpm-xl export-module` writes serves both tools.
-- `load_template` rejects an enumerated cell or open key without `items`;
-  a cell used to get the invalid value `eba_qx:qx0`.
 - A template's optional `filing_indicators` lists every template of the
   module, each once ignoring case; those without tables are reported with
   a negative filing indicator.
@@ -63,16 +70,11 @@ All notable changes to this project are documented here. The project follows
 - Values are rounded half to even, as EBA filing rule 2.18 requires,
   instead of half up; a value that ends in exactly 5 past the reporting
   decimals can change.
-- `load_template` rejects decimals below the minimums of EBA filing rule
-  2.18: `p` below 4, `i` other than 0 and `m` below -6.
 - Reports with a reference date before 2022-12-31, or for a module whose
   code has `_con` or `_ind`, identify the entity by its bare LEI in the LEI
   scheme, as EBA filing rule 3.6 requires.
 - Rules take an optional `severity`, `error` (the default) or `warning`,
-  shown in the output; `--fail-on warning` makes failing warnings exit
-  with status 1.
-- A rule that is an `error` (dpm-xl cannot evaluate it) exits with status
-  1, as a failing rule does; `unsupported` rules never change the status.
+  shown in the output.
 - Rules with `"active": false` are neither repaired nor evaluated, and are
   reported as `skipped`.
 - `generate` solves the linear rules jointly before the repair loop, and
