@@ -44,13 +44,16 @@ seeds 0 to 4 and default options:
 | --- | --- | --- |
 | AE | 218 | 0 |
 | COREP_ALM | 134 | 0 |
-| COREP_LCR_DA | 328 | 0 to 2 warnings and errors |
+| COREP_LCR_DA | 328 | 0 or 1 warning |
 | COREP_LE | 25 | 0 |
 | DORA | 66 | 0 |
-| FINREP9 | about 2,250 | 45 to 65, mostly warnings |
+| FINREP9 | 2,252 | 0 |
 
-FINREP9 fails on linear rules the joint solve cannot settle within its
-passes once the repairs of non-linear rules have moved their cells.
+The rules of FINREP9 are linear comparisons, and `if`, `and`, `or` and
+`!=` of them, which the joint solve meets exactly: the first round finds
+no failing rule. With `fill=0.5` it also passes every rule on seeds 0 to
+4, after some rounds of repairs. The COREP_LCR_DA warnings are sums whose
+cells non-linear rules (`min` among them) also use.
 
 `dpm-xl check-report` on the written package gives the same statuses, so
 the rules that pass and fail on the generated values are exactly those

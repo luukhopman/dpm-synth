@@ -8,8 +8,10 @@ All notable changes to this project are documented here. The project follows
 ### Changed
 
 - The joint solve finishes with the simplex method, so linear rules that
-  projections only approached now hold exactly; FINREP9 goes from 45 to
-  110 failing rules per seed to none on most seeds.
+  projections only approached now hold exactly. FINREP9 (release 4.3)
+  passes every rule on seeds 0 to 4 and 7 with `fill` 1 and 0.5, where
+  1.1.0 left 45 to 110 failing; COREP_LCR_DA leaves 0 to 4 instead of 0
+  to 7.
 - The joint solve includes both sides of `and`, the side of `or` that
   holds and `!=` on its current side.
 - A strict single-cell constraint in the joint solve is met by one
