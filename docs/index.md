@@ -1,14 +1,15 @@
 ---
-description: What dpm-synth is, how to install it, a 30-second example in Python and on the command line, generating from an EBA DPM release, and where to go next.
+description: Generate synthetic EBA xBRL-CSV test reports that pass Data Point Model (DPM 2.0) validation rules, in Python - install, a 30-second example and where to go next.
 ---
 
-# dpm-synth
+# dpm-synth: synthetic EBA test reports in Python
 
 dpm-synth generates synthetic EBA supervisory reports: xBRL-CSV report
-packages whose values are made up but pass the module's validation rules.
-You give it a template file with a module's tables, cells and DPM-XL rules,
-such as the module file `dpm-xl export-module` writes from an EBA DPM
-release; it fills every cell with a plausible value, repairs the values
+packages, such as COREP or FINREP reports, whose values are made up but
+pass the module's DPM-XL validation rules. You give it a template file with
+a module's tables, cells and rules, such as the module file
+`dpm-xl export-module` writes from a release of the EBA Data Point Model
+(DPM 2.0); it fills every cell with a plausible value, repairs the values
 until the rules pass, and writes a report package that reads and validates
 like a real submission.
 

@@ -1,17 +1,21 @@
 <p align="center">
-  <a href="https://luukhopman.github.io/dpm-synth/"><img src="https://luukhopman.github.io/dpm-synth/assets/logo.svg" alt="dpm-synth" width="240"></a>
+  <a href="https://luukhopman.github.io/dpm-synth/"><img src="https://luukhopman.github.io/dpm-synth/assets/logo.svg" alt="dpm-synth logo" width="240"></a>
 </p>
 
 <p align="center"><em>Generate synthetic EBA reports that satisfy DPM-XL validation rules.</em></p>
 
-Generate synthetic EBA xBRL-CSV report packages that satisfy a module's
-DPM-XL validation rules. Give dpm-synth a template file with a module's
-tables, cells and rules, such as the module file `dpm-xl export-module`
-writes from an EBA DPM release; it fills every cell with a plausible
-value, repairs the values until the rules pass, and writes a report
-package that reads and validates like a real submission. Use it to test loaders, data warehouses
-and validators for EBA reports, for any module, without real supervisory
-data.
+dpm-synth generates synthetic test data for European Banking Authority
+(EBA) reporting: xBRL-CSV report packages, such as COREP or FINREP reports,
+whose values are made up but pass the module's DPM-XL validation rules.
+Give it a template file with a module's tables, cells and rules, such as
+the module file `dpm-xl export-module` writes from an EBA Data Point Model
+(DPM 2.0) release; it fills every cell with a plausible value, repairs the
+values until the rules pass, and writes a report package that reads and
+validates like a real XBRL submission. Use it to test loaders, data
+warehouses and validators for EBA reports, for any module, without real
+supervisory data. It builds on its sibling packages
+[dpm-xl](https://pypi.org/project/dpm-xl/), which evaluates the rules, and
+[dpm-xbrl](https://pypi.org/project/dpm-xbrl/), which writes the package.
 
 dpm-synth is an independent project, not affiliated with or endorsed by the
 European Banking Authority.
