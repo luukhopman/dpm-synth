@@ -74,7 +74,8 @@ All of these must pass before a commit.
 - Docs examples: a `text` block directly after a `python` block is its
   expected output; `console` blocks run `dpm-synth` and `unzip` commands
   (`$ echo $?` prints the exit status); `<!-- docs: skip -->` before a block skips it.
-  Show real output, never invented output.
+  Show real output, never invented output. The tests ignore the `version`
+  field of JSON output, so a release does not break the examples.
 - Code annotations (`# (1)!` comments with a numbered list right after
   the block) may stand between a `python` block and its `text` output,
   and are removed from `console` commands before they run; the docs tests

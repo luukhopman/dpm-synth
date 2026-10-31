@@ -174,6 +174,18 @@ def _run_unzip(command: str) -> tuple[int, str]:
     return done.returncode, done.stdout + done.stderr
 
 
+_VERSION = re.compile(r'("version": )"[^"]*"')
+
+
+def _versionless(text: str) -> str:
+    """Normalize output, ignoring the version a JSON document gives.
+
+    Returns:
+        str: The normalized text.
+    """
+    return _VERSION.sub(r'\1"…"', _normalize(text))
+
+
 def _check_console(block: Block, where: str) -> None:
     status = 0
     commands: list[tuple[str, list[str]]] = []
@@ -193,7 +205,7 @@ def _check_console(block: Block, where: str) -> None:
             status, output = _run_unzip(command)
         else:
             pytest.fail(f"{where}: only dpm-synth and unzip run in console blocks")
-        assert _normalize(output) == _normalize("\n".join(expected)), (
+        assert _versionless(output) == _versionless("\n".join(expected)), (
             f"{where}: output of {command!r} differs"
         )
 
@@ -344,3 +356,8 @@ def test_every_page_is_in_the_navigation() -> None:
             continue
         relative = page.relative_to(ROOT / "docs").as_posix()
         assert f'"{relative}"' in config, f"{relative} is not in the zensical.toml nav"
+
+
+def test_json_versions_are_ignored() -> None:
+    assert _versionless('{"version": "1.0.0"}') == _versionless('{"version": "9.9"}')
+    assert _versionless('{"seed": "1"}') != _versionless('{"seed": "2"}')
