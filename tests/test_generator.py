@@ -1130,6 +1130,17 @@ def test_rules_on_templates_without_tables_do_not_apply() -> None:
     assert set(result.statuses.values()) == {"not_applicable"}, result.messages
 
 
+def test_max_is_repaired_through_the_argument_that_gives_it() -> None:
+    # dp1 is fixed at 100, so max(dp2, dp3) must come down to it.
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    rules = [
+        "{tT, r0010, c0010} = 100",
+        "{tT, r0010, c0010} = max({tT, r0020, c0010}, {tT, r0030, c0010})",
+    ]
+    for seed in range(5):
+        assert run(cells, rules, seed=seed).failed == []
+
+
 def test_repairs_leave_a_cleared_cell_empty() -> None:
     # isnull empties dp3 for good; the sum is met by the other cells, which
     # count it as its default 0, instead of writing dp3 again.

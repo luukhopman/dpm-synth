@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The project follows
 
 ## Unreleased
 
+- A comparison with `max` or `min` of several values is repaired by moving
+  the argument that gives the value, instead of the other cells only.
 - A repair no longer writes a value into a cell that an `isnull` repair
   emptied; the other cells of the comparison take the difference, so the
   `isnull` rule keeps holding.

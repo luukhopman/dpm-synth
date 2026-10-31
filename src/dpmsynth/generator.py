@@ -946,7 +946,20 @@ class _Repairer:
                 case Call(name="abs", args=(operand,)):
                     negative = _value(self.value(operand)) < 0
                     stack.append((operand, -coefficient if negative else coefficient))
+                case Call(name="max" | "min", args=args) if len(args) > 1:
+                    stack.append((self.chosen(node), coefficient))
         return found
+
+    def chosen(self, node: Call) -> Node:
+        """Return the argument of ``max`` or ``min`` that gives its value now.
+
+        Returns:
+            Node: The first argument with the largest (``max``) or smallest
+            (``min``) value; null arguments count as 0.
+        """
+        values = [_value(self.value(arg)) for arg in node.args]
+        best = max(values) if node.name == "max" else min(values)
+        return node.args[values.index(best)]
 
 
 def _operands(node: Node, op: str) -> list[Node]:
