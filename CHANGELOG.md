@@ -71,7 +71,8 @@ All notable changes to this project are documented here. The project follows
 - Rules with `"active": false` are neither repaired nor evaluated, and are
   reported as `skipped`.
 - `generate` solves the linear rules jointly before the repair loop, and
-  once more if rules still fail: on EBA DPM 4.3 COREP_OF 0 to 2 rules fail
+  once more if rules still fail, keeping the pass with fewer failing
+  errors, then warnings: on EBA DPM 4.3 COREP_OF 0 to 2 rules fail
   instead of about 52. Repairs also share a difference among cells that
   cannot take it alone, and move dates compared with each other. This
   changes the values generated for every seed.

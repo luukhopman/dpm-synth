@@ -1142,8 +1142,10 @@ def generate(
     data._apply_bounds()
     history: list[int] = []
     repairs = 0
-    # The best rounded state so far: failing rules, values, results.
-    best: tuple[int, dict[Slot, Value], dict[str, Any]] | None = None
+    # The best rounded state so far: failing error and warning rules,
+    # values, results.
+    best: tuple[tuple[int, int], dict[Slot, Value], dict[str, Any]] | None = None
+    severity = {rule.code: rule.severity for rule in template.rules}
     # The linear rules are solved jointly, then the loop repairs the rest;
     # when rules still fail, a second solve restores the linear rules its
     # repairs broke, and the loop runs again.
@@ -1162,11 +1164,18 @@ def generate(
         unrounded = dict(data.values)
         data._round_all()
         results = _results(parsed, data)
-        count = sum(result.status == "failed" for result in results.values())
+        failing = [
+            code for code, result in results.items() if result.status == "failed"
+        ]
+        count = (
+            sum(severity[code] == "error" for code in failing),
+            sum(severity[code] == "warning" for code in failing),
+        )
         # A second pass can end worse than the first: keep the earlier state.
+        # Fewer failing errors is better, then fewer failing warnings.
         if best is None or count < best[0]:
             best = (count, dict(data.values), results)
-        if not count:
+        if not failing:
             break
         data.values = unrounded
     rounds = len(history)

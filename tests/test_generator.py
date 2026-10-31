@@ -1098,6 +1098,36 @@ def test_the_second_pass_never_ends_worse_than_the_first(monkeypatch) -> None:
     assert value(result, 1).value >= 0
 
 
+def test_the_pass_kept_has_the_fewest_failing_errors(monkeypatch) -> None:
+    # Two failing warnings are better than one failing error.
+    from dpmsynth import generator
+
+    original = generator._repair
+    calls = []
+
+    def repair(parsed, data, *args, **kwargs):
+        found = original(parsed, data, *args, **kwargs)
+        calls.append(1)
+        if len(calls) == 1:
+            data.values["dp2", ()] = Number(Decimal(-5))
+            data.values["dp3", ()] = Number(Decimal(-5))
+        else:
+            data.values["dp1", ()] = Number(Decimal(-5))
+        return found
+
+    monkeypatch.setattr(generator, "_repair", repair)
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    rules = [
+        "{tT, r0010, c0010} >= 0",
+        {"code": "r2", "expression": "{tT, r0020, c0010} >= 0", "severity": "warning"},
+        {"code": "r3", "expression": "{tT, r0030, c0010} >= 0", "severity": "warning"},
+    ]
+    result = run(cells, rules)
+    assert len(calls) == 2
+    assert result.failed == ["r2", "r3"]
+    assert value(result, 1).value >= 0
+
+
 def test_the_solve_meets_small_violations_of_ratios() -> None:
     # 0.005 is 50 reporting steps of a percentage, not a rounding error.
     from dpmsynth.generator import _project

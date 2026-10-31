@@ -90,9 +90,9 @@ the linear constraints are solved together before the first round:
    what rounding and the other rules still need.
 
 When rules still fail after the rounds, the linear rules are solved once
-more from the repaired values, and the rounds run again. If that second
-pass ends with more failing rules than the first, the first pass's values
-are kept.
+more from the repaired values, and the rounds run again. The pass that
+ends with fewer failing rules of severity `error` is kept, and with as
+many, the one with fewer failing warnings; the first pass wins a tie.
 
 ## 4. Repairs
 
