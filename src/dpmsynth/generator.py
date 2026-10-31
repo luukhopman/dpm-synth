@@ -386,6 +386,11 @@ class SyntheticData:
         cell = self._cell(slot)
         return cell is not None and cell.data_type in _NUMERIC
 
+    def _open(self, slot: object) -> bool:
+        # Whether repairs may write a slot: an isnull repair empties a cell
+        # for good, while a cell that fill left empty may take a value.
+        return self.values.get(slot) is not None or slot in self._sparse
+
     def _quantum(self, cell: TemplateCell | None) -> Decimal:
         # The smallest step a cell's value is reported in.
         decimals = self.decimals.get(cell.data_type or "", 2) if cell else 2
@@ -848,7 +853,7 @@ class _Repairer:
         ordered = [
             (slot, coefficient, seen)
             for _index, (slot, coefficient, seen) in sorted(enumerate(terms), key=rank)
-            if coefficient and self.data._numeric_slot(slot)
+            if coefficient and self.data._numeric_slot(slot) and self.data._open(slot)
         ]
         for slot, coefficient, seen in ordered:
             step = self.data._quantum(self.data._cell(slot)) * abs(coefficient)

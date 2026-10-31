@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The project follows
 
 ## Unreleased
 
+- A repair no longer writes a value into a cell that an `isnull` repair
+  emptied; the other cells of the comparison take the difference, so the
+  `isnull` rule keeps holding.
 - The joint solve of linear rules includes the comparison of the `if`
   branch whose condition holds, so a total that one rule sums and another
   compares under a condition is solved with both. This changes the values

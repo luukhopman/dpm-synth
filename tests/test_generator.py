@@ -1128,3 +1128,18 @@ def test_rules_on_templates_without_tables_do_not_apply() -> None:
     raw["filing_indicators"] = ["U_01.00", "T"]
     result = generate(load_template(raw))
     assert set(result.statuses.values()) == {"not_applicable"}, result.messages
+
+
+def test_repairs_leave_a_cleared_cell_empty() -> None:
+    # isnull empties dp3 for good; the sum is met by the other cells, which
+    # count it as its default 0, instead of writing dp3 again.
+    cells = [cell(f"00{n}0", "0010", n) for n in (1, 2, 3)]
+    rules = [
+        "isnull({tT, r0030, c0010})",
+        "with {default: 0}: {tT, r0030, c0010} = {tT, r0010, c0010} - "
+        "{tT, r0020, c0010}",
+    ]
+    for seed in range(5):
+        result = run(cells, rules, seed=seed)
+        assert result.failed == []
+        assert value(result, 3) is None
