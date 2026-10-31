@@ -1142,6 +1142,30 @@ def test_the_solve_meets_small_violations_of_ratios() -> None:
     assert first.value >= second.value
 
 
+def test_rules_on_an_abstract_table_read_the_tables_under_it() -> None:
+    # T was split into T.a and T.b, both reported under filing indicator T;
+    # a rule on T reads their cells together and is repaired.
+    part_a = {
+        "code": "T.a",
+        "filing_indicator": "T",
+        "cells": [cell("0010", "0010", 1), cell("0020", "0010", 2)],
+    }
+    part_b = {
+        "code": "T.b",
+        "filing_indicator": "T",
+        "cells": [cell("0030", "0010", 3)],
+    }
+    rule = "with {tT, c0010}: {r0030} = {r0010} + {r0020} + 1000"
+    raw = document([cell("0010", "0010", 9)], [rule], more_tables=[part_a, part_b])
+    raw["tables"].pop(0)
+    result = generate(load_template(raw), seed=4)
+    assert result.statuses == {"r1": "passed"}, result.messages
+    total = value(result, 3).value
+    assert total == value(result, 1).value + value(result, 2).value + 1000
+    points = result.data.select(CellQuery("t", None, None, None))
+    assert [point.table for point in points] == ["T.a", "T.a", "T.b"]
+
+
 def test_rules_on_templates_without_tables_do_not_apply() -> None:
     # U_01.00 is in the module but not reported: its rules have nothing to
     # check, with or without a precondition.

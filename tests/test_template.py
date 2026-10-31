@@ -111,6 +111,19 @@ def test_loads_a_dpm_xl_module_file() -> None:
     assert load_template(raw) == load_template(document())
 
 
+def test_rules_may_select_an_abstract_table_by_its_filing_indicator() -> None:
+    # C_02.00 was split into C_02.00.a and C_02.00.b; rules may still select
+    # it, and select the tables reported under it.
+    raw = document()
+    raw["tables"][0]["code"] = "T_01.00.a"
+    raw["tables"][0]["filing_indicator"] = "T_01.00"
+    raw["rules"].append({"code": "v2", "expression": "{tt_01.00, c0010} >= 0"})
+    assert len(load_template(raw).rules) == 2
+    raw["rules"].append({"code": "v3", "expression": "{tT_01, c0010} >= 0"})
+    with pytest.raises(TemplateError, match=r"selects table T_01, which is not"):
+        load_template(raw)
+
+
 def test_a_template_without_an_entry_point_warns() -> None:
     # Without extends, the package names no taxonomy and processors reject it.
     raw = document()

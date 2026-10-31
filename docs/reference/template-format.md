@@ -164,6 +164,11 @@ Every table of the file counts as reported, so a precondition such as
 `C_07.00`, and is false otherwise. `{vReportingLevel}` is `con` or `ind`
 and `{refPeriod}` is the reference date.
 
+A rule may select an abstract table that was split into parts, such as
+`C_02.00` after it became `C_02.00.a` and `C_02.00.b`: a code that is not
+a table of the file selects the tables whose `filing_indicator` it is, and
+their cells are read together.
+
 A rule or precondition that does not parse, or that selects a table the
 file does not have, is an error of the template file, with one exception:
 a reporting template listed in `filing_indicators` with no tables in the

@@ -343,7 +343,11 @@ class _Loader:
                 )
             codes[rule.code] = index
         filing_indicators = self.filing_indicators(root, tables)
-        known = {table.code.casefold() for table in tables}
+        # A rule may select a table, or an abstract table by the filing
+        # indicator of the tables it was split into.
+        known = {table.code.casefold() for table in tables} | {
+            table.filing_indicator.casefold() for table in tables
+        }
         absent = _absent_indicators(tables, filing_indicators)
         for index, rule in enumerate(rules):
             if not rule.active:
@@ -651,6 +655,19 @@ def _absent_indicators(
     return frozenset(
         code.casefold() for code in filing_indicators if code.casefold() not in used
     )
+
+
+def _selected_tables(
+    tables: tuple[TemplateTable, ...], code: str
+) -> list[TemplateTable]:
+    # The tables a rule selecting code reads, ignoring case: the table of
+    # that code or, for a code that is not a table, such as an abstract
+    # table split into parts, the tables with that filing indicator.
+    folded = code.casefold()
+    found = [table for table in tables if table.code.casefold() == folded]
+    return found or [
+        table for table in tables if table.filing_indicator.casefold() == folded
+    ]
 
 
 def _under(code: str, indicators: frozenset[str]) -> bool:

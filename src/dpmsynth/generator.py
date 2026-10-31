@@ -26,6 +26,7 @@ https://luukhopman.github.io/dpm-synth/concepts/repair-loop/.
 
 from __future__ import annotations
 
+import itertools
 import math
 import random
 import re
@@ -76,6 +77,7 @@ from .template import (
     TemplateCell,
     TemplateTable,
     _absent_indicators,
+    _selected_tables,
     _under,
 )
 
@@ -258,7 +260,10 @@ class SyntheticData:
         self.values: dict[Slot, Value] = {}
         self.key_rows: dict[str, list[tuple[tuple[str, Any], ...]]] = {}
         self._cells: dict[str, TemplateCell] = {}
-        self._query_cells: dict[CellQuery, list[TemplateCell]] = {}
+        # The tables a query reads, each with its selected cells.
+        self._query_cells: dict[
+            CellQuery, list[tuple[TemplateTable, list[TemplateCell]]]
+        ] = {}
         # Slot -> (lower, upper) from single-cell sign rules such as {x} >= 0.
         self._bounds: dict[Slot, tuple[Decimal | None, Decimal | None]] = {}
         self._absent = _absent_indicators(template.tables, template.filing_indicators)
@@ -486,30 +491,40 @@ class SyntheticData:
             Sequence[DataPoint]: Points whose ``ref`` is the
             ``(datapoint, keys)`` slot.
 
+        A code that is not a table of the template, such as an abstract
+        table split into parts, selects the cells of the tables with that
+        filing indicator.
+
         Raises:
-            LookupError: If the table is not in the template; a table of a
-                template reported as absent selects no cells.
+            LookupError: If no table has the code or filing indicator; a
+                table of a template reported as absent selects no cells.
         """
-        table = self.template.table(query.table)
-        if table is None:
-            if _under(query.table, self._absent):
-                return []
-            raise LookupError(
-                f"table {query.table} is not in module {self.template.module}"
-            )
-        cells = self._query_cells.get(query)
-        if cells is None:
-            cells = [
-                cell
-                for cell in table.cells
-                if _selected(cell.row, query.rows)
-                and _selected(cell.column, query.columns)
-                and _selected(cell.sheet, query.sheets)
+        selected = self._query_cells.get(query)
+        if selected is None:
+            tables = _selected_tables(self.template.tables, query.table)
+            if not tables:
+                if _under(query.table, self._absent):
+                    return []
+                raise LookupError(
+                    f"table {query.table} is not in module {self.template.module}"
+                )
+            selected = [
+                (
+                    table,
+                    [
+                        cell
+                        for cell in table.cells
+                        if _selected(cell.row, query.rows)
+                        and _selected(cell.column, query.columns)
+                        and _selected(cell.sheet, query.sheets)
+                    ],
+                )
+                for table in tables
             ]
-            self._query_cells[query] = cells
+            self._query_cells[query] = selected
         points = []
-        for keys in self.key_rows[table.code]:
-            for cell in cells:
+        for table, cells in selected:
+            for keys, cell in itertools.product(self.key_rows[table.code], cells):
                 slot = (cell.datapoint, keys)
                 value = self.values.get(slot)
                 if isinstance(value, Number) and cell.data_type in _NUMERIC:
@@ -564,11 +579,18 @@ class SyntheticData:
     def open_keys(self, table: str) -> tuple[str, ...]:
         """Return the open key codes of a table.
 
+        An abstract table, selected by the filing indicator of its parts,
+        has the open keys of its parts.
+
         Returns:
             tuple[str, ...]: Key codes; empty for a closed or unknown table.
         """
-        found = self.template.table(table)
-        return tuple(key.code for key in found.open_keys) if found else ()
+        keys = (
+            key.code
+            for found in _selected_tables(self.template.tables, table)
+            for key in found.open_keys
+        )
+        return tuple(dict.fromkeys(keys))
 
 
 _FIRST_KEY_DATE = date(1900, 1, 1)

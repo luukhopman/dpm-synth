@@ -35,6 +35,8 @@ All notable changes to this project are documented here. The project follows
   the template does not have, instead of reporting it as not evaluated; a
   rule on a template in `filing_indicators` without tables is
   `not_applicable`.
+- A rule may select an abstract table, such as `C_02.00`, by the filing
+  indicator of the tables it was split into; it reads their cells together.
 - `load_template` warns about a template without `entry_point`, and
   `dpm-synth generate` prints the warning: the package is written without
   `extends`, which xBRL-CSV processors reject.
