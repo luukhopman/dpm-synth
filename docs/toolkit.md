@@ -44,11 +44,12 @@ then [connect your data](https://luukhopman.github.io/dpm-xl/guides/provider/).
 
 ```bash
 pip install dpm-xl
-dpm-xl export-module dpm-4.4.sqlite COREP_OF --release 4.3 -o module.json
+dpm-xl export-module "DPM2 Database_v 4_4.zip" COREP_OF -o module.json
 ```
 
-You need the EBA's DPM 2.0 database as a SQLite file (about 350 MB), which
-you convert from the EBA's Access file or download already converted. Read
+You need the EBA's DPM 2.0 database: the ZIP the EBA publishes, read with
+[mdbtools](https://github.com/mdbtools/mdbtools), or the same database
+converted to SQLite (about 350 MB), which needs nothing else. Read
 [start from an EBA DPM release](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/).
 
 ### Generate test reports
@@ -80,7 +81,7 @@ flowchart TD
     module -->|tables, cells, rules| check
     package --> check
     reporter --> check
-    check --> results["Filing findings, rule results<br>and explanations"]
+    check --> results["Broken filing rules, rule results<br>and explanations"]
 ```
 
 1. A DPM release defines each module's tables, cells and validation rules.

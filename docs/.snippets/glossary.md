@@ -40,3 +40,6 @@
 *[taxonomy package]: A ZIP of taxonomy files with a catalogue that maps their URLs to the files inside (XBRL Taxonomy Packages 1.0)
 *[taxonomy packages]: ZIPs of taxonomy files with a catalogue that maps their URLs to the files inside (XBRL Taxonomy Packages 1.0)
 *[spec code]: The error code an XBRL International specification gives a condition, such as xbrlce:unknownColumn
+*[XDT]: XBRL Dimensions 1.0: the specification of dimensions and hypercubes
+*[hypercube]: The dimensions and members a taxonomy allows for a concept's facts (XBRL Dimensions)
+*[hypercubes]: The dimensions and members a taxonomy allows for concepts' facts (XBRL Dimensions)

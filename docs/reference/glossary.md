@@ -58,6 +58,23 @@ qname
     The prefix stands for a namespace of the taxonomy. Reports write
     concepts, items and units as qnames.
 
+concept
+:   The XBRL element that names what a fact measures, such as
+    `eba_met:mi53`; the EBA's taxonomy calls it a metric.
+
+dimension
+:   A qualifier on a fact, such as the counterparty or the currency, given
+    as an explicit member (an item) or a typed value.
+
+hypercube
+:   The dimensions and members a taxonomy allows for a concept's facts,
+    under [XBRL Dimensions 1.0][xdt-spec] (XDT). dpm-xbrl checks facts
+    against them when given the taxonomy packages.
+
+XDT
+:   XBRL Dimensions 1.0, the specification of dimensions and hypercubes;
+    section numbers are written as "XDT §3.1.1".
+
 report package
 :   A ZIP that holds a report in the layout of
     [Report Packages 1.0][report-packages]: one top-level folder with
@@ -73,6 +90,13 @@ taxonomy package
     files inside, under [Taxonomy Packages 1.0][taxonomy-packages]. The EBA
     publishes each release's taxonomy as taxonomy packages. With them, a
     report's metadata resolves offline.
+
+metadata
+:   The JSON table descriptions a report's `report.json` extends from the
+    taxonomy: what each column of an xBRL-CSV table means. Without the
+    taxonomy packages, dpm-xbrl reads EBA tables by their `datapoint` and
+    `factValue` columns instead, the EBA convention, and facts get
+    datapoint codes but no concept or unit.
 
 entry point
 :   The taxonomy file a report refers to (`report.json` extends it, an XML
@@ -173,6 +197,13 @@ validation rules
 :   The EBA's rules on the values of a report, written in DPM-XL, such as a
     total equal to the sum of its parts. dpm-xl evaluates them.
 
+rule
+expression
+:   A validation rule is an expression in DPM-XL, with an optional
+    precondition and a severity, under a code such as `v0001`.
+    `dpm-xl check` counts a rule's expression and its precondition as two
+    expressions.
+
 precondition
 :   A DPM-XL condition attached to a validation rule, usually the filing
     indicator of the template the rule checks, such as `{v_C_07.00}`. The
@@ -194,8 +225,10 @@ filing rules
     [standards and conformance](standards.md).
 
 finding
-:   One filing rule a report breaks, as dpm-xbrl reports it: the rule
-    number, tag, severity, count and locations.
+:   One filing rule a report breaks, as dpm-xbrl reports it: its severity,
+    rule number (or id), title, tag, spec code, message, count and
+    locations. The tag is the EBA's short code for the condition, such as
+    `nilUsed`.
 
 severity
 :   How serious a broken rule is: `error` or `warning`.
@@ -219,3 +252,8 @@ profile
 :   A supervisor's variant of the EBA filing rules, chosen with
     `dpm-xbrl inspect --profile`. `eba`, the default, keeps every rule;
     `dnb` leaves out the rules De Nederlandsche Bank does not apply.
+
+exit status
+:   The number a command returns, the same in the three tools: 0 done, 1 a
+    rule or finding at or above `--fail-on` failed, 2 a usage error, 3
+    unreadable or invalid input.

@@ -45,7 +45,6 @@ nav = [
   { "AI agents" = "agents.md" },
   { "Toolkit" = [
     { "Overview" = "toolkit.md" },
-    { "Toolkit tour" = "https://luukhopman.github.io/dpm-xl/guides/toolkit-tour/" },
     { "dpm-xl" = "https://luukhopman.github.io/dpm-xl/" },
     { "dpm-xbrl" = "https://luukhopman.github.io/dpm-xbrl/" },
   ] },

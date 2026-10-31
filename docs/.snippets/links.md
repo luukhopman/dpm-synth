@@ -14,3 +14,4 @@
 [dpm-xl-spec]: https://dpm-alliance.github.io/dpm-xl-docs/0.11/
 [lei-standard]: https://www.iso.org/standard/78829.html
 [semver]: https://semver.org
+[xdt-spec]: https://www.xbrl.org/specification/dimensions/rec-2012-01-25/dimensions-rec-2006-09-18+corrected-errata-2012-01-25-clean.html

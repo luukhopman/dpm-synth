@@ -29,7 +29,6 @@ PYPROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 NAME = PYPROJECT["project"]["name"]
 PACKAGES = ("dpm-xl", "dpm-xbrl", "dpm-synth")
 SITE = "https://luukhopman.github.io/{}/"
-TOUR = "https://luukhopman.github.io/dpm-xl/guides/toolkit-tour/"
 
 CANONICAL = """\
 **Part of the dpm toolkit**, three Python packages that work together:
@@ -51,13 +50,13 @@ SHARED_SHA256 = {
         "0b0b4aeff0f85ffe10e7856854d0e82014341f1564be3ae7f68f6075d5c36381"
     ),
     "docs/.snippets/glossary.md": (
-        "b5519ad7f68f0d04bc856a93bc471e16b8d8f01ebef71c2380b6923bf06b97f6"
+        "bf18babc9cd2c8e678040a3fb5591b7256c7074c1069d34f15d2f71bbf5268df"
     ),
     "docs/reference/glossary.md": (
-        "f572c58838cbcf76aa563a97484438d8c96fdad4c1c27b8b701ffd5523afde97"
+        "e5c726eae9ea917a86f7a50b98d2fe03d3d7a88588bc9b7b3cf4b467aa807e37"
     ),
     "docs/toolkit.md": (
-        "ce8cf8affd61ad2caa6319c468beb04a31ca0506fdd6ec516f1da0adfd018267"
+        "a38692a43c2fc80c952d797fbd3c1ab24e2fb0042612f7a606a67d1edb189472"
     ),
     "docs/stylesheets/toolkit.css": (
         "3f231d0fc3d385f888c2dd44cf00266c37126322bf78d0acef79654d4dce39cf"
@@ -166,6 +165,5 @@ def test_docs_footer_and_navigation() -> None:
     )
     assert toolkit == [
         {"Overview": "toolkit.md"},
-        {"Toolkit tour": TOUR},
         *({name: SITE.format(name)} for name in PACKAGES if name != NAME),
     ]
