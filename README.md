@@ -44,7 +44,8 @@ write_xbrl_csv(result.report, "report.zip")
 2 of 2 rules pass; failing: []
 ```
 
-From the command line, with an exit status of 1 if some rules still fail:
+From the command line, with an exit status of 1 if a rule of severity
+`error` still fails:
 
 ```console
 $ dpm-synth generate minimal.json -o report.zip --seed 7
