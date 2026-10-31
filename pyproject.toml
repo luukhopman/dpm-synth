@@ -50,7 +50,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
     "Typing :: Typed",
 ]
-dependencies = ["dpm-xl>=1.0,<2", "dpm-xbrl>=1.0,<2"]
+dependencies = ["dpm-xl>=1.3,<2", "dpm-xbrl>=1.1,<2"]
 
 [project.urls]
 Homepage = "https://luukhopman.github.io/dpm-synth/"
