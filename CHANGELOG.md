@@ -3,7 +3,20 @@
 All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org).
 
-## Unreleased
+## 1.1.0 - 2026-10-31
+
+### Breaking
+
+- rules end with dpm-xl's statuses; `GenerationResult.statuses`,
+  `messages` and `summary` replace `passed`, `rules`, `not_evaluated` and
+  `not_applicable`, and the text summary uses the same words.
+- `generate --json` has `schema_version` 2, with `tool`,
+  `version`, counts under `summary` and a `results` entry per rule.
+- Values generated for a seed change: rounding, filing indicators,
+  currencies, typed keys, realism options and the joint solve all affect
+  them.
+
+### Changed
 
 - A comparison with `max` or `min` of several values is repaired by moving
   the argument that gives the value, instead of the other cells only.
@@ -71,11 +84,12 @@ All notable changes to this project are documented here. The project follows
 - `fill` (`--fill RATIO`) leaves a share of the cells out, for sparse
   reports that still satisfy the rules.
 - The starting values above change the values generated for every seed.
-- Breaking: rules end with dpm-xl's statuses; `GenerationResult.statuses`,
-  `messages` and `summary` replace `passed`, `rules`, `not_evaluated` and
-  `not_applicable`, and the text summary uses the same words.
-- Breaking: `generate --json` has `schema_version` 2, with `tool`,
-  `version`, counts under `summary` and a `results` entry per rule.
+
+### Known issues
+
+- FINREP9 reports leave 45 to 65 of its rules failing: its linear rules
+  can all hold together, but the dependency-free solver does not settle
+  them before repairs of other rules undo them. See the limits page.
 
 ## 1.0.0 - 2026-10-24
 

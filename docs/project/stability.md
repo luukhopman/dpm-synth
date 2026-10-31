@@ -1,12 +1,14 @@
 ---
-description: dpm-synth's semantic versioning policy - what the public API is, what may change in minor releases, reproducibility, and the supported Python versions.
+description: dpm-synth's versioning policy - what the public API is, when a release may break it, reproducibility, and the supported Python versions.
 ---
 
 # Stability and versioning
 
-dpm-synth follows [semantic versioning][semver]. A major version may break
-the public API; minor and patch versions do not. The
-[changelog](changelog.md) lists every change, with breaking changes marked.
+dpm-synth uses [semantic versioning][semver] version numbers: major, minor
+and patch. dpm-xl, dpm-xbrl and dpm-synth have no outside users yet. Until
+they do, a minor release may contain breaking changes; the
+[changelog](changelog.md) lists every change and always lists breaking
+ones under "Breaking".
 
 ## The public API
 
@@ -19,7 +21,8 @@ the public API; minor and patch versions do not. The
   `TemplateError`, a `ValueError`.
 - The [`dpm-synth-template/1`](../reference/template-format.md) format. A
   change that a reader of version 1 cannot ignore gets a new format version;
-  dpm-synth keeps reading version 1 for the rest of the major version.
+  dpm-synth keeps reading version 1 for as long as it reads the format at
+  all, and a change that drops it is listed under "Breaking".
 - The CLI: its commands, options, [exit statuses](../reference/exit-statuses.md)
   and the [`--json` layout](../reference/json-output.md), versioned by
   `schema_version`.
@@ -47,5 +50,5 @@ dropped only in a minor release, after its end of life.
 
 ## Dependencies
 
-dpm-synth depends on dpm-xl and dpm-xbrl, within one major version of
-each (`>=1.0,<2`), and uses only their public APIs.
+dpm-synth depends on dpm-xl and dpm-xbrl within 1.x (dpm-xl 1.3 or newer
+and dpm-xbrl 1.1 or newer, below 2), and uses only their public APIs.
