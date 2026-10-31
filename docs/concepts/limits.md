@@ -24,14 +24,14 @@ document; seed 7, default options. The time is wall clock on a laptop
 | COREP_OF, release 4.3 | |
 | --- | --- |
 | Tables and cells | 81 tables, 21,339 cells |
-| Rules | 1,418: 213 skipped, 1,151 apply, 54 not applicable |
-| Rules that apply | 1,150 pass, 1 fails |
+| Rules | 1,418: 182 skipped, 1,178 apply, 58 not applicable |
+| Rules that apply | 1,177 pass, 1 fails |
 | Rounds | 14 |
-| Facts written | 25,483 |
+| Facts written | 25,432 |
 | Time | 30 s |
 
 - Skipped rules are those the EBA deactivated (`"active": false`); the
-  other 1,205 rules are evaluated.
+  other 1,236 rules are evaluated.
 - The rules that apply are those that are evaluated and whose precondition
   holds. None is `error` or `unsupported`.
 - The rule that fails is the warning `v4810_m`, so the exit status is 0.
@@ -104,7 +104,8 @@ not have, is an error of the template file. A rule on a reporting template
 that is listed in `filing_indicators` but has no tables in the file is
 `not_applicable`.
 
-An `error` rule makes exit status 1, as a failing rule does; an
+A rule of severity `error` that is an `error` makes exit status 1, as a
+failing one does (with `--fail-on warning`, warnings count too); an
 `unsupported` rule never changes the exit status.
 
 ## Rules that do not apply

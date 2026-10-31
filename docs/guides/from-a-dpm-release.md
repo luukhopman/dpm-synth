@@ -13,10 +13,11 @@ reads it as it is.
 
 ## 1. Get the database
 
-You need the EBA's DPM 2.0 database as a SQLite file, about 350 MB. The
-EBA publishes each release as a Microsoft Access file; dpm-xl's guide
-shows how to
-[convert it, or download one already converted](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/#2-get-the-database-as-sqlite).
+You need the EBA's DPM 2.0 database: the ZIP the EBA publishes, read as
+it is when [mdbtools](https://github.com/mdbtools/mdbtools) is on `PATH`,
+or the same database converted to SQLite (about 350 MB), which needs
+nothing else. dpm-xl's guide shows
+[both ways](https://luukhopman.github.io/dpm-xl/guides/from-a-dpm-release/#2-get-the-database).
 One database holds every release up to its own, so the 4.4 database,
 `dpm-4.4.sqlite` below, also exports release 4.3.
 
@@ -43,14 +44,16 @@ of a release.
 dpm-synth generate corep_of.json -o report.zip --seed 7
 ```
 
+On the release 4.3 export of step 2, from the 4.4 database:
+
 ```text
-rules: 1418, passed: 1150, failed: 1, not applicable: 54, skipped: 213
-rounds: 14 (failing rules per round: 69, 33, 22, 11, 11, 11, 11, 11, 11, 11, 1, 2, 2, 2)
+rules: 1418, passed: 1177, failed: 1, not applicable: 58, skipped: 182
+rounds: 14 (failing rules per round: 73, 29, 18, 6, 6, 6, 6, 6, 6, 6, 1, 2, 2, 2)
 still failing: v4810_m (warning)
-wrote report.zip (25483 facts)
+wrote report.zip (25432 facts)
 ```
 
-The 213 skipped rules are those the EBA deactivated. Expect a few rules to
+The 182 skipped rules are those the EBA had deactivated by release 4.3. Expect a few rules to
 stay failing on a real module: [limits of the loop](../concepts/limits.md)
 explains why. Here `v4810_m` is a warning, so the exit status is 0; a
 failing `error` rule makes it 1, and the package is written either way.

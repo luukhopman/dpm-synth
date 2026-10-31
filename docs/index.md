@@ -88,10 +88,11 @@ command is `dpm-synth`.
 
 The template file [`minimal.json`](samples/minimal.json) has one table of
 three monetary cells and two rules: row 0010 is the sum of rows 0020 and 0030,
-and both components are not negative. Every example in these pages runs
-against the templates in
+and both components are not negative. Every Python example and
+`dpm-synth` command in these pages runs against the templates in
 [`docs/samples`](https://github.com/luukhopman/dpm-synth/tree/main/docs/samples),
-and the test suite checks that each prints what is shown.
+and the test suite checks that each prints what is shown; output from
+real EBA modules and from `dpm-xl` commands is recorded by hand.
 
 ## From an EBA DPM release
 
@@ -105,7 +106,8 @@ dpm-synth generate module.json -o report.zip --seed 7
 ```
 
 `dpm-4.4.sqlite` is the EBA's DPM 2.0 database as a SQLite file;
-[get a template from a DPM release](guides/from-a-dpm-release.md) says
+`export-module` also reads the ZIP the EBA publishes when mdbtools is
+installed. [get a template from a DPM release](guides/from-a-dpm-release.md) says
 where to get it and what to expect.
 
 ## Find your way
