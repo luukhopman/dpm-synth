@@ -47,8 +47,8 @@ All notable changes to this project are documented here. The project follows
 - `load_template` rejects an enumerated cell or open key without `items`;
   a cell used to get the invalid value `eba_qx:qx0`.
 - A template's optional `filing_indicators` lists every template of the
-  module; those without tables are reported with a negative filing
-  indicator.
+  module, each once ignoring case; those without tables are reported with
+  a negative filing indicator.
 - The reporting currency is the template's `currency`, or `--currency`
   (`currency=` in `generate`), instead of always EUR, and `baseCurrency`
   is left out when no monetary fact is reported.

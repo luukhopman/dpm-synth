@@ -237,6 +237,10 @@ _DELETE = object()
             "filing_indicators[1]: 'T_01.00' repeats filing_indicators[0]",
         ),
         (
+            _set(["filing_indicators"], ["T_01.00", "t_01.00"]),
+            "filing_indicators[1]: 't_01.00' repeats filing_indicators[0]",
+        ),
+        (
             _set(["filing_indicators"], ["T_02.00"]),
             "tables[0].filing_indicator: 'T_01.00' is not in filing_indicators",
         ),

@@ -361,6 +361,9 @@ class _Loader:
         self, root: Mapping[str, Any], tables: tuple[TemplateTable, ...]
     ) -> tuple[str, ...]:
         codes: dict[str, int] = {}
+        # Filing indicators match ignoring case, so case does not tell two
+        # apart.
+        folded: dict[str, int] = {}
         for index, code in enumerate(self.array(root, "filing_indicators", "")):
             where = f"filing_indicators[{index}]"
             if not isinstance(code, str) or not code.strip():
@@ -368,11 +371,13 @@ class _Loader:
                     f"{where}: expected a filing indicator such as 'C_07.00', "
                     f"got {_kind(code)}"
                 )
-            if code in codes:
+            if code.casefold() in folded:
                 raise TemplateError(
-                    f"{where}: {code!r} repeats filing_indicators[{codes[code]}]"
+                    f"{where}: {code!r} repeats "
+                    f"filing_indicators[{folded[code.casefold()]}]"
                 )
             codes[_encodable(code, where)] = index
+            folded[code.casefold()] = index
         if codes:
             for index, table in enumerate(tables):
                 if table.filing_indicator not in codes:
