@@ -3,10 +3,12 @@
 All notable changes to this project are documented here. The project follows
 [semantic versioning](https://semver.org).
 
-## Unreleased
+## 1.2.0 - 2026-10-31
 
 ### Changed
 
+- The same seed gives different values than in 1.1.x, because the joint
+  solve and the repairs changed.
 - The joint solve finishes with the simplex method, so linear rules that
   projections only approached now hold exactly. FINREP9 (release 4.3)
   passes every rule on seeds 0 to 4 and 7 with `fill` 1 and 0.5, where
